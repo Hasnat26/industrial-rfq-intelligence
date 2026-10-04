@@ -10,6 +10,8 @@ from freellmpool.api.db import (
     ProcurementPackage,
     Project,
     Requirement,
+    TechnicalClarification,
+    TechnicalDeviation,
     VendorClaim,
     VendorOffer,
     get_db,
@@ -30,6 +32,10 @@ from freellmpool.api.schemas import (
     ProjectRead,
     RequirementCreate,
     RfqResponse,
+    TechnicalClarificationCreate,
+    TechnicalClarificationRead,
+    TechnicalDeviationCreate,
+    TechnicalDeviationRead,
     TechnicalStatusUpdate,
 )
 from freellmpool.industrial import Requirement as EngineRequirement, VendorValue, build_matrix
@@ -198,6 +204,71 @@ def add_claim(
     return claim
 
 
+@app.post(
+    "/offers/{offer_id}/deviations",
+    response_model=TechnicalDeviationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_deviation(
+    offer_id: int,
+    payload: TechnicalDeviationCreate,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalDeviation:
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None:
+        raise HTTPException(status_code=404, detail="offer not found")
+    if offer.package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
+    severity = payload.severity.strip().upper()
+    deviation_status = payload.status.strip().upper()
+    if severity not in {"MINOR", "MAJOR"}:
+        raise HTTPException(status_code=422, detail="severity must be MINOR or MAJOR")
+    if deviation_status not in {"OPEN", "RESOLVED", "ACCEPTED", "REJECTED"}:
+        raise HTTPException(status_code=422, detail="invalid deviation status")
+    deviation = TechnicalDeviation(
+        offer_id=offer_id,
+        parameter=payload.parameter.strip(),
+        severity=severity,
+        description=payload.description.strip(),
+        status=deviation_status,
+        resolution=payload.resolution,
+    )
+    db.add(deviation)
+    db.commit()
+    db.refresh(deviation)
+    return deviation
+
+
+@app.post(
+    "/offers/{offer_id}/clarifications",
+    response_model=TechnicalClarificationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_clarification(
+    offer_id: int,
+    payload: TechnicalClarificationCreate,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalClarification:
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None:
+        raise HTTPException(status_code=404, detail="offer not found")
+    if offer.package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
+    clarification_status = payload.status.strip().upper()
+    if clarification_status not in {"OPEN", "ANSWERED", "CLOSED"}:
+        raise HTTPException(status_code=422, detail="invalid clarification status")
+    clarification = TechnicalClarification(
+        offer_id=offer_id,
+        question=payload.question.strip(),
+        response=payload.response,
+        status=clarification_status,
+    )
+    db.add(clarification)
+    db.commit()
+    db.refresh(clarification)
+    return clarification
+
+
 @app.post("/offers/{offer_id}/technical-status", response_model=OfferRead)
 def update_technical_status(
     offer_id: int,
@@ -233,6 +304,17 @@ def lock_technical_bid(
         raise HTTPException(status_code=409, detail="at least one vendor offer is required")
     blocking_statuses = {"PENDING", "IN_REVIEW", "CLARIFICATION_REQUIRED"}
     blocking = [offer.vendor_name for offer in package.offers if offer.technical_status in blocking_statuses]
+    unresolved = [
+        f"{offer.vendor_name}: unresolved technical issue"
+        for offer in package.offers
+        if any(item.status == "OPEN" for item in offer.deviations)
+        or any(item.status == "OPEN" for item in offer.clarifications)
+    ]
+    if unresolved:
+        raise HTTPException(
+            status_code=409,
+            detail=f"technical issues remain unresolved: {', '.join(unresolved)}",
+        )
     if blocking:
         raise HTTPException(
             status_code=409,
