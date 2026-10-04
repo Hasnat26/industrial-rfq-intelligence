@@ -133,3 +133,33 @@ def test_technical_status_cannot_change_after_commercial_open() -> None:
         json={"status": "ACCEPTED"},
     )
     assert blocked.status_code == 409
+
+
+def test_vendor_document_ingestion() -> None:
+    organization = client.post("/organizations", json={"name": "Org Documents"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Document Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Docs"},
+    ).json()
+    response = client.post(
+        f"/offers/{offer['id']}/documents",
+        files={"file": ("quotation.txt", b"Rated voltage: 415 V", "text/plain")},
+    )
+    assert response.status_code == 201
+    assert response.json()["filename"] == "quotation.txt"
+    assert response.json()["page_count"] == 1
+    document = client.get(f"/documents/{response.json()['id']}")
+    assert document.status_code == 200
