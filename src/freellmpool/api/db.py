@@ -73,6 +73,18 @@ class Requirement(Base):
     package: Mapped[ProcurementPackage] = relationship(back_populates="requirements")
 
 
+class VendorClaim(Base):
+    __tablename__ = "vendor_claims"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(ForeignKey("vendor_offers.id"), index=True)
+    parameter: Mapped[str] = mapped_column(String(200))
+    value: Mapped[str] = mapped_column(String(250))
+    evidence: Mapped[str] = mapped_column(Text, default="")
+    claim_status: Mapped[str] = mapped_column(String(40), default="UNVERIFIED")
+    offer: Mapped["VendorOffer"] = relationship(back_populates="claims")
+
+
 class VendorOffer(Base):
     __tablename__ = "vendor_offers"
 
@@ -88,6 +100,7 @@ class VendorOffer(Base):
     warranty: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     package: Mapped[ProcurementPackage] = relationship(back_populates="offers")
+    claims: Mapped[list[VendorClaim]] = relationship(back_populates="offer", cascade="all, delete-orphan")
 
 
 def init_db() -> None:
