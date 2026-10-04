@@ -30,6 +30,7 @@ from freellmpool.api.schemas import (
     ProjectRead,
     RequirementCreate,
     RfqResponse,
+    TechnicalStatusUpdate,
 )
 from freellmpool.industrial import Requirement as EngineRequirement, VendorValue, build_matrix
 
@@ -197,6 +198,30 @@ def add_claim(
     return claim
 
 
+@app.post("/offers/{offer_id}/technical-status", response_model=OfferRead)
+def update_technical_status(
+    offer_id: int,
+    payload: TechnicalStatusUpdate,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> VendorOffer:
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None:
+        raise HTTPException(status_code=404, detail="offer not found")
+    if offer.package.commercial_evaluation_open:
+        raise HTTPException(
+            status_code=409,
+            detail="technical status cannot change after commercial opening",
+        )
+    allowed = {"PENDING", "IN_REVIEW", "CLARIFICATION_REQUIRED", "ACCEPTED", "ACCEPTED_WITH_DEVIATION", "REJECTED"}
+    status_value = payload.status.strip().upper()
+    if status_value not in allowed:
+        raise HTTPException(status_code=422, detail="invalid technical status")
+    offer.technical_status = status_value
+    db.commit()
+    db.refresh(offer)
+    return offer
+
+
 @app.post("/packages/{package_id}/technical-lock", response_model=PackageRead)
 def lock_technical_bid(
     package_id: int, db: Session = Depends(get_db)  # noqa: B008
@@ -204,10 +229,16 @@ def lock_technical_bid(
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
+    if not package.offers:
+        raise HTTPException(status_code=409, detail="at least one vendor offer is required")
+    blocking_statuses = {"PENDING", "IN_REVIEW", "CLARIFICATION_REQUIRED"}
+    blocking = [offer.vendor_name for offer in package.offers if offer.technical_status in blocking_statuses]
+    if blocking:
+        raise HTTPException(
+            status_code=409,
+            detail=f"technical evaluation incomplete for: {', '.join(blocking)}",
+        )
     package.technical_bid_locked = True
-    for offer in package.offers:
-        if offer.technical_status == "PENDING":
-            offer.technical_status = "ACCEPTED"
     db.commit()
     db.refresh(package)
     return package
@@ -227,7 +258,10 @@ def open_commercial_evaluation(
         )
     package.commercial_evaluation_open = True
     for offer in package.offers:
-        offer.commercial_status = "OPEN"
+        if offer.technical_status in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
+            offer.commercial_status = "OPEN"
+        else:
+            offer.commercial_status = "LOCKED"
     db.commit()
     db.refresh(package)
     return package
