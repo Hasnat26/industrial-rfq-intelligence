@@ -1,9 +1,23 @@
+from __future__ import annotations
+
+import io
+import os
+
 from fastapi.testclient import TestClient
+from pypdf import PdfWriter
 
 from freellmpool.api import app
 from freellmpool.api.db import Base, engine
 
 client = TestClient(app)
+
+
+def _blank_pdf() -> bytes:
+    buffer = io.BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    writer.write(buffer)
+    return buffer.getvalue()
 
 
 def setup_function() -> None:
@@ -178,6 +192,13 @@ def test_vendor_offer_revision() -> None:
             "name": "VFD Package",
             "category": "VFD",
             "mode": "PROJECT_EPC",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
         },
     ).json()
     offer = client.post(
@@ -205,6 +226,270 @@ def test_vendor_offer_revision() -> None:
     )
     assert revision.status_code == 201
     assert revision.json()["technical_revision"] == "R2"
+    duplicate = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert duplicate.status_code == 409
+    offers = client.get(f"/packages/{package['id']}/offers").json()
+    assert [item["technical_revision"] for item in offers] == ["R1", "R2"]
+    assert offers[0]["id"] == offer["id"]
     comparison = client.get(f"/packages/{package['id']}/comparison")
     assert comparison.status_code == 200
-    assert len(comparison.json()["rows"]) == 2
+    rows = comparison.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["status"] == "COMPLIANT"
+
+
+def _seed_offer(mode: str = "PROJECT_EPC") -> dict:
+    organization = client.post("/organizations", json={"name": f"Org {mode} {os.urandom(4).hex()}"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": mode,
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Flow", "price": "5000", "currency": "USD"},
+    ).json()
+    return {"package": package, "offer": offer}
+
+
+def test_document_ingestion_formats_and_rejections() -> None:
+    seeded = _seed_offer(mode="STANDARD")
+    offer_id = seeded["offer"]["id"]
+
+    markdown = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("technical-offer.md", b"# Offer\nRated voltage: 415 V", "text/markdown")},
+    )
+    assert markdown.status_code == 201
+    assert markdown.json()["filename"] == "technical-offer.md"
+    assert markdown.json()["page_count"] == 1
+    assert markdown.json()["pages"][0]["page_number"] == 1
+
+    buffer = io.BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    writer.write(buffer)
+    pdf = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("quotation.pdf", buffer.getvalue(), "application/pdf")},
+    )
+    assert pdf.status_code == 201
+    assert pdf.json()["filename"] == "quotation.pdf"
+    assert pdf.json()["page_count"] == 1
+
+    unsupported = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("tool.exe", b"MZ\x90\x00", "application/octet-stream")},
+    )
+    assert unsupported.status_code == 415
+
+    traversal = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("../../evil.txt", b"Rated voltage: 415 V", "text/plain")},
+    )
+    assert traversal.status_code == 201
+    stored_name = traversal.json()["filename"]
+    assert stored_name == "evil.txt"
+    assert "/" not in stored_name and ".." not in stored_name
+
+    oversized = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("big.txt", b"x" * (10 * 1024 * 1024 + 1), "text/plain")},
+    )
+    assert oversized.status_code == 413
+
+    fetched = client.get(f"/documents/{markdown.json()['id']}")
+    assert fetched.status_code == 200
+    assert fetched.json()["filename"] == "technical-offer.md"
+    assert client.get("/documents/999999").status_code == 404
+
+
+def test_document_upload_blocked_after_technical_lock() -> None:
+    seeded = _seed_offer()
+    offer_id = seeded["offer"]["id"]
+    package_id = seeded["package"]["id"]
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert accepted.status_code == 200
+    locked = client.post(f"/packages/{package_id}/technical-lock")
+    assert locked.status_code == 200
+    blocked = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("late.txt", b"more evidence", "text/plain")},
+    )
+    assert blocked.status_code == 409
+
+
+def test_evidence_traceability() -> None:
+    seeded = _seed_offer(mode="STANDARD")
+    offer_id = seeded["offer"]["id"]
+    document = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("nameplate.pdf", _blank_pdf(), "application/pdf")},
+    ).json()
+
+    linked = client.post(
+        f"/offers/{offer_id}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "nameplate.pdf p.1",
+            "claim_status": "VERIFIED",
+            "source_document_id": document["id"],
+            "source_page": 1,
+            "source_section": "Nameplate",
+        },
+    )
+    assert linked.status_code == 201
+
+    unlinked_location = client.post(
+        f"/offers/{offer_id}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "source_page": 1,
+        },
+    )
+    assert unlinked_location.status_code == 422
+
+    other = _seed_offer(mode="STANDARD")
+    foreign_document = client.post(
+        f"/offers/{other['offer']['id']}/documents",
+        files={"file": ("other.txt", b"other vendor", "text/plain")},
+    ).json()
+    foreign = client.post(
+        f"/offers/{offer_id}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "source_document_id": foreign_document["id"],
+            "source_page": 1,
+        },
+    )
+    assert foreign.status_code == 404
+
+    bad_status = client.post(
+        f"/offers/{offer_id}/claims",
+        json={"parameter": "Rated voltage", "value": "415 V", "claim_status": "MAGIC"},
+    )
+    assert bad_status.status_code == 422
+
+    evidence = client.get(f"/packages/{seeded['package']['id']}/evidence")
+    assert evidence.status_code == 200
+    rows = evidence.json()["rows"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["vendor"] == "Vendor Flow"
+    assert row["technical_revision"] == "R1"
+    assert row["source_document_filename"] == "nameplate.pdf"
+    assert row["page"] == 1
+    assert row["section"] == "Nameplate"
+    assert row["claim_status"] == "VERIFIED"
+    assert row["review_required"] == "NO"
+
+
+def test_technical_freeze_blocks_claims_revisions_documents() -> None:
+    seeded = _seed_offer()
+    offer_id = seeded["offer"]["id"]
+    package_id = seeded["package"]["id"]
+
+    hidden = client.get(f"/packages/{package_id}/offers").json()
+    assert hidden[0]["price"] is None
+
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert accepted.status_code == 200
+    assert client.post(f"/packages/{package_id}/technical-lock").status_code == 200
+
+    late_claim = client.post(
+        f"/offers/{offer_id}/claims",
+        json={"parameter": "Rated voltage", "value": "415 V"},
+    )
+    assert late_claim.status_code == 409
+    late_revision = client.post(
+        f"/offers/{offer_id}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert late_revision.status_code == 409
+    late_status = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "REJECTED"},
+    )
+    assert late_status.status_code == 409
+
+    opened = client.post(f"/packages/{package_id}/commercial-open")
+    assert opened.status_code == 200
+    revealed = client.get(f"/packages/{package_id}/offers").json()
+    assert revealed[0]["price"] == "5000"
+    post_open_claim = client.post(
+        f"/offers/{offer_id}/claims",
+        json={"parameter": "Rated voltage", "value": "415 V"},
+    )
+    assert post_open_claim.status_code == 409
+
+
+def test_clarification_close_preserves_vendor_response() -> None:
+    seeded = _seed_offer(mode="STANDARD")
+    offer_id = seeded["offer"]["id"]
+    clarification = client.post(
+        f"/offers/{offer_id}/clarifications",
+        json={
+            "question": "Confirm voltage basis.",
+            "status": "ANSWERED",
+            "response": "415 V",
+        },
+    ).json()
+    closed = client.post(
+        f"/clarifications/{clarification['id']}/close",
+        json={"note": "Engineering accepted the answer."},
+    )
+    assert closed.status_code == 200
+    assert closed.json()["status"] == "CLOSED"
+    assert closed.json()["response"] == "415 V"
+    assert closed.json()["resolution"] == "Engineering accepted the answer."
+    again = client.post(
+        f"/clarifications/{clarification['id']}/close",
+        json={"note": "Second note must not overwrite."},
+    )
+    assert again.status_code == 409
+
+    deviation = client.post(
+        f"/offers/{offer_id}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MAJOR",
+            "description": "Offers 400 V design.",
+        },
+    ).json()
+    resolved = client.post(
+        f"/deviations/{deviation['id']}/resolve",
+        json={"note": "Accepted by engineering."},
+    )
+    assert resolved.status_code == 200
+    reresolve = client.post(
+        f"/deviations/{deviation['id']}/resolve",
+        json={"note": "Overwrite attempt."},
+    )
+    assert reresolve.status_code == 409

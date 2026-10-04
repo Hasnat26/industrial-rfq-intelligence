@@ -112,6 +112,8 @@ testpaths = [
     "tests/test_industrial_report.py",
     "tests/test_security_config.py",
     "tests/test_release_config.py",
+    "tests/test_ci_config.py",
+    "tests/test_procurement_domain.py",
     "tests/test_api.py",
 ]
 addopts = "-q"
