@@ -31,15 +31,16 @@ from freellmpool.api.schemas import (
     ProjectCreate,
     ProjectRead,
     RequirementCreate,
+    IssueResolution,
     RfqResponse,
     TechnicalClarificationCreate,
     TechnicalClarificationRead,
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
-    IssueResolution,
     TechnicalStatusUpdate,
 )
-from freellmpool.industrial import Requirement as EngineRequirement, VendorValue, build_matrix
+from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.industrial import VendorValue, build_matrix
 
 
 def run() -> None:
