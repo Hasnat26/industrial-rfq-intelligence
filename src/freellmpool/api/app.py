@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, HTTPException, status
+import tempfile
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from freellmpool.api.db import (
@@ -12,6 +15,7 @@ from freellmpool.api.db import (
     Requirement,
     TechnicalClarification,
     TechnicalDeviation,
+    VendorDocument,
     VendorClaim,
     VendorOffer,
     get_db,
@@ -38,9 +42,10 @@ from freellmpool.api.schemas import (
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
     TechnicalStatusUpdate,
+    VendorDocumentRead,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
-from freellmpool.industrial import VendorValue, build_matrix
+from freellmpool.industrial import VendorValue, build_matrix, document_text, extract_document_pages
 
 
 def run() -> None:
