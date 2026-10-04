@@ -152,3 +152,14 @@ class RfqResponse(BaseModel):
     requirements: list[RequirementCreate]
     instructions: list[str]
 
+
+
+class VendorDocumentRead(BaseModel):
+    id: int
+    offer_id: int
+    filename: str
+    content_type: str | None
+    document_type: str
+    page_count: int
+
+    model_config = {"from_attributes": True}
