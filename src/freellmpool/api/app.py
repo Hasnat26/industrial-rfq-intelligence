@@ -35,6 +35,11 @@ from freellmpool.industrial import Requirement as EngineRequirement
 from freellmpool.industrial import VendorValue, build_matrix
 
 
+def run() -> None:
+    import uvicorn
+    uvicorn.run("freellmpool.api.app:app", host="127.0.0.1", port=8000, reload=False)
+
+
 app = FastAPI(title="Industrial RFQ Intelligence API", version="0.2.0")
 
 
