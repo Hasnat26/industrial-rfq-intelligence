@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from freellmpool.api import app
 from freellmpool.api.db import Base, engine
 
-
 client = TestClient(app)
 
 
