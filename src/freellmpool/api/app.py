@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from freellmpool.api.db import (
     Organization,
-    Project,
     ProcurementPackage,
+    Project,
     Requirement,
     VendorClaim,
     VendorOffer,
@@ -31,8 +31,7 @@ from freellmpool.api.schemas import (
     RequirementCreate,
     RfqResponse,
 )
-from freellmpool.industrial import Requirement as EngineRequirement
-from freellmpool.industrial import VendorValue, build_matrix
+from freellmpool.industrial import Requirement as EngineRequirement, VendorValue, build_matrix
 
 
 def run() -> None:
