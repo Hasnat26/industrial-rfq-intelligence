@@ -61,4 +61,4 @@ jobs:
           test "$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
           test "$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
           unzip -l dist/*.whl | grep -q 'freellmpool/industrial.py'
-          tar -tzf dist/*.tar.gz | grep -q 'industrial-rfq-intelligence-0.1.0/pyproject.toml'
+          tar -tzf dist/*.tar.gz | grep -q 'industrial_rfq_intelligence-0.1.0/pyproject.toml'
