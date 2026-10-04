@@ -106,6 +106,34 @@ class ClaimCreate(BaseModel):
     claim_status: str = "UNVERIFIED"
 
 
+class TechnicalDeviationCreate(BaseModel):
+    parameter: str = Field(min_length=1, max_length=200)
+    severity: str = Field(default="MINOR", min_length=1, max_length=30)
+    description: str = Field(min_length=1)
+    status: str = Field(default="OPEN", min_length=1, max_length=30)
+    resolution: str | None = None
+
+
+class TechnicalDeviationRead(TechnicalDeviationCreate):
+    id: int
+    offer_id: int
+
+    model_config = {"from_attributes": True}
+
+
+class TechnicalClarificationCreate(BaseModel):
+    question: str = Field(min_length=1)
+    response: str | None = None
+    status: str = Field(default="OPEN", min_length=1, max_length=30)
+
+
+class TechnicalClarificationRead(TechnicalClarificationCreate):
+    id: int
+    offer_id: int
+
+    model_config = {"from_attributes": True}
+
+
 class ClaimRead(ClaimCreate):
     id: int
 
