@@ -114,6 +114,10 @@ class TechnicalDeviationCreate(BaseModel):
     resolution: str | None = None
 
 
+class IssueResolution(BaseModel):
+    note: str = Field(min_length=1)
+
+
 class TechnicalDeviationRead(TechnicalDeviationCreate):
     id: int
     offer_id: int
