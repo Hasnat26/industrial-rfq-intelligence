@@ -37,6 +37,7 @@ from freellmpool.api.schemas import (
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
     TechnicalStatusUpdate,
+    IssueResolution,
 )
 from freellmpool.industrial import Requirement as EngineRequirement, VendorValue, build_matrix
 
@@ -264,6 +265,48 @@ def add_clarification(
         status=clarification_status,
     )
     db.add(clarification)
+    db.commit()
+    db.refresh(clarification)
+    return clarification
+
+
+@app.post(
+    "/deviations/{deviation_id}/resolve",
+    response_model=TechnicalDeviationRead,
+)
+def resolve_deviation(
+    deviation_id: int,
+    payload: IssueResolution,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalDeviation:
+    deviation = db.get(TechnicalDeviation, deviation_id)
+    if deviation is None:
+        raise HTTPException(status_code=404, detail="deviation not found")
+    if deviation.offer.package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
+    deviation.status = "RESOLVED"
+    deviation.resolution = payload.note.strip()
+    db.commit()
+    db.refresh(deviation)
+    return deviation
+
+
+@app.post(
+    "/clarifications/{clarification_id}/close",
+    response_model=TechnicalClarificationRead,
+)
+def close_clarification(
+    clarification_id: int,
+    payload: IssueResolution,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalClarification:
+    clarification = db.get(TechnicalClarification, clarification_id)
+    if clarification is None:
+        raise HTTPException(status_code=404, detail="clarification not found")
+    if clarification.offer.package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
+    clarification.status = "CLOSED"
+    clarification.response = payload.note.strip()
     db.commit()
     db.refresh(clarification)
     return clarification
