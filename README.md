@@ -1,5 +1,7 @@
 # Industrial RFQ Intelligence
 
+> **SaaS transition:** the existing evidence-aware engineering core is being extended into a project-aware industrial procurement intelligence platform. See `docs/SAAS_PRODUCT_ARCHITECTURE.md`, `docs/SAAS_DATA_MODEL.md`, and `docs/SAAS_IMPLEMENTATION_ROADMAP.md` for the target architecture and staged build plan.
+
 Evidence-aware technical and commercial review for industrial RFQs, vendor quotations, and EPC engineering workflows.
 
 Industrial RFQ Intelligence is a Python-based engineering decision-support workflow that combines document extraction, LLM-assisted structured reading, deterministic compliance logic, and evidence traceability.
