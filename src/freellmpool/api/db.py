@@ -6,7 +6,16 @@ import os
 from collections.abc import Generator
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 
@@ -94,10 +103,19 @@ class VendorClaim(Base):
 
 class VendorOffer(Base):
     __tablename__ = "vendor_offers"
+    __table_args__ = (
+        UniqueConstraint(
+            "package_id",
+            "vendor_key",
+            "technical_revision",
+            name="uq_vendor_offers_package_vendor_revision",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
     vendor_name: Mapped[str] = mapped_column(String(200))
+    vendor_key: Mapped[str] = mapped_column(String(200), default="")
     technical_revision: Mapped[str] = mapped_column(String(50), default="R1")
     technical_status: Mapped[str] = mapped_column(String(40), default="PENDING")
     commercial_status: Mapped[str] = mapped_column(String(30), default="LOCKED")

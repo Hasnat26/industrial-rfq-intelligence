@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from freellmpool.api.db import (
@@ -84,6 +85,26 @@ def _require_technical_stage_open(package: ProcurementPackage) -> None:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
     if package.commercial_evaluation_open:
         raise HTTPException(status_code=409, detail="commercial evaluation is already open")
+
+
+def _vendor_key(vendor_name: str) -> str:
+    """Normalize a vendor name for duplicate-offer detection."""
+    return " ".join(vendor_name.split()).casefold()
+
+
+def _find_duplicate_offer(
+    package: ProcurementPackage,
+    vendor_key: str,
+    technical_revision: str,
+) -> VendorOffer | None:
+    """Return an existing offer with the same normalized vendor and revision."""
+    for existing in package.offers:
+        if (
+            _vendor_key(existing.vendor_name) == vendor_key
+            and existing.technical_revision == technical_revision
+        ):
+            return existing
+    return None
 
 
 def _safe_filename(raw: str | None) -> str:
@@ -237,10 +258,22 @@ def add_offer(
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
     _require_technical_stage_open(package)
+    vendor_name = payload.vendor_name.strip()
+    technical_revision = payload.technical_revision.strip()
+    vendor_key = _vendor_key(vendor_name)
+    if _find_duplicate_offer(package, vendor_key, technical_revision) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"an offer for {vendor_name} revision {technical_revision} "
+                "already exists for this package"
+            ),
+        )
     offer = VendorOffer(
         package_id=package_id,
-        vendor_name=payload.vendor_name.strip(),
-        technical_revision=payload.technical_revision.strip(),
+        vendor_name=vendor_name,
+        vendor_key=vendor_key,
+        technical_revision=technical_revision,
         price=payload.price,
         currency=payload.currency,
         lead_time=payload.lead_time,
@@ -248,7 +281,14 @@ def add_offer(
         source_text=payload.source_text,
     )
     db.add(offer)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="an offer for this vendor and revision already exists",
+        ) from exc
     db.refresh(offer)
     return offer
 
@@ -297,20 +337,28 @@ def create_offer_revision(
     revision = payload.technical_revision.strip()
     if not revision:
         raise HTTPException(status_code=422, detail="technical_revision must not be empty")
-    for existing in offer.package.offers:
-        if existing.vendor_name == offer.vendor_name and existing.technical_revision == revision:
-            raise HTTPException(
-                status_code=409,
-                detail=f"revision {revision} already exists for {offer.vendor_name}",
-            )
+    vendor_key = _vendor_key(offer.vendor_name)
+    if _find_duplicate_offer(offer.package, vendor_key, revision) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"revision {revision} already exists for {offer.vendor_name}",
+        )
     revision_offer = VendorOffer(
         package_id=offer.package_id,
         vendor_name=offer.vendor_name,
+        vendor_key=vendor_key,
         technical_revision=revision,
         source_text=payload.source_text,
     )
     db.add(revision_offer)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"revision {revision} already exists for {offer.vendor_name}",
+        ) from exc
     db.refresh(revision_offer)
     return revision_offer
 
@@ -344,6 +392,14 @@ def add_claim(
         document = db.get(VendorDocument, payload.source_document_id)
         if document is None or document.offer_id != offer_id:
             raise HTTPException(status_code=404, detail="source document not found for this offer")
+        if payload.source_page is not None and payload.source_page > document.page_count:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"source_page must be between 1 and {document.page_count} "
+                    "for this document"
+                ),
+            )
     claim = VendorClaim(
         offer_id=offer_id,
         parameter=payload.parameter.strip(),
@@ -380,8 +436,14 @@ def add_deviation(
     deviation_status = payload.status.strip().upper()
     if severity not in {"MINOR", "MAJOR"}:
         raise HTTPException(status_code=422, detail="severity must be MINOR or MAJOR")
-    if deviation_status not in {"OPEN", "RESOLVED", "ACCEPTED", "REJECTED"}:
-        raise HTTPException(status_code=422, detail="invalid deviation status")
+    if deviation_status != "OPEN":
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "deviations must be created with status OPEN; "
+                "use the resolve endpoint to record resolution"
+            ),
+        )
     deviation = TechnicalDeviation(
         offer_id=offer_id,
         parameter=payload.parameter.strip(),
@@ -411,8 +473,14 @@ def add_clarification(
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     clarification_status = payload.status.strip().upper()
-    if clarification_status not in {"OPEN", "ANSWERED", "CLOSED"}:
-        raise HTTPException(status_code=422, detail="invalid clarification status")
+    if clarification_status not in {"OPEN", "ANSWERED"}:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "clarifications must be created OPEN or ANSWERED; "
+                "use the close endpoint to record closure"
+            ),
+        )
     clarification = TechnicalClarification(
         offer_id=offer_id,
         question=payload.question.strip(),
