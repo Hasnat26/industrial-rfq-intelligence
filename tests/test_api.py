@@ -60,9 +60,36 @@ def test_project_epc_gate() -> None:
     assert blocked.status_code == 409
     premature_lock = client.post(f"/packages/{package['id']}/technical-lock")
     assert premature_lock.status_code == 409
+    deviation = client.post(
+        f"/offers/{offer.json()['id']}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MINOR",
+            "description": "Vendor proposes equivalent 400 V design.",
+        },
+    )
+    assert deviation.status_code == 201
+    premature_lock_with_issue = client.post(f"/packages/{package['id']}/technical-lock")
+    assert premature_lock_with_issue.status_code == 409
+    clarification = client.post(
+        f"/offers/{offer.json()['id']}/clarifications",
+        json={"question": "Confirm final voltage basis.", "status": "ANSWERED", "response": "415 V"},
+    )
+    assert clarification.status_code == 201
+    resolved_deviation = client.post(
+        f"/offers/{offer.json()['id']}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MINOR",
+            "description": "Equivalent design accepted.",
+            "status": "RESOLVED",
+            "resolution": "Engineering review accepted.",
+        },
+    )
+    assert resolved_deviation.status_code == 201
     evaluated = client.post(
         f"/offers/{offer.json()['id']}/technical-status",
-        json={"status": "ACCEPTED"},
+        json={"status": "ACCEPTED_WITH_DEVIATION"},
     )
     assert evaluated.status_code == 200
     locked = client.post(f"/packages/{package['id']}/technical-lock")
