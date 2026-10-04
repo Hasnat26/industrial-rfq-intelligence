@@ -75,7 +75,7 @@ security = [
 industrial-rfq-intelligence = "freellmpool.cli:main"
 freellmpool = "freellmpool.cli:main"
 ffp = "freellmpool.cli:main"
-industrial-rfq-api = "freellmpool.api:app"
+industrial-rfq-api = "freellmpool.api.app:run"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freellmpool"]
