@@ -100,6 +100,12 @@ class VendorOffer(Base):
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     package: Mapped[ProcurementPackage] = relationship(back_populates="offers")
     claims: Mapped[list[VendorClaim]] = relationship(back_populates="offer", cascade="all, delete-orphan")
+    deviations: Mapped[list[TechnicalDeviation]] = relationship(
+        back_populates="offer", cascade="all, delete-orphan"
+    )
+    clarifications: Mapped[list[TechnicalClarification]] = relationship(
+        back_populates="offer", cascade="all, delete-orphan"
+    )
 
 
 def init_db() -> None:
@@ -112,3 +118,27 @@ def get_db() -> Generator[object, None, None]:
         yield db
     finally:
         db.close()
+
+
+class TechnicalDeviation(Base):
+    __tablename__ = "technical_deviations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(ForeignKey("vendor_offers.id"), index=True)
+    parameter: Mapped[str] = mapped_column(String(200))
+    severity: Mapped[str] = mapped_column(String(30), default="MINOR")
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="OPEN")
+    resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    offer: Mapped[VendorOffer] = relationship(back_populates="deviations")
+
+
+class TechnicalClarification(Base):
+    __tablename__ = "technical_clarifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(ForeignKey("vendor_offers.id"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="OPEN")
+    offer: Mapped[VendorOffer] = relationship(back_populates="clarifications")
