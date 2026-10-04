@@ -14,7 +14,10 @@ def setup_function() -> None:
 
 def test_project_epc_gate() -> None:
     organization = client.post("/organizations", json={"name": "Demo EPC"}).json()
-    project = client.post("/projects", json={"organization_id": organization["id"], "name": "Project A"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project A"},
+    ).json()
     package = client.post(
         "/packages",
         json={
@@ -22,7 +25,13 @@ def test_project_epc_gate() -> None:
             "name": "VFD Package",
             "category": "VFD",
             "mode": "PROJECT_EPC",
-            "requirements": [{"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}],
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
         },
     ).json()
     rfq = client.get(f"/packages/{package['id']}/rfq")
@@ -36,7 +45,12 @@ def test_project_epc_gate() -> None:
     assert offer.status_code == 201
     claim = client.post(
         f"/offers/{offer.json()['id']}/claims",
-        json={"parameter": "Rated voltage", "value": "415 V", "evidence": "Vendor quotation p.1", "claim_status": "VERIFIED"},
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "Vendor quotation p.1",
+            "claim_status": "VERIFIED",
+        },
     )
     assert claim.status_code == 201
     comparison = client.get(f"/packages/{package['id']}/comparison")
