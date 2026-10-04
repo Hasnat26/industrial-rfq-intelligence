@@ -77,16 +77,11 @@ def test_project_epc_gate() -> None:
     )
     assert clarification.status_code == 201
     resolved_deviation = client.post(
-        f"/offers/{offer.json()['id']}/deviations",
-        json={
-            "parameter": "Rated voltage",
-            "severity": "MINOR",
-            "description": "Equivalent design accepted.",
-            "status": "RESOLVED",
-            "resolution": "Engineering review accepted.",
-        },
+        f"/deviations/{deviation.json()['id']}/resolve",
+        json={"note": "Engineering review accepted the deviation."},
     )
-    assert resolved_deviation.status_code == 201
+    assert resolved_deviation.status_code == 200
+    assert resolved_deviation.json()["status"] == "RESOLVED"
     evaluated = client.post(
         f"/offers/{offer.json()['id']}/technical-status",
         json={"status": "ACCEPTED_WITH_DEVIATION"},
