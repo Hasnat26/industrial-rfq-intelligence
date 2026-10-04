@@ -106,6 +106,9 @@ class VendorOffer(Base):
     clarifications: Mapped[list[TechnicalClarification]] = relationship(
         back_populates="offer", cascade="all, delete-orphan"
     )
+    documents: Mapped[list[VendorDocument]] = relationship(
+        back_populates="offer", cascade="all, delete-orphan"
+    )
 
 
 def init_db() -> None:
@@ -142,3 +145,16 @@ class TechnicalClarification(Base):
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="OPEN")
     offer: Mapped[VendorOffer] = relationship(back_populates="clarifications")
+
+
+class VendorDocument(Base):
+    __tablename__ = "vendor_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(ForeignKey("vendor_offers.id"), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    document_type: Mapped[str] = mapped_column(String(30), default="VENDOR_OFFER")
+    page_count: Mapped[int] = mapped_column(Integer, default=1)
+    extracted_text: Mapped[str] = mapped_column(Text, default="")
+    offer: Mapped[VendorOffer] = relationship(back_populates="documents")
