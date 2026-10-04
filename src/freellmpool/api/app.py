@@ -54,7 +54,7 @@ def health() -> dict[str, str]:
 
 
 @app.post("/organizations", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
-def create_organization(payload: OrganizationCreate, db: Session = Depends(get_db)) -> Organization:
+def create_organization(payload: OrganizationCreate, db: Session = Depends(get_db)  # noqa: B008) -> Organization:
     organization = Organization(name=payload.name.strip())
     db.add(organization)
     db.commit()
@@ -63,7 +63,7 @@ def create_organization(payload: OrganizationCreate, db: Session = Depends(get_d
 
 
 @app.post("/projects", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
+def create_project(payload: ProjectCreate, db: Session = Depends(get_db)  # noqa: B008) -> Project:
     if db.get(Organization, payload.organization_id) is None:
         raise HTTPException(status_code=404, detail="organization not found")
     project = Project(
@@ -78,7 +78,7 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
 
 
 @app.post("/packages", response_model=PackageRead, status_code=status.HTTP_201_CREATED)
-def create_package(payload: PackageCreate, db: Session = Depends(get_db)) -> ProcurementPackage:
+def create_package(payload: PackageCreate, db: Session = Depends(get_db)  # noqa: B008) -> ProcurementPackage:
     if payload.mode not in {"STANDARD", "PROJECT_EPC"}:
         raise HTTPException(status_code=422, detail="mode must be STANDARD or PROJECT_EPC")
     if db.get(Project, payload.project_id) is None:
@@ -106,7 +106,7 @@ def create_package(payload: PackageCreate, db: Session = Depends(get_db)) -> Pro
 
 
 @app.get("/packages/{package_id}/rfq", response_model=RfqResponse)
-def generate_rfq(package_id: int, db: Session = Depends(get_db)) -> RfqResponse:
+def generate_rfq(package_id: int, db: Session = Depends(get_db)  # noqa: B008) -> RfqResponse:
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
@@ -138,7 +138,7 @@ def generate_rfq(package_id: int, db: Session = Depends(get_db)) -> RfqResponse:
 
 
 @app.post("/packages/{package_id}/offers", response_model=OfferRead, status_code=status.HTTP_201_CREATED)
-def add_offer(package_id: int, payload: OfferCreate, db: Session = Depends(get_db)) -> VendorOffer:
+def add_offer(package_id: int, payload: OfferCreate, db: Session = Depends(get_db)  # noqa: B008) -> VendorOffer:
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
@@ -161,7 +161,7 @@ def add_offer(package_id: int, payload: OfferCreate, db: Session = Depends(get_d
 
 
 @app.post("/offers/{offer_id}/claims", response_model=ClaimRead, status_code=status.HTTP_201_CREATED)
-def add_claim(offer_id: int, payload: ClaimCreate, db: Session = Depends(get_db)) -> VendorClaim:
+def add_claim(offer_id: int, payload: ClaimCreate, db: Session = Depends(get_db)  # noqa: B008) -> VendorClaim:
     offer = db.get(VendorOffer, offer_id)
     if offer is None:
         raise HTTPException(status_code=404, detail="offer not found")
@@ -181,7 +181,7 @@ def add_claim(offer_id: int, payload: ClaimCreate, db: Session = Depends(get_db)
 
 
 @app.post("/packages/{package_id}/technical-lock", response_model=PackageRead)
-def lock_technical_bid(package_id: int, db: Session = Depends(get_db)) -> ProcurementPackage:
+def lock_technical_bid(package_id: int, db: Session = Depends(get_db)  # noqa: B008) -> ProcurementPackage:
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
@@ -195,7 +195,7 @@ def lock_technical_bid(package_id: int, db: Session = Depends(get_db)) -> Procur
 
 
 @app.post("/packages/{package_id}/commercial-open", response_model=PackageRead)
-def open_commercial_evaluation(package_id: int, db: Session = Depends(get_db)) -> ProcurementPackage:
+def open_commercial_evaluation(package_id: int, db: Session = Depends(get_db)  # noqa: B008) -> ProcurementPackage:
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
@@ -213,7 +213,7 @@ def open_commercial_evaluation(package_id: int, db: Session = Depends(get_db)) -
 
 
 @app.get("/packages/{package_id}/comparison", response_model=ComparisonResponse)
-def compare_package(package_id: int, db: Session = Depends(get_db)) -> ComparisonResponse:
+def compare_package(package_id: int, db: Session = Depends(get_db)  # noqa: B008) -> ComparisonResponse:
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
