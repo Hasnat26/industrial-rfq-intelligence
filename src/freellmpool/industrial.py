@@ -110,13 +110,20 @@ def _parse_provenance(item: dict[str, object], location: str) -> EvidenceProvena
     page = raw.get("page")
     if page is not None and (not isinstance(page, int) or isinstance(page, bool) or page < 1):
         raise ValueError(f"{location}.provenance.page must be a positive integer or null")
-    values: dict[str, object] = {"source": source.strip(), "page": page}
+    page_value: int | None = page if isinstance(page, int) and not isinstance(page, bool) else None
+    fields: dict[str, str | None] = {}
     for field in ("section", "table", "cell"):
         value = raw.get(field)
         if value is not None and not isinstance(value, str):
             raise ValueError(f"{location}.provenance.{field} must be a string or null")
-        values[field] = value.strip() if isinstance(value, str) else None
-    return EvidenceProvenance(**values)
+        fields[field] = value.strip() if isinstance(value, str) else None
+    return EvidenceProvenance(
+        source=source.strip(),
+        page=page_value,
+        section=fields["section"],
+        table=fields["table"],
+        cell=fields["cell"],
+    )
 
 
 def load_rfq_input(path: str | Path) -> tuple[list[Requirement], list[VendorValue], list[CommercialValue]]:
@@ -585,16 +592,16 @@ def build_evidence_register(requirements: Sequence[Requirement], vendor_data: Se
     rows: list[dict[str, str]] = []
     for item in vendor_data:
         rows.append({"source_type": "technical_quotation", "vendor": item.vendor, "field": item.parameter, "value": item.value, "evidence": item.evidence, "claim_status": item.claim_status, "review_required": "YES" if item.claim_status != "VERIFIED" else "NO", **_provenance_fields(item.provenance)})
-    for item in commercial_data:
+    for entry in commercial_data:
         rows.append({
             "source_type": "commercial_quotation",
-            "vendor": item.vendor,
+            "vendor": entry.vendor,
             "field": "price / lead_time / warranty / payment_terms",
-            "value": f"{item.price} {item.currency}; {item.lead_time}; {item.warranty}; {item.payment_terms}",
-            "evidence": item.evidence,
-            "claim_status": item.claim_status,
-            "review_required": "YES" if item.claim_status != "VERIFIED" else "NO",
-            **_provenance_fields(item.provenance),
+            "value": f"{entry.price} {entry.currency}; {entry.lead_time}; {entry.warranty}; {entry.payment_terms}",
+            "evidence": entry.evidence,
+            "claim_status": entry.claim_status,
+            "review_required": "YES" if entry.claim_status != "VERIFIED" else "NO",
+            **_provenance_fields(entry.provenance),
         })
     return rows
 
