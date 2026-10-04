@@ -93,3 +93,26 @@ class ComparisonResponse(BaseModel):
     technical_locked: bool
     commercial_open: bool
     rows: list[ComparisonRow]
+
+
+class ClaimCreate(BaseModel):
+    parameter: str = Field(min_length=1, max_length=200)
+    value: str = Field(min_length=1, max_length=250)
+    evidence: str = ""
+    claim_status: str = "UNVERIFIED"
+
+
+class ClaimRead(ClaimCreate):
+    id: int
+
+    model_config = {"from_attributes": True}
+
+
+class RfqResponse(BaseModel):
+    package_id: int
+    title: str
+    mode: str
+    category: str
+    requirements: list[RequirementCreate]
+    instructions: list[str]
+
