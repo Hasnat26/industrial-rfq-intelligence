@@ -28,6 +28,7 @@ from freellmpool.api.schemas import (
     ComparisonRow,
     OfferCreate,
     OfferRead,
+    OfferRevisionCreate,
     OrganizationCreate,
     OrganizationRead,
     PackageCreate,
