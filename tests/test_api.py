@@ -163,3 +163,48 @@ def test_vendor_document_ingestion() -> None:
     assert response.json()["page_count"] == 1
     document = client.get(f"/documents/{response.json()['id']}")
     assert document.status_code == 200
+
+
+def test_vendor_offer_revision() -> None:
+    organization = client.post("/organizations", json={"name": "Org Revision"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Revision Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "VFD Package",
+            "category": "VFD",
+            "mode": "PROJECT_EPC",
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={
+            "vendor_name": "Vendor Revision",
+            "technical_revision": "R1",
+            "price": "10000",
+            "currency": "USD",
+        },
+    ).json()
+    claim = client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert claim.status_code == 201
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    assert revision.json()["technical_revision"] == "R2"
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    assert len(comparison.json()["rows"]) == 2
