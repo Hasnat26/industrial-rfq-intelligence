@@ -36,8 +36,8 @@ from freellmpool.api.schemas import (
     TechnicalClarificationRead,
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
-    TechnicalStatusUpdate,
     IssueResolution,
+    TechnicalStatusUpdate,
 )
 from freellmpool.industrial import Requirement as EngineRequirement, VendorValue, build_matrix
 
