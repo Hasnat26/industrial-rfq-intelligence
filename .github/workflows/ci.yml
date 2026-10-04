@@ -29,7 +29,9 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Type check Industrial RFQ modules
-        run: mypy --follow-imports=skip src/freellmpool/industrial.py src/freellmpool/industrial_report.py
+        run: |
+          mypy --follow-imports=skip src/freellmpool/industrial.py src/freellmpool/industrial_report.py
+          mypy src/freellmpool/api src/freellmpool/procurement_domain.py
       - name: Industrial CLI smoke
         run: |
           industrial-rfq-intelligence --version
