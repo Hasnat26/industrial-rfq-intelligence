@@ -81,7 +81,15 @@ class VendorClaim(Base):
     value: Mapped[str] = mapped_column(String(250))
     evidence: Mapped[str] = mapped_column(Text, default="")
     claim_status: Mapped[str] = mapped_column(String(40), default="UNVERIFIED")
+    source_document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("vendor_documents.id"), nullable=True, index=True
+    )
+    source_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_section: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    source_table: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    source_cell: Mapped[str | None] = mapped_column(String(100), nullable=True)
     offer: Mapped[VendorOffer] = relationship(back_populates="claims")
+    source_document: Mapped[VendorDocument | None] = relationship()
 
 
 class VendorOffer(Base):
@@ -144,6 +152,7 @@ class TechnicalClarification(Base):
     question: Mapped[str] = mapped_column(Text)
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="OPEN")
+    resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
     offer: Mapped[VendorOffer] = relationship(back_populates="clarifications")
 
 
@@ -158,3 +167,16 @@ class VendorDocument(Base):
     page_count: Mapped[int] = mapped_column(Integer, default=1)
     extracted_text: Mapped[str] = mapped_column(Text, default="")
     offer: Mapped[VendorOffer] = relationship(back_populates="documents")
+    pages: Mapped[list[VendorDocumentPage]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
+
+
+class VendorDocumentPage(Base):
+    __tablename__ = "vendor_document_pages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("vendor_documents.id"), index=True)
+    page_number: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text, default="")
+    document: Mapped[VendorDocument] = relationship(back_populates="pages")

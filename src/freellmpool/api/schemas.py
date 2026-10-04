@@ -109,6 +109,11 @@ class ClaimCreate(BaseModel):
     value: str = Field(min_length=1, max_length=250)
     evidence: str = ""
     claim_status: str = "UNVERIFIED"
+    source_document_id: int | None = Field(default=None, ge=1)
+    source_page: int | None = Field(default=None, ge=1)
+    source_section: str | None = Field(default=None, max_length=200)
+    source_table: str | None = Field(default=None, max_length=100)
+    source_cell: str | None = Field(default=None, max_length=100)
 
 
 class TechnicalDeviationCreate(BaseModel):
@@ -139,12 +144,14 @@ class TechnicalClarificationCreate(BaseModel):
 class TechnicalClarificationRead(TechnicalClarificationCreate):
     id: int
     offer_id: int
+    resolution: str | None = None
 
     model_config = {"from_attributes": True}
 
 
 class ClaimRead(ClaimCreate):
     id: int
+    offer_id: int
 
     model_config = {"from_attributes": True}
 
@@ -158,6 +165,12 @@ class RfqResponse(BaseModel):
     instructions: list[str]
 
 
+class VendorDocumentPageRead(BaseModel):
+    page_number: int
+    text: str
+
+    model_config = {"from_attributes": True}
+
 
 class VendorDocumentRead(BaseModel):
     id: int
@@ -166,5 +179,30 @@ class VendorDocumentRead(BaseModel):
     content_type: str | None
     document_type: str
     page_count: int
+    pages: list[VendorDocumentPageRead] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
+
+
+class EvidenceRow(BaseModel):
+    claim_id: int
+    offer_id: int
+    vendor: str
+    technical_revision: str
+    field: str
+    value: str
+    evidence: str
+    claim_status: str
+    review_required: str
+    source: str
+    page: int | None
+    section: str
+    table: str
+    cell: str
+    source_document_id: int | None
+    source_document_filename: str | None
+
+
+class EvidenceResponse(BaseModel):
+    package_id: int
+    rows: list[EvidenceRow]
