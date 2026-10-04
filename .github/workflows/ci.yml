@@ -40,7 +40,7 @@ jobs:
       - name: Industrial RFQ tests
         run: |
           pytest
-          pytest tests/test_industrial_demo.py tests/test_industrial_report.py --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
+          pytest tests/test_industrial_demo.py tests/test_industrial_report.py tests/test_api.py --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
       - name: Build and wheel smoke
         run: |
           python -m build
