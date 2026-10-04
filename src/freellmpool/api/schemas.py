@@ -65,6 +65,10 @@ class PackageRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TechnicalStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=40)
+
+
 class OfferRead(BaseModel):
     id: int
     package_id: int
