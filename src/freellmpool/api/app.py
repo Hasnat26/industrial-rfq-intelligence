@@ -5,8 +5,19 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 
-from freellmpool.api.db import Organization, Project, ProcurementPackage, Requirement, VendorOffer, get_db, init_db
+from freellmpool.api.db import (
+    Organization,
+    Project,
+    ProcurementPackage,
+    Requirement,
+    VendorClaim,
+    VendorOffer,
+    get_db,
+    init_db,
+)
 from freellmpool.api.schemas import (
+    ClaimCreate,
+    ClaimRead,
     ComparisonResponse,
     ComparisonRow,
     OfferCreate,
@@ -17,7 +28,12 @@ from freellmpool.api.schemas import (
     PackageRead,
     ProjectCreate,
     ProjectRead,
+    RequirementCreate,
+    RfqResponse,
 )
+from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.industrial import VendorValue, build_matrix
+
 
 app = FastAPI(title="Industrial RFQ Intelligence API", version="0.2.0")
 
@@ -45,7 +61,11 @@ def create_organization(payload: OrganizationCreate, db: Session = Depends(get_d
 def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
     if db.get(Organization, payload.organization_id) is None:
         raise HTTPException(status_code=404, detail="organization not found")
-    project = Project(organization_id=payload.organization_id, name=payload.name.strip(), code=payload.code)
+    project = Project(
+        organization_id=payload.organization_id,
+        name=payload.name.strip(),
+        code=payload.code,
+    )
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -80,6 +100,38 @@ def create_package(payload: PackageCreate, db: Session = Depends(get_db)) -> Pro
     return package
 
 
+@app.get("/packages/{package_id}/rfq", response_model=RfqResponse)
+def generate_rfq(package_id: int, db: Session = Depends(get_db)) -> RfqResponse:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None:
+        raise HTTPException(status_code=404, detail="package not found")
+    requirements = [
+        RequirementCreate(
+            tag=item.tag,
+            parameter=item.parameter,
+            required_value=item.required_value,
+            requirement_type=item.requirement_type,
+            acceptance_rule=item.acceptance_rule,
+        )
+        for item in package.requirements
+    ]
+    instructions = [
+        "Return a line-by-line technical offer against each requirement.",
+        "State deviations and exclusions explicitly; do not leave them implicit.",
+        "Submit the technical offer before commercial evaluation for PROJECT_EPC packages.",
+        "Commercial data must identify currency, price basis, lead time, warranty and payment terms.",
+        "Quote references and document/page evidence should be preserved where available.",
+    ]
+    return RfqResponse(
+        package_id=package.id,
+        title=f"RFQ - {package.name}",
+        mode=package.mode,
+        category=package.category,
+        requirements=requirements,
+        instructions=instructions,
+    )
+
+
 @app.post("/packages/{package_id}/offers", response_model=OfferRead, status_code=status.HTTP_201_CREATED)
 def add_offer(package_id: int, payload: OfferCreate, db: Session = Depends(get_db)) -> VendorOffer:
     package = db.get(ProcurementPackage, package_id)
@@ -103,6 +155,26 @@ def add_offer(package_id: int, payload: OfferCreate, db: Session = Depends(get_d
     return offer
 
 
+@app.post("/offers/{offer_id}/claims", response_model=ClaimRead, status_code=status.HTTP_201_CREATED)
+def add_claim(offer_id: int, payload: ClaimCreate, db: Session = Depends(get_db)) -> VendorClaim:
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None:
+        raise HTTPException(status_code=404, detail="offer not found")
+    if offer.commercial_status == "OPEN":
+        raise HTTPException(status_code=409, detail="technical claims are locked after commercial opening")
+    claim = VendorClaim(
+        offer_id=offer_id,
+        parameter=payload.parameter.strip(),
+        value=payload.value.strip(),
+        evidence=payload.evidence.strip(),
+        claim_status=payload.claim_status.strip().upper(),
+    )
+    db.add(claim)
+    db.commit()
+    db.refresh(claim)
+    return claim
+
+
 @app.post("/packages/{package_id}/technical-lock", response_model=PackageRead)
 def lock_technical_bid(package_id: int, db: Session = Depends(get_db)) -> ProcurementPackage:
     package = db.get(ProcurementPackage, package_id)
@@ -123,7 +195,10 @@ def open_commercial_evaluation(package_id: int, db: Session = Depends(get_db)) -
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
     if package.mode == "PROJECT_EPC" and not package.technical_bid_locked:
-        raise HTTPException(status_code=409, detail="technical bid must be locked before commercial evaluation")
+        raise HTTPException(
+            status_code=409,
+            detail="technical bid must be locked before commercial evaluation",
+        )
     package.commercial_evaluation_open = True
     for offer in package.offers:
         offer.commercial_status = "OPEN"
@@ -137,14 +212,33 @@ def compare_package(package_id: int, db: Session = Depends(get_db)) -> Compariso
     package = db.get(ProcurementPackage, package_id)
     if package is None:
         raise HTTPException(status_code=404, detail="package not found")
-    rows: list[ComparisonRow] = []
-    for requirement in package.requirements:
-        for offer in package.offers:
-            offered = None
-            if requirement.parameter.casefold() in {"price", "commercial price"}:
-                offered = offer.price
-            status_value = "UNVERIFIED" if offered is None else "REVIEW_REQUIRED"
-            rows.append(ComparisonRow(vendor=offer.vendor_name, parameter=requirement.parameter, required=requirement.required_value, offered=offered, status=status_value))
+
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+    ]
+    vendor_values = [
+        VendorValue(
+            offer.vendor_name,
+            claim.parameter,
+            claim.value,
+            claim.evidence,
+            claim.claim_status,
+        )
+        for offer in package.offers
+        for claim in offer.claims
+    ]
+    matrix = build_matrix(requirements, vendor_values)
+    rows = [
+        ComparisonRow(
+            vendor=row["vendor"],
+            parameter=row["parameter"],
+            required=row["required"],
+            offered=None if row["offered"] == "MISSING" else row["offered"],
+            status=row["status"],
+        )
+        for row in matrix
+    ]
     return ComparisonResponse(
         package_id=package.id,
         technical_locked=package.technical_bid_locked,
