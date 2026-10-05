@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from freellmpool.api import app
-from freellmpool.api.db import Base, RfqRevision, SessionLocal, VendorOffer, engine
+from freellmpool.api.db import Base, ProcurementPackage, RfqRevision, SessionLocal, VendorOffer, engine
 
 
 client = TestClient(app)
@@ -69,8 +69,10 @@ def test_new_package_creates_r1_and_binds_requirements_and_offer() -> None:
         assert revision.revision == "R1"
         assert revision.status == "CURRENT"
         assert revision.reason == "Initial RFQ baseline"
-        package_row = db.get(type(persisted_offer.package), package_id)
+        package_row = db.get(ProcurementPackage, package_id)
+        assert package_row is not None
         assert package_row.current_rfq_revision_id == revision.id
+        assert persisted_offer is not None
         assert persisted_offer.rfq_revision_id == revision.id
         assert all(item.rfq_revision_id == revision.id for item in revision.requirements)
         assert {item.parameter for item in revision.requirements} == {
