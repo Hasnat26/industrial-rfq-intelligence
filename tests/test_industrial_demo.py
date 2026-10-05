@@ -999,3 +999,20 @@ def test_document_ocr_fails_with_actionable_error_when_optional_dependencies_are
         assert "pip install 'industrial-rfq-intelligence[ocr]'" in str(exc)
     else:
         raise AssertionError("OCR unexpectedly ran without optional dependencies")
+
+
+def test_document_ocr_cli_options_are_exposed() -> None:
+    from freellmpool.cli import build_parser
+
+    args = build_parser().parse_args([
+        "industrial-document",
+        "scanned.pdf",
+        "--ocr",
+        "--ocr-language",
+        "eng",
+        "--ocr-min-text-chars",
+        "10",
+    ])
+    assert args.ocr is True
+    assert args.ocr_language == "eng"
+    assert args.ocr_min_text_chars == 10
