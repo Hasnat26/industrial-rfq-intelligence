@@ -17,8 +17,8 @@ from freellmpool.api.auth import authenticate, get_current_user, is_member, issu
 from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
-    ProcurementPackage,
     ProcurementAuditEvent,
+    ProcurementPackage,
     Project,
     Requirement,
     TechnicalClarification,
