@@ -211,6 +211,39 @@ def build_decision_support(
         )
 
     summaries.sort(key=lambda item: (-item.technical_score, item.vendor.casefold()))
+    vendor_payloads: list[DecisionSupportVendorPayload] = [
+        {
+            "vendor": item.vendor,
+            "technical_score": item.technical_score,
+            "evidence_coverage_pct": item.evidence_coverage_pct,
+            "requirements_checked": item.requirements_checked,
+            "compliant_count": item.compliant_count,
+            "deviation_count": item.deviation_count,
+            "major_deviation_count": item.major_deviation_count,
+            "minor_deviation_count": item.minor_deviation_count,
+            "conflict_count": item.conflict_count,
+            "missing_evidence_count": item.missing_evidence_count,
+            "weighted_requirements": item.weighted_requirements,
+            "weighted_points": item.weighted_points,
+        }
+        for item in summaries
+    ]
+    row_payloads: list[DecisionSupportRowPayload] = [
+        {
+            "requirement": row.requirement,
+            "vendor": row.vendor,
+            "parameter": row.parameter,
+            "required": row.required,
+            "offered": row.offered,
+            "status": row.status,
+            "severity": row.severity,
+            "evidence": row.evidence,
+            "claim_status": row.claim_status,
+            "weight": row.weight,
+            "score_factor": row.score_factor,
+        }
+        for row in detail_rows
+    ]
     return {
         "formula": {
             "technical_score": "100 * weighted_points / weighted_requirements",
@@ -227,37 +260,6 @@ def build_decision_support(
             },
             "evidence_coverage": "100 * requirements with explicit evidence / requirements checked",
         },
-        "vendors": [
-            {
-                "vendor": item.vendor,
-                "technical_score": item.technical_score,
-                "evidence_coverage_pct": item.evidence_coverage_pct,
-                "requirements_checked": item.requirements_checked,
-                "compliant_count": item.compliant_count,
-                "deviation_count": item.deviation_count,
-                "major_deviation_count": item.major_deviation_count,
-                "minor_deviation_count": item.minor_deviation_count,
-                "conflict_count": item.conflict_count,
-                "missing_evidence_count": item.missing_evidence_count,
-                "weighted_requirements": item.weighted_requirements,
-                "weighted_points": item.weighted_points,
-            }
-            for item in summaries
-        ],
-        "rows": [
-            {
-                "requirement": row.requirement,
-                "vendor": row.vendor,
-                "parameter": row.parameter,
-                "required": row.required,
-                "offered": row.offered,
-                "status": row.status,
-                "severity": row.severity,
-                "evidence": row.evidence,
-                "claim_status": row.claim_status,
-                "weight": row.weight,
-                "score_factor": row.score_factor,
-            }
-            for row in detail_rows
-        ],
+        "vendors": vendor_payloads,
+        "rows": row_payloads,
     }
