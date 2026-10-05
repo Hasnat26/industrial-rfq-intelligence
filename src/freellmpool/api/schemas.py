@@ -219,6 +219,28 @@ class DecisionSupportResponse(BaseModel):
     formula: dict[str, object]
 
 
+class EngineeringVendorProfileRead(BaseModel):
+    vendor: str
+    disposition: str
+    rationale: list[str]
+    technical_score: float
+    evidence_coverage_pct: float
+    compliant_count: int
+    deviation_count: int
+    major_deviation_count: int
+    minor_deviation_count: int
+    conflict_count: int
+    missing_evidence_count: int
+
+
+class EngineeringDecisionSummaryRead(BaseModel):
+    package_id: int
+    status: str
+    decision_basis: list[str]
+    vendor_profiles: list[EngineeringVendorProfileRead]
+    review_actions: list[str]
+
+
 class ClaimCreate(BaseModel):
     parameter: str = Field(min_length=1, max_length=200)
     value: str = Field(min_length=1, max_length=250)
