@@ -1064,3 +1064,63 @@ def test_web_workspace_lists_are_tenant_isolated() -> None:
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert isolated.status_code == 404
+
+
+def test_web_review_app_and_workspace_lists() -> None:
+    web = client.get("/")
+    assert web.status_code == 200
+    assert "Industrial RFQ Intelligence" in web.text
+    assert "Technical compliance matrix" in web.text
+
+    organization = client.post("/organizations", json={"name": "Web UI Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Web UI Project", "code": "WEB-01"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Review",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
+        },
+    ).json()
+
+    projects = client.get(f"/projects?organization_id={organization['id']}")
+    assert projects.status_code == 200
+    assert projects.json()[0]["id"] == project["id"]
+
+    packages = client.get(f"/packages?project_id={project['id']}")
+    assert packages.status_code == 200
+    assert packages.json()[0]["id"] == package["id"]
+
+
+def test_web_workspace_lists_are_tenant_isolated() -> None:
+    other = client.post("/organizations", json={"name": "Visible Only to Me"}).json()
+    response = client.get(f"/projects?organization_id={other['id']}")
+    assert response.status_code == 200
+
+    registered = client.post(
+        "/auth/register",
+        json={"email": "other@example.com", "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": "other@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    other_token = login.json()["access_token"]
+    isolated = client.get(
+        f"/projects?organization_id={other['id']}",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert isolated.status_code == 404
