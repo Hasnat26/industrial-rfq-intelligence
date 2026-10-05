@@ -128,6 +128,47 @@ def test_generated_rfq_uses_only_current_revision_requirements() -> None:
         {"tag": "R-02", "parameter": "Motor power", "required_value": "90 kW", "requirement_type": "MANDATORY", "acceptance_rule": None},
     ]
 
+
+def test_superseded_offer_cannot_change_workflow_status() -> None:
+    organization = client.post("/organizations", json={"name": "RFQ Workflow Isolation Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer revised voltage requirement.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+
+    technical = client.post(
+        f"/offers/{offer['id']}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert technical.status_code == 409
+    assert "superseded RFQ revision" in technical.json()["detail"]
+
 def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
     organization = client.post("/organizations", json={"name": "RFQ Revision Link Org"}).json()
     project = client.post(
