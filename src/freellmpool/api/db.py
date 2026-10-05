@@ -308,6 +308,25 @@ class ProcurementAuditEvent(Base):
     actor: Mapped[User] = relationship()
 
 
+class LifecycleCostRecord(Base):
+    """Canonical lifecycle cost input linked to an installed asset."""
+
+    __tablename__ = "lifecycle_cost_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[str] = mapped_column(String(200), index=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    event_id: Mapped[int | None] = mapped_column(ForeignKey("lifecycle_events.id"), nullable=True, index=True)
+    cost_type: Mapped[str] = mapped_column(String(30), index=True)
+    amount: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(10), default="USD")
+    cost_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
 class TechnicalDeviation(Base):
     __tablename__ = "technical_deviations"
 
