@@ -947,3 +947,40 @@ def test_technical_status_allows_normal_progression() -> None:
         )
         assert response.status_code == 200, response.text
         assert response.json()["technical_status"] == status_value
+
+
+def test_superseded_offer_deviation_cannot_be_resolved() -> None:
+    seeded = _seed_offer()
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+    deviation = client.post(
+        f"/offers/{offer_id}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MINOR",
+            "description": "Legacy deviation",
+        },
+    )
+    assert deviation.status_code == 201
+
+    revised = client.post(
+        f"/packages/{package_id}/rfq-revisions",
+        json={
+            "reason": "Updated voltage basis",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "690 V",
+                }
+            ],
+        },
+    )
+    assert revised.status_code == 201
+
+    resolved = client.post(
+        f"/deviations/{deviation.json()['id']}/resolve",
+        json={"note": "Should be blocked as stale."},
+    )
+    assert resolved.status_code == 409
+    assert "superseded RFQ revision" in resolved.json()["detail"]
