@@ -108,11 +108,13 @@ from freellmpool.industrial import (
     build_commercial_risk_review,
     build_evidence_register,
     build_matrix,
+    build_report,
     document_text,
     extract_claim_candidates,
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.industrial_report import render_engineering_report
 from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.product_categories import get_product_category, list_product_categories
 from freellmpool.technical_clarification import build_technical_clarification_package
@@ -2396,3 +2398,119 @@ def package_report(
     user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> dict[str, object]:
+    """Return the package as a machine-readable evidence-aware review report."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    active_offers = _active_vendor_offers(package)
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in revision.requirements
+    ]
+    vendor_values: list[VendorValue] = []
+    for offer in active_offers:
+        for claim in offer.claims:
+            provenance = (
+                EvidenceProvenance(
+                    source=claim.source_document.filename,
+                    page=claim.source_page,
+                    section=claim.source_section,
+                    table=claim.source_table,
+                    cell=claim.source_cell,
+                )
+                if claim.source_document is not None
+                else None
+            )
+            vendor_values.append(
+                VendorValue(
+                    offer.vendor_name,
+                    claim.parameter,
+                    claim.value,
+                    claim.evidence,
+                    _claim_status(claim.claim_status),
+                    provenance,
+                )
+            )
+
+    commercial_values = [
+        CommercialValue(
+            vendor=offer.vendor_name,
+            price=offer.price or "",
+            currency=offer.currency or "",
+            lead_time=offer.lead_time or "",
+            warranty=offer.warranty or "",
+            payment_terms="",
+            evidence=offer.source_text or "",
+            claim_status="UNVERIFIED",
+        )
+        for offer in active_offers
+        if any(
+            value
+            for value in (offer.price, offer.currency, offer.lead_time, offer.warranty, offer.source_text)
+        )
+    ]
+    report = build_report(requirements, vendor_values, commercial_values)
+    decision_support = build_decision_support(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in active_offers],
+        requirement_types={item.tag: item.requirement_type for item in revision.requirements},
+    )
+    report["decision_support"] = decision_support
+    commercial_values = [
+        CommercialValue(
+            offer.vendor_name,
+            offer.price or "",
+            offer.currency or "",
+            offer.lead_time or "",
+            offer.warranty or "",
+            "",
+            "",
+            "UNVERIFIED",
+        )
+        for offer in active_offers
+    ]
+    commercial_rows = build_commercial_risk_review(commercial_values)
+    settings = _get_evaluation_settings(db, package)
+    report["integrated_evaluation"] = build_integrated_evaluation(
+        decision_support["vendors"],
+        commercial_rows,
+        technical_weight=settings.technical_weight,
+        commercial_weight=settings.commercial_weight,
+    )
+    report["engineering_decision_summary"] = (
+        build_engineering_decision_summary(decision_support["vendors"])
+        if active_offers
+        else {
+            "status": "INSUFFICIENT_VENDOR_DATA",
+            "decision_basis": ["No vendor offers are available for engineering review."],
+            "vendor_profiles": [],
+            "review_actions": ["Obtain at least one vendor quotation before technical disposition."],
+        }
+    )
+    return report
+
+
+@app.get("/packages/{package_id}/report/markdown")
+def package_report_markdown(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> Response:
+    """Export the package review as an engineer-readable Markdown document."""
+    report = package_report(package_id, user, db)
+    markdown = render_engineering_report(report)
+    return Response(
+        content=markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="rfq-review-package-{package_id}.md"'
+        },
+    )
