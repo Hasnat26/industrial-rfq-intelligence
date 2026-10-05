@@ -64,7 +64,7 @@ Historical information remains decision support, not an automatic procurement in
 
 ## P4 - Lifecycle intelligence
 
-**Status: In progress.** P4.1 canonical lifecycle events, P4.2 installed asset/product records, P4.3 lifecycle cost inputs, and P4.4 asset-level lifecycle economics are implemented and merged. Lifecycle intelligence now exposes event history, failure/maintenance patterns, warranty dates, and lifecycle cost totals by asset and currency.
+**Status: In progress.** P4.1 canonical lifecycle events, P4.2 installed asset/product records, P4.3 lifecycle cost inputs, P4.4 asset-level lifecycle economics, and P4.5 reliability indicators are implemented and merged. Lifecycle intelligence now exposes event history, failure/maintenance patterns, warranty dates, lifecycle cost totals, and transparent reliability intervals.
 
 Deliverables:
 
@@ -75,7 +75,7 @@ Deliverables:
 - replacement history;
 - lifecycle cost inputs.
 
-P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, failure, warranty, and other lifecycle cost inputs. P4.4 rolls those costs into asset-level lifecycle intelligence alongside warranty dates and event history. Costs remain separate from event descriptions while optionally linking to a canonical lifecycle event for traceability.
+P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, failure, warranty, and other lifecycle cost inputs. P4.4 rolls those costs into asset-level lifecycle intelligence alongside warranty dates and event history. P4.5 adds failure-to-failure intervals and failure-to-next-maintenance intervals, with mean values derived only from canonical dated lifecycle events. Costs remain separate from event descriptions while optionally linking to a canonical lifecycle event for traceability.
 
 ## P5 - Commercial SaaS hardening
 
