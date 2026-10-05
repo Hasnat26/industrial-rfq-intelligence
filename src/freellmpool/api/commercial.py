@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
+from freellmpool.api.reconciliation import rollover_if_expired, run_commercial_reconciliation
 from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscription, UsageRecord, User, get_db
 from freellmpool.api.schemas import (
     OrganizationSubscriptionRead,
@@ -83,7 +84,7 @@ def _subscription(db: Session, organization_id: int) -> OrganizationSubscription
         )
     )
     if subscription is not None:
-        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and _rollover_if_expired(db, subscription, datetime.now(UTC)):
+        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and rollover_if_expired(subscription, datetime.now(UTC)):
             db.commit()
             db.refresh(subscription)
         return subscription
@@ -249,21 +250,6 @@ def usage_reconciliation(
     )
 
 
-def _rollover_if_expired(db: Session, subscription: OrganizationSubscription, now: datetime) -> bool:
-    if subscription.current_period_end > now:
-        return False
-    period_start = subscription.current_period_start
-    period_end = subscription.current_period_end
-    duration = period_end - period_start
-    if duration.total_seconds() <= 0:
-        duration = timedelta(days=30)
-    while subscription.current_period_end <= now:
-        subscription.current_period_start = subscription.current_period_end
-        subscription.current_period_end = subscription.current_period_end + duration
-    subscription.updated_at = now
-    return True
-
-
 @router.post(
     "/organizations/{organization_id}/subscription/rollover",
     response_model=SubscriptionRolloverResponse,
@@ -308,34 +294,7 @@ def reconcile_commercial_state(
         raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
     if x_commercial_reconciliation_secret != expected:
         raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
-    run = CommercialReconciliationRun(status="RUNNING", started_at=datetime.now(UTC))
-    db.add(run)
-    db.flush()
-    try:
-        subscriptions = db.scalars(select(OrganizationSubscription)).all()
-        processed = 0
-        rolled_over = 0
-        for subscription in subscriptions:
-            processed += 1
-            if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and _rollover_if_expired(db, subscription, datetime.now(UTC)):
-                rolled_over += 1
-        run.processed = processed
-        run.rolled_over = rolled_over
-        run.unchanged = processed - rolled_over
-        run.status = "COMPLETED"
-        run.completed_at = datetime.now(UTC)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        run = CommercialReconciliationRun(status="FAILED", started_at=run.started_at, completed_at=datetime.now(UTC), error=str(exc)[:2000])
-        db.add(run)
-        db.commit()
-        raise HTTPException(status_code=500, detail="commercial reconciliation failed")
-    return CommercialReconciliationResponse(
-        processed=processed,
-        rolled_over=rolled_over,
-        unchanged=processed - rolled_over,
-    )
+    return run_commercial_reconciliation(db)
 
 
 @router.get(
