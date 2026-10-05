@@ -32,6 +32,34 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
             f"{row['required']} | {row['offered']} | {row['status']} | {row['evidence']} |"
         )
 
+    summary_data = report.get("engineering_decision_summary", {})
+    if summary_data:
+        lines += [
+            "",
+            "## Auditable engineering decision summary",
+            "",
+            f"- Technical disposition: **{summary_data['status']}**",
+            "",
+        ]
+        for basis in summary_data["decision_basis"]:
+            lines.append(f"- {basis}")
+        lines += [
+            "",
+            "| Vendor | Disposition | Technical score | Evidence coverage | Compliant | Deviations | Major | Conflicts | Missing evidence |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for row in summary_data["vendor_profiles"]:
+            lines.append(
+                f"| {row['vendor']} | {row['disposition']} | {row['technical_score']:.2f} | "
+                f"{row['evidence_coverage_pct']:.2f}% | {row['compliant_count']} | "
+                f"{row['deviation_count']} | {row['major_deviation_count']} | "
+                f"{row['conflict_count']} | {row['missing_evidence_count']} |"
+            )
+        if summary_data["review_actions"]:
+            lines += ["", "### Required engineering review actions", ""]
+            for action in summary_data["review_actions"]:
+                lines.append(f"- {action}")
+
     commercial = report.get("commercial_comparison", [])
     if commercial:
         lines += [
