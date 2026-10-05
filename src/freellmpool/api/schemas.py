@@ -466,3 +466,18 @@ class UsageSummaryResponse(BaseModel):
     period_end: datetime
     usage: dict[str, float]
     limits: dict[str, int]
+
+
+class BillingWebhookEventRead(BaseModel):
+    id: int
+    organization_id: int | None
+    provider: str
+    external_event_id: str
+    event_type: str
+    payload_hash: str
+    status: str
+    received_at: datetime
+    processed_at: datetime | None
+    error: str | None
+
+    model_config = {"from_attributes": True}
