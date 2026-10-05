@@ -347,6 +347,9 @@ def test_rfq_revision_supersedes_old_baseline_and_reanchors_evaluation() -> None
     assert evaluation.json()["rfq_revision"] == "R2"
     assert evaluation.json()["rfq_revision_id"] == data["id"]
     assert evaluation.json()["rows"] == []
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    assert comparison.json()["rows"] == []
 
     audit = client.get(f"/packages/{package['id']}/audit")
     assert audit.status_code == 200
