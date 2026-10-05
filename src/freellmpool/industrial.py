@@ -277,6 +277,75 @@ def document_text(pages: Sequence[DocumentPage]) -> str:
         if page.text.strip()
     )
 
+@dataclass(frozen=True)
+class ExtractedClaimCandidate:
+    """Deterministic quotation-field extraction with page-level provenance."""
+
+    parameter: str
+    value: str
+    evidence: str
+    page: int
+    section: str | None = None
+    table: str | None = None
+    cell: str | None = None
+
+
+def extract_claim_candidates(
+    pages: Sequence[DocumentPage],
+    requirements: Sequence[Requirement],
+) -> list[ExtractedClaimCandidate]:
+    """Extract explicit ``parameter: value`` style quotation fields.
+
+    This is intentionally conservative: only a requirement parameter (or one
+    of its configured aliases) may become a claim. No compliance judgment is
+    made here; ``build_matrix`` remains the deterministic decision layer.
+    """
+    import re
+
+    canonical_by_alias: dict[str, str] = {}
+    for requirement in requirements:
+        canonical = _normalise_parameter(requirement.parameter)
+        canonical_by_alias[canonical] = requirement.parameter
+        for alias, target in _PARAMETER_ALIASES.items():
+            if target == canonical:
+                canonical_by_alias[_normalise_parameter(alias)] = requirement.parameter
+
+    candidates: list[ExtractedClaimCandidate] = []
+    field_pattern = re.compile(
+        r"^\s*(?:[-*]\s*)?(?P<label>[^:=|\t]{2,100}?)\s*"
+        r"(?::|=|\||\t)\s*(?P<value>[^|]+?)\s*(?:\|.*)?$",
+        flags=re.IGNORECASE,
+    )
+
+    for page in pages:
+        section: str | None = None
+        for raw_line in page.text.splitlines():
+            line = " ".join(raw_line.split())
+            if not line:
+                continue
+            heading = re.match(r"^#{1,6}\s+(.+)$", line)
+            if heading:
+                section = heading.group(1).strip()[:200]
+                continue
+            match = field_pattern.match(line)
+            if match is None:
+                continue
+            label = " ".join(match.group("label").split())
+            value = " ".join(match.group("value").split()).strip(" ;")
+            parameter = canonical_by_alias.get(_normalise_parameter(label))
+            if parameter is None or not value:
+                continue
+            candidates.append(
+                ExtractedClaimCandidate(
+                    parameter=parameter,
+                    value=value,
+                    evidence=f"{page.source}, page {page.page}: {line}",
+                    page=page.page,
+                    section=section,
+                )
+            )
+    return candidates
+
 
 _PARAMETER_ALIASES = {
     "rated voltage": "rated voltage",
