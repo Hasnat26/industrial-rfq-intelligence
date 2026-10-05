@@ -42,8 +42,8 @@ from freellmpool.api.schemas import (
     CommercialComparisonRow,
     CommercialStatusUpdate,
     ComparisonResponse,
-    DecisionSupportResponse,
     ComparisonRow,
+    DecisionSupportResponse,
     CurrentUserRead,
     DecisionCreate,
     DecisionRead,
@@ -80,6 +80,7 @@ from freellmpool.api.schemas import (
 )
 from freellmpool.api.security import hash_password
 from freellmpool.api.web import web_app
+from freellmpool.decision_support import build_decision_support
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -94,7 +95,6 @@ from freellmpool.industrial import (
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
-from freellmpool.decision_support import build_decision_support
 from freellmpool.industrial_report import render_engineering_report
 from freellmpool.product_categories import get_product_category, list_product_categories
 
