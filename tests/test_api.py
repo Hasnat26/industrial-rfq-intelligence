@@ -245,6 +245,7 @@ def test_vendor_offer_revision() -> None:
     )
     assert revision.status_code == 201
     assert revision.json()["technical_revision"] == "R2"
+    assert revision.json()["parent_offer_id"] == offer["id"]
     duplicate = client.post(
         f"/offers/{offer['id']}/revisions",
         json={"technical_revision": "R2"},
