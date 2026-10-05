@@ -79,8 +79,15 @@ def _commercial_score(
 def build_integrated_evaluation(
     technical_vendors: Sequence[Mapping[str, object]],
     commercial_rows: Sequence[Mapping[str, object]],
+    technical_weight: float = 70.0,
+    commercial_weight: float = 30.0,
 ) -> IntegratedEvaluationPayload:
-    """Combine deterministic technical and commercial metrics without selecting a supplier."""
+    """Combine deterministic technical and commercial metrics without selecting a supplier.
+    
+    The caller supplies customer-configured weights. They must total 100%.
+    """
+    if technical_weight < 0 or commercial_weight < 0 or abs((technical_weight + commercial_weight) - 100.0) > 1e-9:
+        raise ValueError("technical and commercial weights must be non-negative and total 100%")
     commercial = [
         _Commercial(
             vendor=str(item.get("vendor", "")),
@@ -110,7 +117,11 @@ def build_integrated_evaluation(
         commercial_item = by_vendor.get(vendor, _Commercial(vendor, None, "", None, None, "", ("COMMERCIAL_DATA_MISSING",)))
         technical_score = float(technical.get("technical_score", 0.0))
         commercial_score = _commercial_score(commercial_item, comparable) if commercial_item.currency or commercial_item.price is not None else 0.0
-        integrated_score = round(technical_score * 0.70 + commercial_score * 0.30, 2)
+        integrated_score = round(
+            technical_score * technical_weight / 100.0
+            + commercial_score * commercial_weight / 100.0,
+            2,
+        )
 
         technical_gate = "BLOCKED" if (
             int(technical.get("conflict_count", 0) or 0) > 0
@@ -166,13 +177,20 @@ def build_integrated_evaluation(
     return {
         "status": status,
         "formula": {
-            "integrated_score": "0.70 * technical_score + 0.30 * commercial_score",
+            "integrated_score": (
+                f"{technical_weight:.2f}% * technical_score + "
+                f"{commercial_weight:.2f}% * commercial_score"
+            ),
             "commercial_score": "average(price, lead_time, warranty, payment_terms factors)",
             "commercial_factors": {
                 "price": "100 * minimum comparable price / vendor price",
                 "lead_time": "100 * minimum comparable lead time / vendor lead time",
                 "warranty": "100 * vendor warranty / maximum comparable warranty",
                 "payment_terms": "100 when terms are explicitly present, otherwise 0",
+            },
+            "weights": {
+                "technical": technical_weight,
+                "commercial": commercial_weight,
             },
             "control": "Commercial scores are not compared across currencies.",
         },
