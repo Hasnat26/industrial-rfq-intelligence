@@ -350,3 +350,21 @@ class ProductCategoryRead(BaseModel):
     name: str
     description: str
     parameters: list[ProductCategoryParameterRead]
+
+
+class LifecycleEventCreate(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=200)
+    event_type: str = Field(min_length=1, max_length=30)
+    event_date: datetime
+    description: str = Field(min_length=1, max_length=10000)
+    evidence: str | None = Field(default=None, max_length=10000)
+    offer_id: int | None = Field(default=None, ge=1)
+
+
+class LifecycleEventRead(LifecycleEventCreate):
+    id: int
+    package_id: int
+    created_by_user_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

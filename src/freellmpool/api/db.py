@@ -232,6 +232,26 @@ def get_db() -> Generator[object, None, None]:
         db.close()
 
 
+class LifecycleEvent(Base):
+    """Canonical post-procurement event linked to a package and optional offer."""
+
+    __tablename__ = "lifecycle_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    offer_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_offers.id"), nullable=True, index=True)
+    asset_id: Mapped[str] = mapped_column(String(200), index=True)
+    event_type: Mapped[str] = mapped_column(String(30), index=True)
+    event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    package: Mapped[ProcurementPackage] = relationship()
+    offer: Mapped[VendorOffer | None] = relationship()
+    created_by: Mapped[User] = relationship()
+
+
 class ProcurementDecision(Base):
     __tablename__ = "procurement_decisions"
 
