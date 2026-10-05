@@ -1223,6 +1223,7 @@ def add_claim(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
+    _require_current_rfq_offer(offer.package, offer)
     claim_status = payload.claim_status.strip().upper()
     if claim_status not in CLAIM_STATUSES:
         raise HTTPException(status_code=422, detail="invalid claim status")
@@ -1284,6 +1285,7 @@ def preview_technical_clarification(
         raise HTTPException(status_code=404, detail="offer not found")
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
+    _require_current_rfq_offer(offer.package, offer)
     evaluation = _technical_evaluation_rows(offer.package, db)
     rows = [
         row.model_dump()
@@ -1418,6 +1420,7 @@ def add_deviation(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
+    _require_current_rfq_offer(offer.package, offer)
     severity = payload.severity.strip().upper()
     deviation_status = payload.status.strip().upper()
     if severity not in {"MINOR", "MAJOR"}:
