@@ -463,3 +463,17 @@ def test_rfq_revision_ignores_superseded_offers_when_locking_new_cycle() -> None
 
     locked = client.post(f"/packages/{package['id']}/technical-lock")
     assert locked.status_code == 200
+
+
+def test_rfq_revision_rejects_blank_reason() -> None:
+    package = _package()
+    response = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "   ",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    )
+    assert response.status_code == 422
