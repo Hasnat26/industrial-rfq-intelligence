@@ -17,6 +17,7 @@ client = TestClient(app)
 
 
 def setup_function() -> None:
+    """Reset the isolated API database before each foundation test."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     client.headers.pop("Authorization", None)
