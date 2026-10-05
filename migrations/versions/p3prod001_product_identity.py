@@ -4,8 +4,8 @@ Revision ID: p3prod001
 Revises: p2decision001
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "p3prod001"
 down_revision = "p2decision001"
