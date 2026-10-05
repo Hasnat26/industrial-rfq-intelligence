@@ -67,6 +67,7 @@ from freellmpool.api.schemas import (
     VendorDocumentRead,
 )
 from freellmpool.api.security import hash_password
+from freellmpool.industrial_report import render_engineering_report
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -78,7 +79,6 @@ from freellmpool.industrial import (
     build_report,
     document_text,
     extract_document_pages,
-    render_engineering_report,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
 from freellmpool.product_categories import get_product_category, list_product_categories
