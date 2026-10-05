@@ -139,7 +139,7 @@ def update_subscription(
     subscription.plan_key = payload.plan_key
     subscription.status = payload.status
     if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-        _rollover_if_expired(db, subscription, datetime.now(UTC))
+        rollover_if_expired(db, subscription, datetime.now(UTC))
     subscription.billing_provider = payload.billing_provider
     subscription.external_customer_id = payload.external_customer_id
     subscription.external_subscription_id = payload.external_subscription_id
@@ -265,7 +265,7 @@ def rollover_subscription(
     previous_end = subscription.current_period_end
     rolled_over = False
     if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-        rolled_over = _rollover_if_expired(db, subscription, datetime.now(UTC))
+        rolled_over = rollover_if_expired(db, subscription, datetime.now(UTC))
     if rolled_over:
         db.commit()
         db.refresh(subscription)
