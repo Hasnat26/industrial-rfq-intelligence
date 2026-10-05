@@ -90,6 +90,44 @@ def test_new_package_creates_r1_and_binds_requirements_and_offer() -> None:
         session.close()
 
 
+
+def test_generated_rfq_uses_only_current_revision_requirements() -> None:
+    organization = client.post("/organizations", json={"name": "RFQ Generation Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer updated the motor duty.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "90 kW"},
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+
+    rfq = client.get(f"/packages/{package['id']}/rfq")
+    assert rfq.status_code == 200, rfq.text
+    assert rfq.json()["requirements"] == [
+        {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V", "requirement_type": "MANDATORY", "acceptance_rule": None},
+        {"tag": "R-02", "parameter": "Motor power", "required_value": "90 kW", "requirement_type": "MANDATORY", "acceptance_rule": None},
+    ]
+
 def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
     organization = client.post("/organizations", json={"name": "RFQ Revision Link Org"}).json()
     project = client.post(
