@@ -526,3 +526,12 @@ class CommercialReconciliationRunRead(BaseModel):
     error: str | None
 
     model_config = {"from_attributes": True}
+
+
+class CommercialReconciliationHealthResponse(BaseModel):
+    status: str
+    last_run_status: str | None
+    last_run_completed_at: datetime | None
+    last_run_processed: int | None
+    last_run_rolled_over: int | None
+    last_run_error: str | None
