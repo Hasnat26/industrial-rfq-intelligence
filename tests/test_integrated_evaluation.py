@@ -87,3 +87,30 @@ def test_integrated_output_is_deterministic_and_does_not_select_supplier() -> No
     second = build_integrated_evaluation(technical, commercial)
     assert first == second
     assert "supplier is selected automatically" in first["decision_note"]
+
+
+def test_custom_weighting_changes_integrated_score() -> None:
+    technical = [_technical(80.0)]
+    commercial = [_commercial("A", 100.0, 10.0, 12.0)]
+    result = build_integrated_evaluation(
+        technical,
+        commercial,
+        technical_weight=40.0,
+        commercial_weight=60.0,
+    )
+    assert result["vendor_profiles"][0]["integrated_score"] == 92.0
+    assert result["formula"]["weights"] == {"technical": 40.0, "commercial": 60.0}
+
+
+def test_invalid_weights_are_rejected() -> None:
+    try:
+        build_integrated_evaluation(
+            [_technical()],
+            [_commercial("A", 100.0, 10.0, 12.0)],
+            technical_weight=60.0,
+            commercial_weight=30.0,
+        )
+    except ValueError as exc:
+        assert "total 100%" in str(exc)
+    else:
+        raise AssertionError("invalid weighting was accepted")
