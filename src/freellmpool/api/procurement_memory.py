@@ -44,6 +44,9 @@ class ProcurementMemoryEntry(BaseModel):
     package_name: str
     category: str
     vendor_name: str
+    manufacturer: str | None
+    model: str | None
+    part_number: str | None
     technical_revision: str
     technical_status: str
     price: str | None
@@ -53,6 +56,26 @@ class ProcurementMemoryEntry(BaseModel):
     selected_for_purchase: bool
     decision_rationale: str | None
     evidence: list[MemoryEvidence]
+
+
+class ProductMemorySummary(BaseModel):
+    manufacturer: str | None
+    model: str | None
+    part_number: str | None
+    category: str
+    offer_count: int
+    vendor_count: int
+    selected_count: int
+    observed_prices: list[str]
+    observed_currencies: list[str]
+    observed_lead_times: list[str]
+    observed_warranties: list[str]
+
+
+class ProductMemoryResponse(BaseModel):
+    organization_id: int
+    total_products: int
+    products: list[ProductMemorySummary]
 
 
 class ProcurementMemoryResponse(BaseModel):
@@ -143,6 +166,9 @@ def _memory_entries(
                     package_name=package.name,
                     category=package.category,
                     vendor_name=offer.vendor_name,
+                    manufacturer=offer.manufacturer,
+                    model=offer.model,
+                    part_number=offer.part_number,
                     technical_revision=offer.technical_revision,
                     technical_status=offer.technical_status,
                     price=offer.price,
@@ -157,6 +183,48 @@ def _memory_entries(
             if len(entries) >= limit:
                 return entries
     return entries
+
+
+
+@router.get(
+    "/organizations/{organization_id}/procurement-memory/products",
+    response_model=ProductMemoryResponse,
+)
+def product_memory(
+    organization_id: int,
+    category: str | None = Query(default=None, max_length=100),
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ProductMemoryResponse:
+    """Aggregate historical offers by explicit manufacturer/model/part identity."""
+    if not is_member(db, user.id, organization_id):
+        raise HTTPException(status_code=404, detail="organization not found")
+    entries = _memory_entries(db, organization_id, category=category, limit=100)
+    grouped: dict[tuple[str | None, str | None, str | None, str], list[ProcurementMemoryEntry]] = {}
+    for entry in entries:
+        key = (entry.manufacturer, entry.model, entry.part_number, entry.category)
+        grouped.setdefault(key, []).append(entry)
+    products = [
+        ProductMemorySummary(
+            manufacturer=key[0],
+            model=key[1],
+            part_number=key[2],
+            category=key[3],
+            offer_count=len(items),
+            vendor_count=len({item.vendor_name.casefold() for item in items}),
+            selected_count=sum(item.selected_for_purchase for item in items),
+            observed_prices=sorted({item.price for item in items if item.price}),
+            observed_currencies=sorted({item.currency for item in items if item.currency}),
+            observed_lead_times=sorted({item.lead_time for item in items if item.lead_time}),
+            observed_warranties=sorted({item.warranty for item in items if item.warranty}),
+        )
+        for key, items in sorted(grouped.items(), key=lambda item: tuple(value or "" for value in item[0]))
+    ]
+    return ProductMemoryResponse(
+        organization_id=organization_id,
+        total_products=len(products),
+        products=products,
+    )
 
 
 @router.get(
