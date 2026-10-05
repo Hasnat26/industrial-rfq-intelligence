@@ -297,7 +297,12 @@ def cmd_industrial_document(args: argparse.Namespace) -> int:
             }
             output = text
         else:
-            normalized = normalize_document(args.file)
+            normalized = normalize_document(
+                args.file,
+                ocr_fallback=not args.no_ocr_fallback,
+                ocr_language=args.ocr_language,
+                ocr_min_text_chars=args.ocr_min_text_chars,
+            )
             result = {
                 "source": normalized.source,
                 "pages": normalized.page_count,
@@ -2464,7 +2469,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_document.add_argument("--ocr", action="store_true", help="use the legacy local OCR path for sparse/scanned PDF pages")
     p_document.add_argument("--ocr-language", default="eng", help="Tesseract language code (default: eng)")
-    p_document.add_argument("--ocr-min-text-chars", type=int, default=20, help="minimum native text length before OCR is skipped")
+    p_document.add_argument("--ocr-min-text-chars", type=int, default=20, help="minimum native text length before OCR fallback is skipped")
+    p_document.add_argument("--no-ocr-fallback", action="store_true", help="disable automatic Tesseract fallback for scanned PDFs and images")
     p_document.set_defaults(func=cmd_industrial_document, legacy_pages=False)
     p_roles = sub.add_parser("roles", help="list available ask roles")
     p_roles.set_defaults(func=cmd_roles)
