@@ -59,3 +59,13 @@ def test_usage_is_tenant_isolated() -> None:
     response = client.get(f"/organizations/{other['id']}/usage")
     assert response.status_code == 404
     assert response.json()["detail"] == "organization not found"
+
+
+def test_usage_limit_is_enforced() -> None:
+    organization = client.post("/organizations", json={"name": "Limit Org"}).json()
+    response = client.post(
+        f"/organizations/{organization['id']}/usage",
+        json={"metric": "vendor_offers", "quantity": 51},
+    )
+    assert response.status_code == 429
+    assert response.json()["detail"] == "vendor_offers plan limit exceeded"
