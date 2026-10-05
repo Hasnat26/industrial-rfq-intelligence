@@ -119,6 +119,13 @@ def test_project_epc_gate() -> None:
         json={"status": "ACCEPTED_WITH_DEVIATION"},
     )
     assert evaluated.status_code == 200
+    blocked_by_answered_clarification = client.post(f"/packages/{package['id']}/technical-lock")
+    assert blocked_by_answered_clarification.status_code == 409
+    closed_clarification = client.post(
+        f"/clarifications/{clarification.json()['id']}/close",
+        json={"note": "Final answer accepted by engineering."},
+    )
+    assert closed_clarification.status_code == 200
     locked = client.post(f"/packages/{package['id']}/technical-lock")
     assert locked.status_code == 200
     opened = client.post(f"/packages/{package['id']}/commercial-open")
