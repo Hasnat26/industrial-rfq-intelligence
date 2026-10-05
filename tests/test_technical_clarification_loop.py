@@ -212,3 +212,61 @@ def test_manual_clarification_create_persists_current_rfq_traceability() -> None
     assert data["evaluated_offered"] is None
     assert data["evaluation_status"] is None
     assert data["evaluation_evidence"] is None
+
+
+def test_clarification_lifecycle_open_answered_closed() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    created = client.post(
+        f"/offers/{offer['id']}/clarifications",
+        json={"question": "Confirm protection class."},
+    )
+    assert created.status_code == 201
+    clarification_id = created.json()["id"]
+    assert created.json()["status"] == "OPEN"
+
+    answered = client.post(
+        f"/clarifications/{clarification_id}/answer",
+        json={"response": "IP55"},
+    )
+    assert answered.status_code == 200
+    assert answered.json()["status"] == "ANSWERED"
+    assert answered.json()["response"] == "IP55"
+
+    closed = client.post(
+        f"/clarifications/{clarification_id}/close",
+        json={"note": "Vendor response reviewed."},
+    )
+    assert closed.status_code == 200
+    assert closed.json()["status"] == "CLOSED"
+    assert closed.json()["resolution"] == "Vendor response reviewed."
+
+    duplicate = client.post(
+        f"/clarifications/{clarification_id}/answer",
+        json={"response": "IP66"},
+    )
+    assert duplicate.status_code == 409
+
+
+def test_clarification_close_requires_answered_status() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    created = client.post(
+        f"/offers/{offer['id']}/clarifications",
+        json={"question": "Confirm protection class."},
+    )
+    assert created.status_code == 201
+
+    response = client.post(
+        f"/clarifications/{created.json()['id']}/close",
+        json={"note": "Cannot close unanswered clarification."},
+    )
+    assert response.status_code == 409
