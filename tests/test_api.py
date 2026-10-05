@@ -839,3 +839,80 @@ def test_decision_support_is_tenant_isolated() -> None:
 
 def test_evidence_traceability() -> None:
     _seed_offer(mode="STANDARD")
+
+def test_customer_can_configure_evaluation_weighting_and_it_locks_at_commercial_open() -> None:
+    organization = client.post("/organizations", json={"name": "Weighting Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Weighted Package",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    ).json()
+    package_id = package["id"]
+
+    default = client.get(f"/packages/{package_id}/evaluation-weighting")
+    assert default.status_code == 200
+    assert default.json()["technical_weight"] == 70.0
+    assert default.json()["commercial_weight"] == 30.0
+    assert default.json()["locked"] is False
+
+    updated = client.put(
+        f"/packages/{package_id}/evaluation-weighting",
+        json={"technical_weight": 40, "commercial_weight": 60},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["technical_weight"] == 40.0
+    assert updated.json()["commercial_weight"] == 60.0
+
+    invalid = client.put(
+        f"/packages/{package_id}/evaluation-weighting",
+        json={"technical_weight": 40, "commercial_weight": 50},
+    )
+    assert invalid.status_code == 422
+
+    opened = client.post(f"/packages/{package_id}/commercial-open")
+    assert opened.status_code == 200
+
+    locked = client.get(f"/packages/{package_id}/evaluation-weighting")
+    assert locked.status_code == 200
+    assert locked.json()["locked"] is True
+
+    rejected = client.put(
+        f"/packages/{package_id}/evaluation-weighting",
+        json={"technical_weight": 70, "commercial_weight": 30},
+    )
+    assert rejected.status_code == 409
+
+
+def test_evaluation_weighting_is_tenant_isolated() -> None:
+    organization = client.post("/organizations", json={"name": "Tenant A"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project A"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Package A",
+            "category": "MOTOR",
+            "requirements": [],
+        },
+    ).json()
+
+    client.post("/auth/register", json={"email": "other@example.com", "password": "correct-horse-battery"})
+    login = client.post("/auth/login", json={"email": "other@example.com", "password": "correct-horse-battery"})
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+    response = client.get(f"/packages/{package['id']}/evaluation-weighting")
+    assert response.status_code == 404
