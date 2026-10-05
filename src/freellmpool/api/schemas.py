@@ -409,3 +409,13 @@ class LifecycleCostRead(LifecycleCostCreate):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SubscriptionLifecycleUpdate(BaseModel):
+    plan_key: str = Field(min_length=1, max_length=30)
+    status: str = Field(default="ACTIVE", min_length=1, max_length=30)
+    billing_provider: str | None = Field(default=None, max_length=30)
+    external_customer_id: str | None = Field(default=None, max_length=200)
+    external_subscription_id: str | None = Field(default=None, max_length=200)
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
