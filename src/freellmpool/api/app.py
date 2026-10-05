@@ -543,7 +543,11 @@ def register_user(
         raise HTTPException(status_code=409, detail="email is already registered")
     user = User(email=email, password_hash=hash_password(payload.password))
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="email is already registered") from exc
     db.refresh(user)
     return user
 
@@ -599,7 +603,11 @@ def create_organization(
 ) -> Organization:
     organization = Organization(name=payload.name.strip())
     db.add(organization)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="organization name is already registered") from exc
     db.add(
         OrganizationMembership(
             organization_id=organization.id,
