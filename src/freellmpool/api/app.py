@@ -209,32 +209,40 @@ def _active_vendor_offers(package: ProcurementPackage) -> list[VendorOffer]:
 
 
 def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
-    """Build the canonical vendor/requirement comparison used by clarification requests."""
+    """Build the canonical vendor/requirement comparison with revision carry-forward."""
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
         for item in package.requirements
     ]
-    active_offers = _active_vendor_offers(package)
-    vendor_values = [
-        VendorValue(
-            offer.vendor_name,
-            claim.parameter,
-            claim.value,
-            claim.evidence,
-            _claim_status(claim.claim_status),
-        )
-        for offer in active_offers
-        for claim in offer.claims
-    ]
-    matrix = build_matrix(
-        requirements,
-        vendor_values,
-        vendors=[offer.vendor_name for offer in active_offers],
-    )
+    grouped: dict[str, list[VendorOffer]] = {}
+    for offer in package.offers:
+        grouped.setdefault(offer.vendor_key, []).append(offer)
+
+    vendor_values: list[VendorValue] = []
+    vendor_names: list[str] = []
     claim_parameters_by_vendor: dict[str, set[str]] = {}
-    for offer in active_offers:
-        parameters = claim_parameters_by_vendor.setdefault(offer.vendor_name, set())
-        parameters.update(claim.parameter.casefold().strip() for claim in offer.claims)
+    for vendor_key, chain in grouped.items():
+        ordered = sorted(chain, key=lambda item: item.id)
+        latest = ordered[-1]
+        vendor_names.append(latest.vendor_name)
+        claims_by_parameter: dict[str, object] = {}
+        for offer in ordered:
+            for claim in offer.claims:
+                claims_by_parameter[claim.parameter.casefold().strip()] = claim
+        parameters = claim_parameters_by_vendor.setdefault(latest.vendor_name, set())
+        for claim in claims_by_parameter.values():
+            vendor_values.append(
+                VendorValue(
+                    latest.vendor_name,
+                    claim.parameter,
+                    claim.value,
+                    claim.evidence,
+                    _claim_status(claim.claim_status),
+                )
+            )
+            parameters.add(claim.parameter.casefold().strip())
+
+    matrix = build_matrix(requirements, vendor_values, vendors=vendor_names)
     rows: list[dict[str, object]] = []
     for row in matrix:
         status = str(row["status"])
@@ -2098,10 +2106,3 @@ def package_report_markdown(
     """Export the package review as an engineer-readable Markdown document."""
     report = package_report(package_id, user, db)
     markdown = render_engineering_report(report)
-    return Response(
-        content=markdown,
-        media_type="text/markdown; charset=utf-8",
-        headers={
-            "Content-Disposition": f'attachment; filename="rfq-review-package-{package_id}.md"'
-        },
-    )
