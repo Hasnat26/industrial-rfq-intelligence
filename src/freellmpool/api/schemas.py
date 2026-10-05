@@ -494,3 +494,14 @@ class UsageReconciliationResponse(BaseModel):
     exceeded_metrics: list[str]
     inactive: bool
     period_expired: bool
+
+
+class SubscriptionRolloverResponse(BaseModel):
+    organization_id: int
+    rolled_over: bool
+    previous_period_start: datetime
+    previous_period_end: datetime
+    current_period_start: datetime
+    current_period_end: datetime
+    status: str
+    plan_key: str
