@@ -947,20 +947,62 @@ def extract_rfq_documents_with_llm(
     rfq_document: str | Path,
     quotation_documents: Sequence[dict[str, str | Path]],
     *,
+    use_markdown: bool = True,
     use_ocr: bool = False,
     ocr_language: str = "eng",
 ) -> tuple[list[Requirement], list[VendorValue], list[CommercialValue]]:
-    """Extract an RFQ and vendor quotations directly from local documents."""
+    """Extract RFQ/quotations through the canonical document normalization layer.
+
+    MarkItDown is the default parser. The legacy page extractor remains available
+    as an explicit fallback, while the existing OCR path is retained for cases
+    where a local Tesseract workflow is preferred.
+    """
+    if use_markdown and use_ocr:
+        raise ValueError("use_markdown and use_ocr cannot be enabled together")
+
+    if use_markdown:
+        from .document_normalizer import normalize_document
+
+        rfq_normalized = normalize_document(rfq_document)
+        rfq_text = (
+            f"[SOURCE: {rfq_normalized.source}]\n"
+            f"{rfq_normalized.markdown}"
+        )
+        quotations: list[dict[str, str]] = []
+        for index, item in enumerate(quotation_documents):
+            vendor = str(item.get("vendor", "")).strip()
+            path = item.get("path")
+            if not vendor or path is None:
+                raise ValueError(f"quotation_documents[{index}] requires vendor and path")
+            normalized = normalize_document(path)
+            text = normalized.markdown.strip()
+            if not text:
+                raise ValueError(f"quotation document is empty: {path}")
+            quotations.append({
+                "vendor": vendor,
+                "text": f"[SOURCE: {normalized.source}]\n{text}",
+                "evidence_prefix": f"{Path(path).name}",
+            })
+        return extract_rfq_with_llm(pool, rfq_text, quotations)
+
     page_extractor = extract_document_pages_with_ocr if use_ocr else extract_document_pages
-    rfq_pages = page_extractor(rfq_document, language=ocr_language) if use_ocr else page_extractor(rfq_document)
+    rfq_pages = (
+        page_extractor(rfq_document, language=ocr_language)
+        if use_ocr
+        else page_extractor(rfq_document)
+    )
     rfq_text = document_text(rfq_pages)
-    quotations: list[dict[str, str]] = []
+    quotations = []
     for index, item in enumerate(quotation_documents):
         vendor = str(item.get("vendor", "")).strip()
         path = item.get("path")
         if not vendor or path is None:
             raise ValueError(f"quotation_documents[{index}] requires vendor and path")
-        pages = page_extractor(path, language=ocr_language) if use_ocr else page_extractor(path)
+        pages = (
+            page_extractor(path, language=ocr_language)
+            if use_ocr
+            else page_extractor(path)
+        )
         text = document_text(pages)
         if not text.strip():
             raise ValueError(f"quotation document is empty: {path}")
