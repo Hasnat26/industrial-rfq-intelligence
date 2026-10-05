@@ -509,6 +509,7 @@ def list_package_offers(
         OfferRead(
             id=offer.id,
             package_id=offer.package_id,
+            parent_offer_id=offer.parent_offer_id,
             vendor_name=offer.vendor_name,
             technical_revision=offer.technical_revision,
             technical_status=offer.technical_status,
