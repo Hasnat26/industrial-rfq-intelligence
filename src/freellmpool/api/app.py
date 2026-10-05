@@ -1563,6 +1563,7 @@ def resolve_deviation(
         raise HTTPException(status_code=404, detail="deviation not found")
     if deviation.status == "RESOLVED":
         raise HTTPException(status_code=409, detail="deviation is already resolved")
+    _require_current_rfq_offer(deviation.offer.package, deviation.offer)
     if deviation.offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
     previous_status = deviation.status
@@ -1848,7 +1849,7 @@ def update_technical_status(
     if status_value not in allowed:
         raise HTTPException(status_code=422, detail="invalid technical status")
     allowed_next = {
-        "PENDING": {"PENDING", "IN_REVIEW", "REJECTED"},
+        "PENDING": {            "PENDING",            "IN_REVIEW",            "CLARIFICATION_REQUIRED",            "ACCEPTED",            "ACCEPTED_WITH_DEVIATION",            "REJECTED",        },
         "IN_REVIEW": {
             "IN_REVIEW",
             "CLARIFICATION_REQUIRED",
