@@ -32,6 +32,7 @@ from freellmpool.api.db import (
     init_db,
 )
 from freellmpool.api.schemas import (
+    AuditEventRead,
     ClaimCreate,
     ClaimRead,
     CommercialComparisonResponse,
@@ -53,7 +54,6 @@ from freellmpool.api.schemas import (
     PackageCreate,
     PackageRead,
     PackageWorkflowResponse,
-    AuditEventRead,
     ProductCategoryParameterRead,
     ProductCategoryRead,
     ProjectCreate,
