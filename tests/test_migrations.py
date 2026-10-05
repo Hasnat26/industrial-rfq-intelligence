@@ -144,3 +144,27 @@ def test_startup_does_not_auto_create_tables_for_non_sqlite(monkeypatch) -> None
     )
     monkeypatch.delenv("INDUSTRIAL_RFQ_AUTO_CREATE_TABLES", raising=False)
     assert db_module._auto_create_allowed() is True
+
+
+def test_clarification_traceability_columns_are_migrated(tmp_path: Path) -> None:
+    database = tmp_path / "clarification.db"
+    _alembic("upgrade", "head", db_path=database)
+    connection = sqlite3.connect(database)
+    try:
+        columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(technical_clarifications)"
+            ).fetchall()
+        }
+    finally:
+        connection.close()
+
+    assert {
+        "rfq_revision_id",
+        "requirement_id",
+        "gap_type",
+        "evaluated_offered",
+        "evaluation_status",
+        "evaluation_evidence",
+    } <= columns
