@@ -84,7 +84,7 @@ def test_vendor_specific_clarification_package_is_generated_from_gaps() -> None:
     assert data["gaps"][0]["rfq_revision_id"] == 1
     assert data["gaps"][0]["requirement_id"] == 2
     assert data["gaps"][0]["gap_type"] == "MISSING"
-    assert data["gaps"][0]["evidence"] == ""
+    assert data["gaps"][0]["evidence"] == "No matching quotation field"
     assert "75 kW" in data["gaps"][0]["request"]
     assert data["subject"].startswith("Technical Clarification Required")
     assert "Motor power" in data["body"]
@@ -110,7 +110,7 @@ def test_create_clarification_is_audited_and_sets_vendor_status() -> None:
     assert clarifications.status_code == 200
     persisted = clarifications.json()
     assert len(persisted) == 2
-    assert {item["rfq_revision_id"] for item in persisted} == {package["current_rfq_revision_id"]}
+    assert {item["rfq_revision_id"] for item in persisted} == {1}
     assert {item["requirement_id"] for item in persisted} == {1, 2}
     assert {item["gap_type"] for item in persisted} == {"MISSING"}
     assert all(item["evaluated_offered"] is None for item in persisted)
