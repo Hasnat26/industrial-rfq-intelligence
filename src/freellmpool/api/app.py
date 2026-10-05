@@ -48,6 +48,7 @@ from freellmpool.api.schemas import (
     OrganizationRead,
     PackageCreate,
     PackageRead,
+    PackageWorkflowResponse,
     ProductCategoryParameterRead,
     ProductCategoryRead,
     ProjectCreate,
@@ -963,6 +964,61 @@ def read_document(
     ):
         raise HTTPException(status_code=404, detail="document not found")
     return document
+
+
+@app.get("/offers/{offer_id}/deviations", response_model=list[TechnicalDeviationRead])
+def list_offer_deviations(
+    offer_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[TechnicalDeviation]:
+    """List the auditable technical deviations for one vendor offer."""
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
+        raise HTTPException(status_code=404, detail="offer not found")
+    return sorted(offer.deviations, key=lambda item: item.id)
+
+
+@app.get("/offers/{offer_id}/clarifications", response_model=list[TechnicalClarificationRead])
+def list_offer_clarifications(
+    offer_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[TechnicalClarification]:
+    """List the auditable technical clarifications for one vendor offer."""
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
+        raise HTTPException(status_code=404, detail="offer not found")
+    return sorted(offer.clarifications, key=lambda item: item.id)
+
+
+@app.get("/packages/{package_id}/workflow", response_model=PackageWorkflowResponse)
+def package_workflow(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> PackageWorkflowResponse:
+    """Return the current EPC technical/commercial workflow gate state."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    status_counts: dict[str, int] = {}
+    for offer in package.offers:
+        status_counts[offer.technical_status] = status_counts.get(offer.technical_status, 0) + 1
+    return PackageWorkflowResponse(
+        package_id=package.id,
+        mode=package.mode,
+        technical_bid_locked=package.technical_bid_locked,
+        commercial_evaluation_open=package.commercial_evaluation_open,
+        offer_count=len(package.offers),
+        technical_status_counts=status_counts,
+        open_deviation_count=sum(
+            item.status == "OPEN" for offer in package.offers for item in offer.deviations
+        ),
+        open_clarification_count=sum(
+            item.status == "OPEN" for offer in package.offers for item in offer.clarifications
+        ),
+    )
 
 
 @app.post("/offers/{offer_id}/technical-status", response_model=OfferRead)
