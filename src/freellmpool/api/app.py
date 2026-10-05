@@ -51,10 +51,10 @@ from freellmpool.api.schemas import (
     DecisionSupportVendorRead,
     EngineeringDecisionSummaryRead,
     EngineeringVendorProfileRead,
-    IntegratedEvaluationResponse,
-    IntegratedVendorEvaluationRead,
     EvidenceResponse,
     EvidenceRow,
+    IntegratedEvaluationResponse,
+    IntegratedVendorEvaluationRead,
     IssueResolution,
     LoginRequest,
     OfferCreate,
@@ -88,7 +88,6 @@ from freellmpool.api.security import hash_password
 from freellmpool.api.web import web_app
 from freellmpool.decision_support import build_decision_support
 from freellmpool.engineering_decision import build_engineering_decision_summary
-from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -105,6 +104,7 @@ from freellmpool.industrial import (
 )
 from freellmpool.industrial import Requirement as EngineRequirement
 from freellmpool.industrial_report import render_engineering_report
+from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.product_categories import get_product_category, list_product_categories
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
