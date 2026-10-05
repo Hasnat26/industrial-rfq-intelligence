@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 import tempfile
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
     ProcurementAuditEvent,
+    ProcurementDecision,
     ProcurementPackage,
     Project,
     Requirement,
@@ -38,6 +40,8 @@ from freellmpool.api.schemas import (
     CommercialComparisonResponse,
     CommercialComparisonRow,
     CommercialStatusUpdate,
+    DecisionCreate,
+    DecisionRead,
     ComparisonResponse,
     ComparisonRow,
     CurrentUserRead,
@@ -296,6 +300,70 @@ def _audit(
             note=note,
         )
     )
+
+
+@app.post("/packages/{package_id}/decision", response_model=DecisionRead, status_code=status.HTTP_201_CREATED)
+def create_or_update_decision(
+    package_id: int,
+    payload: DecisionCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ProcurementDecision:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    if not package.commercial_evaluation_open:
+        raise HTTPException(status_code=409, detail="commercial evaluation is not open")
+    offer = db.get(VendorOffer, payload.selected_offer_id)
+    if offer is None or offer.package_id != package_id:
+        raise HTTPException(status_code=404, detail="selected offer not found")
+    if offer.technical_status not in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
+        raise HTTPException(status_code=409, detail="selected offer is not technically accepted")
+    if offer.commercial_status != "COMPLETED":
+        raise HTTPException(status_code=409, detail="selected offer commercial evaluation is not completed")
+    decision = db.scalar(select(ProcurementDecision).where(ProcurementDecision.package_id == package_id))
+    previous_offer_id: int | None = None
+    if decision is None:
+        decision = ProcurementDecision(
+            package_id=package_id,
+            selected_offer_id=offer.id,
+            decision_status="FINAL",
+            rationale=payload.rationale.strip(),
+            decided_by_user_id=user.id,
+        )
+        db.add(decision)
+        event_type = "FINAL_DECISION_CREATED"
+    else:
+        previous_offer_id = decision.selected_offer_id
+        decision.selected_offer_id = offer.id
+        decision.decision_status = "FINAL"
+        decision.rationale = payload.rationale.strip()
+        decision.decided_by_user_id = user.id
+        decision.updated_at = datetime.now(UTC)
+        event_type = "FINAL_DECISION_UPDATED"
+    _audit(
+        db, package, user, event_type, offer,
+        from_status=str(previous_offer_id) if previous_offer_id is not None else None,
+        to_status=str(offer.id), note=payload.rationale.strip(),
+    )
+    db.commit()
+    db.refresh(decision)
+    return decision
+
+
+@app.get("/packages/{package_id}/decision", response_model=DecisionRead)
+def read_decision(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ProcurementDecision:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    decision = db.scalar(select(ProcurementDecision).where(ProcurementDecision.package_id == package_id))
+    if decision is None:
+        raise HTTPException(status_code=404, detail="decision not found")
+    return decision
 
 
 @app.get("/packages/{package_id}/audit", response_model=list[AuditEventRead])
