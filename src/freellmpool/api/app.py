@@ -247,7 +247,7 @@ def list_projects(
         .where(Project.organization_id == organization_id)
         .order_by(Project.id)
     ).all()
-    return list(rows)
+    return [ProjectRead.model_validate(row) for row in rows]
 
 
 @app.get("/packages", response_model=list[PackageRead])
@@ -265,7 +265,7 @@ def list_packages(
         .where(ProcurementPackage.project_id == project_id)
         .order_by(ProcurementPackage.id)
     ).all()
-    return list(rows)
+    return [PackageRead.model_validate(row) for row in rows]
 
 
 @app.get("/health")
