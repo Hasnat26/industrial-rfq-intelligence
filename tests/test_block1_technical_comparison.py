@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 from freellmpool.api.app import app
 from freellmpool.api.db import Base, ProcurementPackage, SessionLocal, engine
 
-
 client = TestClient(app)
 
 
