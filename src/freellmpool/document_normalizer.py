@@ -35,14 +35,14 @@ def _ocr_image(image: Any, *, language: str) -> str:
     if shutil.which("tesseract") is None:
         raise ValueError(
             "OCR fallback requires the Tesseract executable; install Tesseract "
-            "and the package's 'ocr' dependencies"
+            "for the target runtime"
         )
     try:
         import pytesseract
     except ImportError as exc:
         raise ValueError(
-            "OCR fallback requires the 'ocr' optional dependencies; install with: "
-            "pip install 'industrial-rfq-intelligence[ocr]'"
+            "OCR fallback requires the pytesseract dependency; install the project "
+            "dependencies before enabling scanned-document OCR"
         ) from exc
     try:
         return str(pytesseract.image_to_string(image, lang=language)).strip()
@@ -57,8 +57,8 @@ def _ocr_pdf_page(document: Path, page_number: int, *, language: str) -> str:
         from PIL import Image
     except ImportError as exc:
         raise ValueError(
-            "PDF OCR requires the 'ocr' optional dependencies; install with: "
-            "pip install 'industrial-rfq-intelligence[ocr]'"
+            "PDF OCR requires the PyMuPDF/Pillow OCR dependencies; install the "
+            "project dependencies before enabling scanned-document OCR"
         ) from exc
     try:
         pdf = fitz.open(str(document))
@@ -115,8 +115,8 @@ def normalize_document(
                 from PIL import Image
             except ImportError as exc:
                 raise ValueError(
-                    "image OCR requires the 'ocr' optional dependencies; install with: "
-                    "pip install 'industrial-rfq-intelligence[ocr]'"
+                    "image OCR requires the Pillow OCR dependency; install the project "
+                    "dependencies before enabling scanned-document OCR"
                 ) from exc
             with Image.open(document) as image:
                 ocr_text = _ocr_image(image.convert("RGB"), language=ocr_language)
