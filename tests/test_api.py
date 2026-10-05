@@ -332,6 +332,70 @@ def _seed_offer(mode: str = "PROJECT_EPC") -> dict:
     return {"package": package, "offer": offer}
 
 
+def test_batch_quotation_ingestion_is_atomic_and_persists_documents() -> None:
+    seeded = _seed_package(mode="PROJECT_EPC")
+    package_id = seeded["package"]["id"]
+    entries = [
+        {"vendor_name": "Vendor Alpha", "technical_revision": "R1", "price": "10000", "currency": "USD"},
+        {"vendor_name": "Vendor Beta", "technical_revision": "R1", "price": "11000", "currency": "USD"},
+    ]
+    response = _post_batch(
+        package_id,
+        entries,
+        [
+            ("alpha.txt", b"Rated voltage: 415 V", "text/plain"),
+            ("beta.txt", b"Rated voltage: 400 V", "text/plain"),
+        ],
+    )
+    assert response.status_code == 201, response.text
+    data = response.json()
+    assert len(data["offers"]) == 2
+    assert len(data["document_ids"]) == 2
+    offers = client.get(f"/packages/{package_id}/offers").json()
+    assert [item["vendor_name"] for item in offers] == ["Vendor Alpha", "Vendor Beta"]
+    for document_id in data["document_ids"]:
+        document = client.get(f"/documents/{document_id}")
+        assert document.status_code == 200
+        assert document.json()["page_count"] == 1
+
+
+def test_batch_quotation_ingestion_rejects_conflicts_without_partial_write() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    first = _post_batch(
+        package_id,
+        [{"vendor_name": "Vendor Alpha", "technical_revision": "R1"}],
+        [("alpha.txt", b"Offer", "text/plain")],
+    )
+    assert first.status_code == 201
+    before = client.get(f"/packages/{package_id}/offers").json()
+    conflicting = _post_batch(
+        package_id,
+        [
+            {"vendor_name": "Vendor Alpha", "technical_revision": "R1"},
+            {"vendor_name": "Vendor Gamma", "technical_revision": "R1"},
+        ],
+        [
+            ("alpha2.txt", b"Conflict", "text/plain"),
+            ("gamma.txt", b"New offer", "text/plain"),
+        ],
+    )
+    assert conflicting.status_code == 409
+    after = client.get(f"/packages/{package_id}/offers").json()
+    assert len(after) == len(before) == 1
+    assert after[0]["vendor_name"] == "Vendor Alpha"
+
+
+def test_batch_quotation_ingestion_requires_one_file_per_entry() -> None:
+    seeded = _seed_package()
+    response = _post_batch(
+        seeded["package"]["id"],
+        [{"vendor_name": "Vendor Alpha", "technical_revision": "R1"}],
+        [],
+    )
+    assert response.status_code == 422
+
+
 def test_document_ingestion_formats_and_rejections() -> None:
     seeded = _seed_offer(mode="STANDARD")
     offer_id = seeded["offer"]["id"]
