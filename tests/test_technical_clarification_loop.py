@@ -109,6 +109,7 @@ def test_create_clarification_is_audited_and_sets_vendor_status() -> None:
     assert all(item["rfq_revision_id"] is None for item in persisted)
     assert all(item["requirement_id"] is None for item in persisted)
     assert all(item["gap_type"] is None for item in persisted)
+    assert all("evaluation_evidence" in item for item in persisted)
 
     audit = client.get(f"/packages/{package['id']}/audit")
     assert audit.status_code == 200
