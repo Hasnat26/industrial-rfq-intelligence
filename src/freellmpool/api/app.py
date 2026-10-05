@@ -208,8 +208,13 @@ def _auto_create_document_claims(
 
 
 def _active_vendor_offers(package: ProcurementPackage) -> list[VendorOffer]:
-    """Return the latest revision in each vendor's revision chain."""
-    return [offer for offer in package.offers if not offer.revisions]
+    """Return leaf offers that target the package's current RFQ revision."""
+    current_revision_id = package.current_rfq_revision_id
+    return [
+        offer
+        for offer in package.offers
+        if not offer.revisions and offer.rfq_revision_id == current_revision_id
+    ]
 
 
 def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
