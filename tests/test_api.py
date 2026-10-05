@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import io
+import json
 import os
 
 from fastapi.testclient import TestClient
@@ -257,6 +258,41 @@ def test_vendor_offer_revision() -> None:
     rows = comparison.json()["rows"]
     assert len(rows) == 1
     assert rows[0]["status"] == "COMPLIANT"
+
+
+def _seed_package(mode: str = "STANDARD") -> dict:
+    organization = client.post(
+        "/organizations", json={"name": f"Org Batch {os.urandom(4).hex()}"}
+    ).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": mode,
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
+        },
+    ).json()
+    return {"organization": organization, "project": project, "package": package}
+
+
+def _post_batch(package_id: int, entries: list, files: list):
+    return client.post(
+        f"/packages/{package_id}/quotations/batch",
+        data={"entries": json.dumps(entries)},
+        files=[("files", (name, body, content_type)) for name, body, content_type in files],
+    )
 
 
 def _seed_offer(mode: str = "PROJECT_EPC") -> dict:
@@ -732,3 +768,173 @@ def test_claim_source_page_must_exist_in_document() -> None:
         },
     )
     assert cross.status_code == 404
+
+
+def test_batch_quotation_ingestion_creates_offers_and_documents() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    response = _post_batch(
+        package_id,
+        entries=[
+            {
+                "vendor_name": "Vendor Alpha",
+                "price": "1000",
+                "currency": "USD",
+                "source_text": "Rated voltage: 415 V",
+            },
+            {
+                "vendor_name": "Vendor Beta",
+                "price": "1100",
+                "currency": "USD",
+                "source_text": "Rated voltage: 400 V",
+            },
+        ],
+        files=[
+            ("alpha.txt", b"Rated voltage: 415 V", "text/plain"),
+            ("beta.txt", b"Rated voltage: 400 V", "text/plain"),
+        ],
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["package_id"] == package_id
+    assert len(payload["offers"]) == 2
+    assert [offer["vendor_name"] for offer in payload["offers"]] == [
+        "Vendor Alpha",
+        "Vendor Beta",
+    ]
+    assert payload["offers"][0]["price"] == "1000"
+    # Each ingested quotation carries its own extracted, retrievable document.
+    for document_id, expected_name in zip(
+        payload["document_ids"], ["alpha.txt", "beta.txt"], strict=True
+    ):
+        document = client.get(f"/documents/{document_id}")
+        assert document.status_code == 200
+        assert document.json()["filename"] == expected_name
+        assert document.json()["page_count"] == 1
+    offers = client.get(f"/packages/{package_id}/offers").json()
+    assert [offer["vendor_name"] for offer in offers] == ["Vendor Alpha", "Vendor Beta"]
+
+
+def test_batch_quotation_ingestion_is_atomic_on_duplicate_vendor() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    first = _post_batch(
+        package_id,
+        entries=[{"vendor_name": "Vendor Alpha"}],
+        files=[("alpha.txt", b"Rated voltage: 415 V", "text/plain")],
+    )
+    assert first.status_code == 201, first.text
+    duplicate = _post_batch(
+        package_id,
+        entries=[
+            {"vendor_name": "Vendor Gamma"},
+            {"vendor_name": "vendor  alpha"},
+        ],
+        files=[
+            ("gamma.txt", b"Rated voltage: 415 V", "text/plain"),
+            ("dup.txt", b"Rated voltage: 415 V", "text/plain"),
+        ],
+    )
+    assert duplicate.status_code == 409
+    # All-or-nothing: the accepted Vendor Gamma entry must not persist.
+    offers = client.get(f"/packages/{package_id}/offers").json()
+    assert [offer["vendor_name"] for offer in offers] == ["Vendor Alpha"]
+
+
+def test_batch_quotation_ingestion_rejects_length_mismatch() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    mismatch = _post_batch(
+        package_id,
+        entries=[{"vendor_name": "Vendor Alpha"}, {"vendor_name": "Vendor Beta"}],
+        files=[("alpha.txt", b"Rated voltage: 415 V", "text/plain")],
+    )
+    assert mismatch.status_code == 422
+    empty = _post_batch(package_id, entries=[], files=[])
+    assert empty.status_code == 422
+    offers = client.get(f"/packages/{package_id}/offers").json()
+    assert offers == []
+
+
+def test_batch_quotation_ingestion_rejects_unsupported_document() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    unsupported = _post_batch(
+        package_id,
+        entries=[{"vendor_name": "Vendor Alpha"}, {"vendor_name": "Vendor Beta"}],
+        files=[
+            ("alpha.txt", b"Rated voltage: 415 V", "text/plain"),
+            ("payload.exe", b"MZ\x90\x00", "application/octet-stream"),
+        ],
+    )
+    assert unsupported.status_code == 415
+    offers = client.get(f"/packages/{package_id}/offers").json()
+    assert offers == []
+
+
+def test_batch_quotation_ingestion_blocked_after_technical_lock() -> None:
+    seeded = _seed_offer()  # PROJECT_EPC package with one offer
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status", json={"status": "ACCEPTED"}
+    )
+    assert accepted.status_code == 200
+    locked = client.post(f"/packages/{package_id}/technical-lock")
+    assert locked.status_code == 200
+    blocked = _post_batch(
+        package_id,
+        entries=[{"vendor_name": "Vendor Late"}],
+        files=[("late.txt", b"more evidence", "text/plain")],
+    )
+    assert blocked.status_code == 409
+
+
+def test_batch_quotation_ingestion_requires_authentication() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    client.headers.pop("Authorization", None)
+    unauthenticated = client.post(
+        f"/packages/{package_id}/quotations/batch",
+        data={"entries": json.dumps([{"vendor_name": "Vendor Alpha"}])},
+        files=[("files", ("alpha.txt", b"Rated voltage: 415 V", "text/plain"))],
+    )
+    assert unauthenticated.status_code == 401
+    assert "WWW-Authenticate" in unauthenticated.headers
+    login = client.post(
+        "/auth/login",
+        json={"email": "engineer@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+
+def test_batch_quotation_ingestion_cross_tenant_is_rejected() -> None:
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    # A second, unrelated account must not ingest into the first org's package.
+    outsider_register = client.post(
+        "/auth/register",
+        json={"email": "outsider-batch@example.com", "password": "correct-horse-battery"},
+    )
+    assert outsider_register.status_code == 201
+    outsider_login = client.post(
+        "/auth/login",
+        json={"email": "outsider-batch@example.com", "password": "correct-horse-battery"},
+    )
+    assert outsider_login.status_code == 200
+    outsider = {"Authorization": f"Bearer {outsider_login.json()['access_token']}"}
+    client.headers.pop("Authorization", None)
+    response = client.post(
+        f"/packages/{package_id}/quotations/batch",
+        data={"entries": json.dumps([{"vendor_name": "Vendor Alpha"}])},
+        files=[("files", ("alpha.txt", b"Rated voltage: 415 V", "text/plain"))],
+        headers=outsider,
+    )
+    assert response.status_code == 404
+    # Restore the setup_function session for any subsequent tests.
+    login = client.post(
+        "/auth/login",
+        json={"email": "engineer@example.com", "password": "correct-horse-battery"},
+    )
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"

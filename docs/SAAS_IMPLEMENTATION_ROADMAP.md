@@ -9,12 +9,13 @@
 
 ## P1 - First usable SaaS vertical slice
 
-**Status (authentication + tenancy milestone):** persistent database,
-organization/user model, web API, authentication, tenant isolation, and the
-migration foundation are delivered. See `docs/SAAS_AUTH_AND_TENANCY.md` for
-the architecture and migration workflow. Document storage/ingestion APIs are
-in place; batch quotation ingestion, product-category configuration, the web
-review screen, and the exportable report remain open product work.
+**Status (authentication + tenancy + batch ingestion milestones):** persistent
+database, organization/user model, web API, authentication, tenant isolation,
+and the migration foundation are delivered. See `docs/SAAS_AUTH_AND_TENANCY.md`
+for the architecture and migration workflow. Document storage/ingestion APIs
+and atomic batch quotation ingestion (`POST /packages/{id}/quotations/batch`)
+are in place; product-category configuration, the web review screen, and the
+exportable report remain open product work.
 
 Target workflow:
 
