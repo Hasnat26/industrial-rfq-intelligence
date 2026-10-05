@@ -1524,7 +1524,10 @@ def answer_clarification(
             status_code=409,
             detail="clarification must be OPEN before it can be answered",
         )
-    clarification.response = payload.response.strip()
+    response = payload.response.strip()
+    if not response:
+        raise HTTPException(status_code=422, detail="response must not be empty")
+    clarification.response = response
     previous_status = clarification.status
     clarification.status = "ANSWERED"
     _audit(
