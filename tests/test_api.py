@@ -29,6 +29,18 @@ def _blank_pdf() -> bytes:
 def setup_function() -> None:
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    client.headers.pop("Authorization", None)
+    registered = client.post(
+        "/auth/register",
+        json={"email": "engineer@example.com", "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": "engineer@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
 
 
 def test_project_epc_gate() -> None:

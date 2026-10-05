@@ -5,6 +5,41 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class UserRegister(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=8, max_length=256)
+
+
+class UserRead(BaseModel):
+    id: int
+    email: str
+
+    model_config = {"from_attributes": True}
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserRead
+
+
+class OrganizationMembershipRead(BaseModel):
+    organization_id: int
+    name: str
+    role: str
+
+
+class CurrentUserRead(BaseModel):
+    id: int
+    email: str
+    organizations: list[OrganizationMembershipRead]
+
+
 class OrganizationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
 
