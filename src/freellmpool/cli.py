@@ -447,6 +447,39 @@ def _strip_fences(text: str) -> str:
     return t.strip()
 
 
+def cmd_commercial_reconcile(args: argparse.Namespace) -> int:
+    """Run commercial reconciliation without an HTTP dependency."""
+    import json
+
+    from .api.db import SessionLocal
+    from .api.reconciliation import run_commercial_reconciliation, scheduler_secret_configured
+
+    if not scheduler_secret_configured():
+        print(
+            "freellmpool commercial reconcile: "
+            "INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET is not configured",
+            file=sys.stderr,
+        )
+        return 2
+    db = SessionLocal()
+    try:
+        result = run_commercial_reconciliation(db)
+    except Exception as exc:  # noqa: BLE001
+        print(f"freellmpool commercial reconcile: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        db.close()
+    if args.json:
+        print(json.dumps(result.model_dump(mode="json"), sort_keys=True))
+    else:
+        print(
+            f"Commercial reconciliation completed: "
+            f"{result.processed} processed, {result.rolled_over} rolled over, "
+            f"{result.unchanged} unchanged"
+        )
+    return 0
+
+
 def cmd_providers(args: argparse.Namespace) -> int:
     catalog = _runtime_catalog()
     configured = {p.id for p in configured_providers(catalog)}
@@ -2868,6 +2901,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_bench.add_argument("-p", "--providers", help="comma-separated provider ids to test")
     p_bench.add_argument("--timeout", type=float, default=30.0, help="per-call timeout seconds")
     p_bench.set_defaults(func=cmd_benchmark)
+
+    p_commercial = sub.add_parser("commercial", help="run commercial SaaS operational tasks")
+    commercial_sub = p_commercial.add_subparsers(dest="commercial_command", required=True)
+    p_commercial_reconcile = commercial_sub.add_parser(
+        "reconcile", help="run subscription reconciliation for a scheduler/cron job"
+    )
+    p_commercial_reconcile.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    p_commercial_reconcile.set_defaults(func=cmd_commercial_reconcile)
 
     p_doctor = sub.add_parser("doctor", help="show local diagnostics without calling providers")
     p_doctor.set_defaults(func=cmd_doctor)
