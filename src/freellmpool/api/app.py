@@ -84,6 +84,8 @@ from freellmpool.api.schemas import (
     TechnicalClarificationRead,
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
+    TechnicalEvaluationResponse,
+    TechnicalEvaluationRow,
     TechnicalStatusUpdate,
     TokenResponse,
     UserRead,
@@ -116,6 +118,7 @@ from freellmpool.technical_clarification import (
     build_technical_clarification_package,
     clarification_rows_for_vendor,
 )
+from freellmpool.technical_comparison import compare_technical_requirements
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 DOCUMENT_CHUNK_BYTES = 1024 * 1024
@@ -1690,6 +1693,106 @@ def commercial_comparison(
         commercial_open=package.commercial_evaluation_open,
         rows=rows,
     )
+
+
+def _technical_evaluation_rows(
+    package: ProcurementPackage,
+    db: Session,
+) -> TechnicalEvaluationResponse:
+    """Evaluate active vendor offers against the package's current RFQ revision."""
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+
+    active_offers = [
+        offer
+        for offer in _active_vendor_offers(package)
+        if offer.rfq_revision_id == revision.id
+    ]
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in revision.requirements
+    ]
+    vendor_values: list[VendorValue] = []
+    metadata: dict[str, VendorOffer] = {}
+    vendor_names: list[str] = []
+
+    for latest in active_offers:
+        metadata[" ".join(latest.vendor_name.casefold().split())] = latest
+        vendor_names.append(latest.vendor_name)
+        chain: list[VendorOffer] = []
+        current: VendorOffer | None = latest
+        seen: set[int] = set()
+        while current is not None and current.id not in seen:
+            seen.add(current.id)
+            chain.append(current)
+            current = current.parent_offer
+        chain.reverse()
+
+        claims_by_parameter: dict[str, list[VendorClaim]] = {}
+        for offer in chain:
+            claims_this_revision: dict[str, list[VendorClaim]] = {}
+            for claim in offer.claims:
+                claims_this_revision.setdefault(claim.parameter.casefold().strip(), []).append(claim)
+            for parameter, claims in claims_this_revision.items():
+                claims_by_parameter[parameter] = claims
+
+        for claims in claims_by_parameter.values():
+            for claim in claims:
+                vendor_values.append(
+                    VendorValue(
+                        latest.vendor_name,
+                        claim.parameter,
+                        claim.value,
+                        claim.evidence,
+                        _claim_status(claim.claim_status),
+                    )
+                )
+
+    findings = compare_technical_requirements(
+        requirements,
+        vendor_values,
+        vendors=vendor_names,
+    )
+    rows = [
+        TechnicalEvaluationRow(
+            offer_id=metadata[" ".join(finding.vendor.casefold().split())].id,
+            technical_revision=metadata[" ".join(finding.vendor.casefold().split())].technical_revision,
+            rfq_revision_id=revision.id,
+            rfq_revision=revision.revision,
+            requirement=finding.requirement,
+            vendor=finding.vendor,
+            parameter=finding.parameter,
+            required=finding.required,
+            offered=finding.offered,
+            status=finding.status,
+            gap_type=finding.gap_type,
+            evidence=finding.evidence,
+            claim_status=finding.claim_status,
+        )
+        for finding in findings
+    ]
+    return TechnicalEvaluationResponse(
+        package_id=package.id,
+        rfq_revision_id=revision.id,
+        rfq_revision=revision.revision,
+        rows=rows,
+    )
+
+
+@app.get("/packages/{package_id}/technical-evaluation", response_model=TechnicalEvaluationResponse)
+def technical_evaluation(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalEvaluationResponse:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    return _technical_evaluation_rows(package, db)
 
 
 @app.get("/packages/{package_id}/comparison", response_model=ComparisonResponse)

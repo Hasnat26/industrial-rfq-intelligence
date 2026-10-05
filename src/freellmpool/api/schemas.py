@@ -181,6 +181,29 @@ class ComparisonResponse(BaseModel):
     rows: list[ComparisonRow]
 
 
+class TechnicalEvaluationRow(BaseModel):
+    offer_id: int
+    technical_revision: str
+    rfq_revision_id: int
+    rfq_revision: str
+    requirement: str
+    vendor: str
+    parameter: str
+    required: str
+    offered: str | None
+    status: str
+    gap_type: str | None
+    evidence: str
+    claim_status: str
+
+
+class TechnicalEvaluationResponse(BaseModel):
+    package_id: int
+    rfq_revision_id: int
+    rfq_revision: str
+    rows: list[TechnicalEvaluationRow]
+
+
 class DecisionSupportVendorRead(BaseModel):
     vendor: str
     technical_score: float
