@@ -225,7 +225,7 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
         ordered = sorted(chain, key=lambda item: item.id)
         latest = ordered[-1]
         vendor_names.append(latest.vendor_name)
-        claims_by_parameter: dict[str, object] = {}
+        claims_by_parameter: dict[str, VendorClaim] = {}
         for offer in ordered:
             for claim in offer.claims:
                 claims_by_parameter[claim.parameter.casefold().strip()] = claim
