@@ -22,7 +22,6 @@ from freellmpool.api.db import (
 )
 from freellmpool.api.schemas import BillingWebhookEventRead
 
-
 router = APIRouter(tags=["billing"])
 
 _STATUS_MAP = {
