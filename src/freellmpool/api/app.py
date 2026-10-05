@@ -718,6 +718,7 @@ def create_rfq_revision(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail="current RFQ revision has an invalid sequence") from exc
     revision_name = f"R{revision_number}"
+    previous_active_offers = _active_vendor_offers(package)
     current.status = "SUPERSEDED"
     revision = RfqRevision(
         package_id=package.id,
@@ -742,7 +743,7 @@ def create_rfq_revision(
             )
         )
     package.current_rfq_revision_id = revision.id
-    for offer in _active_vendor_offers(package):
+    for offer in previous_active_offers:
         old_status = offer.technical_status
         offer.technical_status = "SUPERSEDED"
         _audit(
