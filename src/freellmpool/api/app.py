@@ -108,13 +108,11 @@ from freellmpool.industrial import (
     build_commercial_risk_review,
     build_evidence_register,
     build_matrix,
-    build_report,
     document_text,
     extract_claim_candidates,
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
-from freellmpool.industrial_report import render_engineering_report
 from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.product_categories import get_product_category, list_product_categories
 from freellmpool.technical_clarification import build_technical_clarification_package
@@ -2398,4 +2396,3 @@ def package_report(
     user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> dict[str, object]:
-    """Return the package as a machine-readable evidence-aware review report."""
