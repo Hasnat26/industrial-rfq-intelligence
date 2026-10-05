@@ -100,6 +100,17 @@ class PackageRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PackageWorkflowResponse(BaseModel):
+    package_id: int
+    mode: str
+    technical_bid_locked: bool
+    commercial_evaluation_open: bool
+    offer_count: int
+    technical_status_counts: dict[str, int]
+    open_deviation_count: int
+    open_clarification_count: int
+
+
 class TechnicalStatusUpdate(BaseModel):
     status: str = Field(min_length=1, max_length=40)
 
