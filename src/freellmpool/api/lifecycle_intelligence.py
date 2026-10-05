@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -47,6 +47,8 @@ class LifecycleAssetSummary(BaseModel):
     reliability_failure_intervals_days: list[float]
     mean_failure_interval_days: float | None
     mean_failure_to_maintenance_days: float | None
+    warranty_status: str
+    warranty_days_remaining: int | None
 
 
 class LifecycleIntelligenceResponse(BaseModel):
@@ -90,6 +92,16 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
             (current - previous).total_seconds() / 86400
             for previous, current in zip(failure_dates, failure_dates[1:])
         ]
+        now = datetime.now(UTC)
+        warranty_status = "NOT_SET"
+        warranty_days_remaining = None
+        if asset.warranty_end is not None:
+            warranty_end = asset.warranty_end
+            if warranty_end.tzinfo is None:
+                warranty_end = warranty_end.replace(tzinfo=UTC)
+            delta_days = (warranty_end - now).total_seconds() / 86400
+            warranty_days_remaining = max(0, int(delta_days))
+            warranty_status = "ACTIVE" if delta_days >= 0 else "EXPIRED"
         failure_to_maintenance = []
         for index, event in enumerate(asset_events):
             if event.event_type != "FAILURE":
@@ -126,6 +138,8 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
                 reliability_failure_intervals_days=failure_intervals,
                 mean_failure_interval_days=(sum(failure_intervals) / len(failure_intervals)) if failure_intervals else None,
                 mean_failure_to_maintenance_days=(sum(failure_to_maintenance) / len(failure_to_maintenance)) if failure_to_maintenance else None,
+                warranty_status=warranty_status,
+                warranty_days_remaining=warranty_days_remaining,
             )
         )
     return LifecycleIntelligenceResponse(
