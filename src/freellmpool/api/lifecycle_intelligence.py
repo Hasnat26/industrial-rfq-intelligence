@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from freellmpool.api.auth import get_current_user, is_member
 from freellmpool.api.db import (
     AssetProduct,
+    LifecycleCostRecord,
     LifecycleEvent,
     ProcurementPackage,
     Project,
@@ -40,6 +41,9 @@ class LifecycleAssetSummary(BaseModel):
     replacement_count: int
     first_event_date: datetime | None
     latest_event_date: datetime | None
+    lifecycle_costs_by_currency: dict[str, float]
+    warranty_start: datetime | None
+    warranty_end: datetime | None
 
 
 class LifecycleIntelligenceResponse(BaseModel):
@@ -60,7 +64,18 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
     events = []
     if package_ids:
         events = list(db.scalars(select(LifecycleEvent).where(LifecycleEvent.package_id.in_(package_ids))).all())
-    by_asset: dict[str, list[LifecycleEvent]] = {}\n    costs = []\n    if package_ids:\n        costs = list(db.scalars(select(LifecycleCostRecord).where(LifecycleCostRecord.package_id.in_(package_ids))).all())\n    costs_by_asset: dict[str, dict[str, float]] = {}\n    for cost in costs:\n        costs_by_asset.setdefault(cost.asset_id, {})[cost.currency] = costs_by_asset.setdefault(cost.asset_id, {}).get(cost.currency, 0.0) + cost.amount
+    by_asset: dict[str, list[LifecycleEvent]] = {}
+    costs = []
+    if package_ids:
+        costs = list(
+            db.scalars(
+                select(LifecycleCostRecord).where(LifecycleCostRecord.package_id.in_(package_ids))
+            ).all()
+        )
+    costs_by_asset: dict[str, dict[str, float]] = {}
+    for cost in costs:
+        currency_totals = costs_by_asset.setdefault(cost.asset_id, {})
+        currency_totals[cost.currency] = currency_totals.get(cost.currency, 0.0) + cost.amount
     for event in events:
         by_asset.setdefault(event.asset_id, []).append(event)
     summaries = []
@@ -84,7 +99,10 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
                 spare_part_count=counts.get("SPARE_PART", 0),
                 replacement_count=counts.get("REPLACEMENT", 0),
                 first_event_date=asset_events[0].event_date if asset_events else None,
-                latest_event_date=asset_events[-1].event_date if asset_events else None,\n                lifecycle_costs_by_currency=dict(sorted(costs_by_asset.get(asset.asset_id, {}).items())),\n                warranty_start=asset.warranty_start,\n                warranty_end=asset.warranty_end,
+                latest_event_date=asset_events[-1].event_date if asset_events else None,
+                lifecycle_costs_by_currency=dict(sorted(costs_by_asset.get(asset.asset_id, {}).items())),
+                warranty_start=asset.warranty_start,
+                warranty_end=asset.warranty_end,
             )
         )
     return LifecycleIntelligenceResponse(
