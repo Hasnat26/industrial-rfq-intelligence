@@ -95,3 +95,40 @@ def test_lifecycle_intelligence_includes_costs_and_warranty_dates() -> None:
     assert summary["lifecycle_costs_by_currency"] == {"EUR": 100.0, "USD": 1250.0}
     assert summary["warranty_start"].startswith("2026-01-01")
     assert summary["warranty_end"].startswith("2028-01-01")
+
+
+def test_lifecycle_intelligence_reports_reliability_indicators() -> None:
+    organization = client.post("/organizations", json={"name": "Reliability Org"}).json()
+    project = client.post("/projects", json={"organization_id": organization["id"], "name": "Plant"}).json()
+    package = client.post(
+        "/packages",
+        json={"project_id": project["id"], "name": "Drive", "category": "VFD", "mode": "STANDARD"},
+    ).json()
+    client.post(
+        f"/packages/{package['id']}/assets",
+        json={"asset_id": "VFD-REL-001"},
+    )
+    events = [
+        ("COMMISSIONING", "2026-01-01T00:00:00Z"),
+        ("FAILURE", "2026-02-01T00:00:00Z"),
+        ("MAINTENANCE", "2026-02-03T00:00:00Z"),
+        ("FAILURE", "2026-03-05T00:00:00Z"),
+        ("MAINTENANCE", "2026-03-06T00:00:00Z"),
+    ]
+    for event_type, date in events:
+        response = client.post(
+            f"/packages/{package['id']}/lifecycle-events",
+            json={
+                "asset_id": "VFD-REL-001",
+                "event_type": event_type,
+                "event_date": date,
+                "description": event_type,
+            },
+        )
+        assert response.status_code == 201, response.text
+    result = client.get(f"/organizations/{organization['id']}/lifecycle-intelligence")
+    assert result.status_code == 200, result.text
+    summary = result.json()["assets"][0]
+    assert summary["reliability_failure_intervals_days"] == [32.0]
+    assert summary["mean_failure_interval_days"] == 32.0
+    assert summary["mean_failure_to_maintenance_days"] == 1.5
