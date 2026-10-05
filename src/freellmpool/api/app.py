@@ -67,6 +67,7 @@ from freellmpool.api.schemas import (
     VendorDocumentRead,
 )
 from freellmpool.api.security import hash_password
+from freellmpool.api.web import web_app
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -224,6 +225,47 @@ def get_category(
             for parameter in category.parameters
         ],
     )
+
+
+@app.get("/", include_in_schema=False)
+def web_review_app() -> Response:
+    """Serve the browser-based procurement workspace."""
+    return web_app()
+
+
+@app.get("/projects", response_model=list[ProjectRead])
+def list_projects(
+    organization_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[ProjectRead]:
+    """List projects visible to the authenticated tenant member."""
+    if not is_member(db, user.id, organization_id):
+        raise HTTPException(status_code=404, detail="organization not found")
+    rows = db.scalars(
+        select(Project)
+        .where(Project.organization_id == organization_id)
+        .order_by(Project.id)
+    ).all()
+    return list(rows)
+
+
+@app.get("/packages", response_model=list[PackageRead])
+def list_packages(
+    project_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[PackageRead]:
+    """List procurement packages visible through the user's project tenant."""
+    project = db.get(Project, project_id)
+    if project is None or not is_member(db, user.id, project.organization_id):
+        raise HTTPException(status_code=404, detail="project not found")
+    rows = db.scalars(
+        select(ProcurementPackage)
+        .where(ProcurementPackage.project_id == project_id)
+        .order_by(ProcurementPackage.id)
+    ).all()
+    return list(rows)
 
 
 @app.get("/health")
