@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from freellmpool.api.app import app
-from freellmpool.api.db import Base, SessionLocal, engine
+from freellmpool.api.db import Base, ProcurementPackage, SessionLocal, engine
 
 
 client = TestClient(app)
@@ -147,7 +147,7 @@ def test_technical_evaluation_is_bound_to_current_rfq_revision() -> None:
     assert offer.status_code == 201, offer.text
 
     with SessionLocal() as session:
-        package = session.get(__import__("freellmpool.api.db", fromlist=["ProcurementPackage"]).ProcurementPackage, package_id)
+        package = session.get(ProcurementPackage, package_id)
         assert package is not None
         assert package.current_rfq_revision_id is not None
         current_revision_id = package.current_rfq_revision_id
