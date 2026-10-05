@@ -49,6 +49,36 @@ class Organization(Base):
     )
 
 
+class OrganizationSubscription(Base):
+    """Commercial subscription entitlement state for an organization."""
+
+    __tablename__ = "organization_subscriptions"
+    __table_args__ = (UniqueConstraint("organization_id", name="uq_organization_subscriptions_org"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    plan_key: Mapped[str] = mapped_column(String(30), default="STARTER")
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE")
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+
+class UsageRecord(Base):
+    """Append-only usage ledger for billable product activity."""
+
+    __tablename__ = "usage_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    metric: Mapped[str] = mapped_column(String(50), index=True)
+    quantity: Mapped[float] = mapped_column(Float)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    source_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 class User(Base):
     """A registered account. Passwords are stored only as salted hashes."""
 
