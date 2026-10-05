@@ -403,3 +403,67 @@ def test_superseded_offer_cannot_mutate_claim_deviation_or_clarification_workflo
     request = client.post(f"/offers/{offer['id']}/technical-clarification-request")
     assert request.status_code == 409
     assert "superseded RFQ revision" in request.json()["detail"]
+
+def test_procurement_offer_mutations_are_audited() -> None:
+    organization = client.post("/organizations", json={"name": "Audit Mutation Org"}).json()
+    project = client.post(
+        "/projects", json={"organization_id": organization["id"], "name": "Project"}
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Audit Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2", "source_text": "revised"},
+    )
+    assert revision.status_code == 201, revision.text
+
+    revision_offer = revision.json()
+    claim = client.post(
+        f"/offers/{revision_offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "Vendor document evidence",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert claim.status_code == 201, claim.text
+
+    document = client.post(
+        f"/offers/{revision_offer['id']}/documents",
+        files={"file": ("offer.txt", b"Rated voltage: 415 V", "text/plain")},
+    )
+    assert document.status_code == 201, document.text
+
+    audit = client.get(f"/packages/{package['id']}/audit")
+    assert audit.status_code == 200, audit.text
+    events = audit.json()
+    event_types = [item["event_type"] for item in events]
+    assert event_types[:3] == [
+        "TECHNICAL_OFFER_CREATED",
+        "TECHNICAL_OFFER_REVISION_CREATED",
+        "VENDOR_CLAIM_CREATED",
+    ]
+    assert "VENDOR_DOCUMENT_UPLOADED" in event_types
+    assert all(item["package_id"] == package["id"] for item in events)
+    assert all(item["actor_user_id"] is not None for item in events)
+    assert all(
+        item["offer_id"] is None
+        or item["offer_id"] in {offer["id"], revision_offer["id"]}
+        for item in events
+    )
