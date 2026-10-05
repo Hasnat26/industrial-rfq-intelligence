@@ -9,6 +9,7 @@ from .lifecycle_intelligence import router as lifecycle_intelligence_router
 from .procurement_memory import router as procurement_memory_router
 
 app.include_router(procurement_memory_router)
+app.include_router(commercial_router)
 
 __all__ = ["app"]
 
