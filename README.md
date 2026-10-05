@@ -218,7 +218,7 @@ Implemented:
 - CLI JSON/Markdown output
 - automated test and CI configuration
 
-Planned product work includes OCR/table extraction, broader document coverage, richer reporting, expanded engineering validation, and reviewer-oriented workflow interfaces.
+Planned product work includes table extraction, broader document coverage, richer reporting, expanded engineering validation, and reviewer-oriented workflow interfaces. Scanned-PDF OCR is implemented as an optional ingestion capability.
 
 ## Engineering context
 
