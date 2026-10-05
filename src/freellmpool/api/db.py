@@ -232,6 +232,29 @@ def get_db() -> Generator[object, None, None]:
         db.close()
 
 
+class AssetProduct(Base):
+    """Installed product identity and lifecycle state derived from procurement records."""
+
+    __tablename__ = "asset_products"
+    __table_args__ = (UniqueConstraint("package_id", "asset_id", name="uq_asset_products_package_asset"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    offer_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_offers.id"), nullable=True, index=True)
+    asset_id: Mapped[str] = mapped_column(String(200), index=True)
+    manufacturer: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    model: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    part_number: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    serial_number: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    installation_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    commissioning_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    warranty_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    warranty_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE")
+    package: Mapped[ProcurementPackage] = relationship()
+    offer: Mapped[VendorOffer | None] = relationship()
+
+
 class LifecycleEvent(Base):
     """Canonical post-procurement event linked to a package and optional offer."""
 
