@@ -50,8 +50,8 @@ def _validate_event_type(value: str) -> str:
 def create_lifecycle_event(
     package_id: int,
     payload: LifecycleEventCreate,
-    db: Session = Depends(get_db),  # noqa: B008
-    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008  # noqa: B008
 ) -> LifecycleEvent:
     package = _package_for_user(db, package_id, user)
     event_type = _validate_event_type(payload.event_type)
@@ -81,8 +81,8 @@ def create_lifecycle_event(
 )
 def list_lifecycle_events(
     package_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[LifecycleEvent]:
     package = _package_for_user(db, package_id, user)
     return list(
@@ -100,8 +100,8 @@ def list_lifecycle_events(
 )
 def list_organization_lifecycle_events(
     organization_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ) -> list[LifecycleEvent]:
     if not is_member(db, user.id, organization_id):
         raise HTTPException(status_code=404, detail="organization not found")
