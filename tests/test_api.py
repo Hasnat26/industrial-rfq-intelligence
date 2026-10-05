@@ -1008,6 +1008,38 @@ def test_workflow_gate_transitions_cannot_repeat_after_lock_and_open() -> None:
     assert repeated_open.status_code == 409
 
 
+def test_terminal_technical_status_blocks_manual_issue_creation() -> None:
+    seeded = _seed_offer()
+    offer_id = seeded["offer"]["id"]
+
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert accepted.status_code == 200
+
+    deviation = client.post(
+        f"/offers/{offer_id}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MINOR",
+            "description": "Should be blocked after acceptance.",
+        },
+    )
+    assert deviation.status_code == 409
+    assert "current technical status" in deviation.json()["detail"]
+
+    clarification = client.post(
+        f"/offers/{offer_id}/clarifications",
+        json={
+            "question": "Should be blocked after acceptance.",
+            "status": "OPEN",
+        },
+    )
+    assert clarification.status_code == 409
+    assert "current technical status" in clarification.json()["detail"]
+
+
 def test_terminal_technical_status_cannot_regress_to_clarification() -> None:
     seeded = _seed_offer()
     offer_id = seeded["offer"]["id"]
