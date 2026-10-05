@@ -409,3 +409,42 @@ class LifecycleCostRead(LifecycleCostCreate):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SubscriptionPlanRead(BaseModel):
+    key: str
+    name: str
+    monthly_price_usd: float
+    limits: dict[str, float]
+
+
+class OrganizationSubscriptionRead(BaseModel):
+    organization_id: int
+    plan_key: str
+    status: str
+    current_period_start: datetime
+    current_period_end: datetime
+
+
+class UsageRecordCreate(BaseModel):
+    metric: str = Field(min_length=1, max_length=50)
+    quantity: float = Field(gt=0)
+    source_type: str | None = Field(default=None, max_length=50)
+    source_id: int | None = Field(default=None, ge=1)
+
+
+class UsageRecordRead(UsageRecordCreate):
+    id: int
+    organization_id: int
+    recorded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UsageSummaryResponse(BaseModel):
+    organization_id: int
+    plan_key: str
+    period_start: datetime
+    period_end: datetime
+    usage: dict[str, float]
+    limits: dict[str, float]
