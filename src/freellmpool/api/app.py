@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -68,15 +69,18 @@ from freellmpool.api.schemas import (
 from freellmpool.api.security import hash_password
 from freellmpool.industrial import (
     ClaimStatus,
+    CommercialValue,
     DocumentPage,
     EvidenceProvenance,
     VendorValue,
     build_evidence_register,
     build_matrix,
+    build_report,
     document_text,
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.industrial_report import render_engineering_report
 from freellmpool.product_categories import get_product_category, list_product_categories
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
@@ -1115,3 +1119,81 @@ def package_evidence(
             )
         )
     return EvidenceResponse(package_id=package.id, rows=rows)
+
+
+@app.get("/packages/{package_id}/report")
+def package_report(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
+    """Return the package as a machine-readable evidence-aware review report."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+    ]
+    vendor_values: list[VendorValue] = []
+    for offer in package.offers:
+        for claim in offer.claims:
+            provenance = (
+                EvidenceProvenance(
+                    source=claim.source_document.filename,
+                    page=claim.source_page,
+                    section=claim.source_section,
+                    table=claim.source_table,
+                    cell=claim.source_cell,
+                )
+                if claim.source_document is not None
+                else None
+            )
+            vendor_values.append(
+                VendorValue(
+                    offer.vendor_name,
+                    claim.parameter,
+                    claim.value,
+                    claim.evidence,
+                    _claim_status(claim.claim_status),
+                    provenance,
+                )
+            )
+
+    commercial_values = [
+        CommercialValue(
+            vendor=offer.vendor_name,
+            price=offer.price or "",
+            currency=offer.currency or "",
+            lead_time=offer.lead_time or "",
+            warranty=offer.warranty or "",
+            payment_terms="",
+            evidence=offer.source_text or "",
+            claim_status="UNVERIFIED",
+        )
+        for offer in package.offers
+        if any(
+            value
+            for value in (offer.price, offer.currency, offer.lead_time, offer.warranty, offer.source_text)
+        )
+    ]
+    return build_report(requirements, vendor_values, commercial_values)
+
+
+@app.get("/packages/{package_id}/report/markdown")
+def package_report_markdown(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> Response:
+    """Export the package review as an engineer-readable Markdown document."""
+    report = package_report(package_id, user, db)
+    markdown = render_engineering_report(report)
+    return Response(
+        content=markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="rfq-review-package-{package_id}.md"'
+        },
+    )

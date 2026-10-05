@@ -31,7 +31,7 @@ Deliverables:
 - batch quotation ingestion;
 - product-category configuration;
 - web review screen;
-- exportable CS/TBE-style report.
+- exportable CS/TBE-style report. **Export API delivered; browser review UI remains open.**
 
 ## P2 - Project/EPC procurement workflow
 

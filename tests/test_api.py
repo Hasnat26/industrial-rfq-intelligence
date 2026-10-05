@@ -970,3 +970,36 @@ def test_product_category_lookup_is_case_insensitive() -> None:
 def test_product_category_lookup_returns_404_for_unknown_category() -> None:
     response = client.get("/product-categories/does-not-exist")
     assert response.status_code == 404
+
+
+
+def test_package_report_and_markdown_export() -> None:
+    seeded = _seed_offer(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+
+    claim = client.post(
+        f"/offers/{offer_id}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "Quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert claim.status_code == 201
+
+    report = client.get(f"/packages/{package_id}/report")
+    assert report.status_code == 200
+    payload = report.json()
+    assert payload["summary"]["requirements_checked"] == 1
+    assert payload["summary"]["vendors_checked"] == 1
+    assert payload["matrix"][0]["status"] == "COMPLIANT"
+    assert payload["evidence_register"][0]["claim_status"] == "VERIFIED"
+
+    markdown = client.get(f"/packages/{package_id}/report/markdown")
+    assert markdown.status_code == 200
+    assert markdown.headers["content-type"].startswith("text/markdown")
+    assert 'filename="rfq-review-package-' in markdown.headers["content-disposition"]
+    assert "# Industrial RFQ Engineering Review" in markdown.text
+    assert "Technical compliance matrix" in markdown.text
