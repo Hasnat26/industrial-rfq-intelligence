@@ -2250,7 +2250,17 @@ def _get_evaluation_settings(db: Session, package: ProcurementPackage) -> Packag
             commercial_weight=30.0,
         )
         db.add(settings)
-        db.flush()
+        try:
+            with db.begin_nested():
+                db.flush()
+        except IntegrityError:
+            settings = db.scalar(
+                select(PackageEvaluationSettings).where(
+                    PackageEvaluationSettings.package_id == package.id
+                )
+            )
+            if settings is None:
+                raise
     return settings
 
 
