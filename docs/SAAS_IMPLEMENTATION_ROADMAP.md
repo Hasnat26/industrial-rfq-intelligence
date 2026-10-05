@@ -79,7 +79,7 @@ P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, fai
 
 ## P5 - Commercial SaaS hardening
 
-**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation, P5.2 server-side plan-limit enforcement, P5.3 provider-neutral subscription lifecycle integration, P5.4 billing webhook receipt/idempotency foundation, P5.5 canonical billing-event subscription synchronization, P5.6 commercial usage reconciliation, and P5.7 deterministic subscription period rollover are implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Actual payment execution remains provider-neutral and requires external billing-provider credentials/configuration; webhook receipts are now authenticated and idempotently persisted.
+**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation, P5.2 server-side plan-limit enforcement, P5.3 provider-neutral subscription lifecycle integration, P5.4 billing webhook receipt/idempotency foundation, P5.5 canonical billing-event subscription synchronization, P5.6 commercial usage reconciliation, P5.7 deterministic subscription period rollover, and P5.8 authenticated commercial reconciliation execution are implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Actual payment execution remains provider-neutral and requires external billing-provider credentials/configuration; webhook receipts are now authenticated and idempotently persisted.
 
 Deliverables:
 
