@@ -221,7 +221,7 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
     vendor_values: list[VendorValue] = []
     vendor_names: list[str] = []
     claim_parameters_by_vendor: dict[str, set[str]] = {}
-    for vendor_key, chain in grouped.items():
+    for _vendor_key, chain in grouped.items():
         ordered = sorted(chain, key=lambda item: item.id)
         latest = ordered[-1]
         vendor_names.append(latest.vendor_name)
@@ -2106,3 +2106,10 @@ def package_report_markdown(
     """Export the package review as an engineer-readable Markdown document."""
     report = package_report(package_id, user, db)
     markdown = render_engineering_report(report)
+    return Response(
+        content=markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="rfq-review-package-{package_id}.md"'
+        },
+    )
