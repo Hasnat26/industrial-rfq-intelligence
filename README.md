@@ -259,3 +259,6 @@ Actual local test execution should be treated separately from repository configu
 ## License
 
 MIT
+
+
+<!-- CI verification: deterministic decision-support milestone -->
