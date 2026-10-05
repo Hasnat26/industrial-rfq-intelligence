@@ -1439,6 +1439,16 @@ def add_deviation(
         resolution=payload.resolution,
     )
     db.add(deviation)
+    _audit(
+        db,
+        offer.package,
+        user,
+        "TECHNICAL_DEVIATION_CREATED",
+        offer=offer,
+        from_status=None,
+        to_status=deviation_status,
+        note=deviation.description,
+    )
     db.commit()
     db.refresh(deviation)
     return deviation
