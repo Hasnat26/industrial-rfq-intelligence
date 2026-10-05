@@ -1363,6 +1363,16 @@ def add_clarification(
         status=clarification_status,
     )
     db.add(clarification)
+    _audit(
+        db,
+        offer.package,
+        user,
+        "CLARIFICATION_CREATED",
+        offer=offer,
+        from_status=None,
+        to_status=clarification_status,
+        note=clarification.question.strip(),
+    )
     db.commit()
     db.refresh(clarification)
     return clarification
@@ -1423,7 +1433,18 @@ def answer_clarification(
             detail="clarification must be OPEN before it can be answered",
         )
     clarification.response = payload.response.strip()
+    previous_status = clarification.status
     clarification.status = "ANSWERED"
+    _audit(
+        db,
+        clarification.offer.package,
+        user,
+        "CLARIFICATION_ANSWERED",
+        offer=clarification.offer,
+        from_status=previous_status,
+        to_status="ANSWERED",
+        note=clarification.response,
+    )
     db.commit()
     db.refresh(clarification)
     return clarification
@@ -1456,8 +1477,19 @@ def close_clarification(
         )
     if clarification.offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
+    previous_status = clarification.status
     clarification.status = "CLOSED"
     clarification.resolution = payload.note.strip()
+    _audit(
+        db,
+        clarification.offer.package,
+        user,
+        "CLARIFICATION_CLOSED",
+        offer=clarification.offer,
+        from_status=previous_status,
+        to_status="CLOSED",
+        note=clarification.resolution,
+    )
     db.commit()
     db.refresh(clarification)
     return clarification
