@@ -18,7 +18,6 @@ from freellmpool.api.db import (
     ProcurementPackage,
     Project,
     User,
-    VendorOffer,
     get_db,
 )
 
