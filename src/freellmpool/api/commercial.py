@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.db import OrganizationSubscription, UsageRecord, User, get_db
+from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscription, UsageRecord, User, get_db
 from freellmpool.api.schemas import (
     OrganizationSubscriptionRead,
     SubscriptionPlanRead,
@@ -306,16 +306,29 @@ def reconcile_commercial_state(
         raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
     if x_commercial_reconciliation_secret != expected:
         raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
-    subscriptions = db.scalars(select(OrganizationSubscription)).all()
-    processed = 0
-    rolled_over = 0
-    for subscription in subscriptions:
-        processed += 1
-        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-            if _rollover_if_expired(db, subscription, datetime.now(UTC)):
+    run = CommercialReconciliationRun(status="RUNNING", started_at=datetime.now(UTC))
+    db.add(run)
+    db.flush()
+    try:
+        subscriptions = db.scalars(select(OrganizationSubscription)).all()
+        processed = 0
+        rolled_over = 0
+        for subscription in subscriptions:
+            processed += 1
+            if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and _rollover_if_expired(db, subscription, datetime.now(UTC)):
                 rolled_over += 1
-    if rolled_over:
+        run.processed = processed
+        run.rolled_over = rolled_over
+        run.unchanged = processed - rolled_over
+        run.status = "COMPLETED"
+        run.completed_at = datetime.now(UTC)
         db.commit()
+    except Exception as exc:
+        db.rollback()
+        run = CommercialReconciliationRun(status="FAILED", started_at=run.started_at, completed_at=datetime.now(UTC), error=str(exc)[:2000])
+        db.add(run)
+        db.commit()
+        raise HTTPException(status_code=500, detail="commercial reconciliation failed")
     return CommercialReconciliationResponse(
         processed=processed,
         rolled_over=rolled_over,
