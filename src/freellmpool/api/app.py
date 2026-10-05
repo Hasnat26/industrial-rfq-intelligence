@@ -861,6 +861,17 @@ def add_offer(
         source_text=payload.source_text,
     )
     db.add(offer)
+    db.flush()
+    _audit(
+        db,
+        package,
+        user,
+        "TECHNICAL_OFFER_CREATED",
+        offer=offer,
+        from_status=None,
+        to_status=offer.technical_status,
+        note=f"Offer {offer.vendor_name} revision {offer.technical_revision} created",
+    )
     try:
         db.commit()
     except IntegrityError as exc:
@@ -1092,6 +1103,17 @@ def create_offer_revision(
         source_text=payload.source_text,
     )
     db.add(revision_offer)
+    db.flush()
+    _audit(
+        db,
+        offer.package,
+        user,
+        "TECHNICAL_OFFER_REVISION_CREATED",
+        offer=revision_offer,
+        from_status=offer.technical_revision,
+        to_status=revision,
+        note=f"Technical revision created from {offer.technical_revision}",
+    )
     try:
         db.commit()
     except IntegrityError as exc:
@@ -1266,6 +1288,17 @@ def add_claim(
         source_cell=payload.source_cell,
     )
     db.add(claim)
+    db.flush()
+    _audit(
+        db,
+        offer.package,
+        user,
+        "VENDOR_CLAIM_CREATED",
+        offer=offer,
+        from_status=None,
+        to_status=claim_status,
+        note=f"Claim created for {claim.parameter.strip()}",
+    )
     db.commit()
     db.refresh(claim)
     return claim
@@ -1660,6 +1693,7 @@ async def upload_offer_document(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
+    _require_current_rfq_offer(offer.package, offer)
     filename = _safe_filename(file.filename)
     suffix = Path(filename).suffix.casefold()
     if suffix not in SUPPORTED_DOCUMENT_SUFFIXES:
@@ -1704,6 +1738,16 @@ async def upload_offer_document(
     db.add(document)
     db.flush()
     _auto_create_document_claims(db, offer, document, pages)
+    _audit(
+        db,
+        offer.package,
+        user,
+        "VENDOR_DOCUMENT_UPLOADED",
+        offer=offer,
+        from_status=None,
+        to_status=document.document_type,
+        note=document.filename,
+    )
     db.commit()
     db.refresh(document)
     return document
