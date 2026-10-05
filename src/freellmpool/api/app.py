@@ -114,11 +114,11 @@ from freellmpool.industrial import Requirement as EngineRequirement
 from freellmpool.industrial_report import render_engineering_report
 from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.product_categories import get_product_category, list_product_categories
-from freellmpool.technical_comparison import compare_technical_requirements
 from freellmpool.technical_clarification import (
     build_technical_clarification_package,
     clarification_rows_for_vendor,
 )
+from freellmpool.technical_comparison import compare_technical_requirements
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 DOCUMENT_CHUNK_BYTES = 1024 * 1024
