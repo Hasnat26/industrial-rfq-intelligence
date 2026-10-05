@@ -1388,7 +1388,11 @@ def compare_package(
         for offer in package.offers
         for claim in offer.claims
     ]
-    matrix = build_matrix(requirements, vendor_values)
+    matrix = build_matrix(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+    )
     rows = [
         ComparisonRow(
             vendor=row["vendor"],
