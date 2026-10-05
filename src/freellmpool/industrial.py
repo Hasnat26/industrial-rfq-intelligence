@@ -288,9 +288,11 @@ def extract_document_pages_with_ocr(
     if min_text_chars < 0:
         raise ValueError("min_text_chars must be non-negative")
     try:
-        import fitz
-        import pytesseract
-        from PIL import Image
+        import importlib
+
+        fitz = importlib.import_module("fitz")
+        pytesseract = importlib.import_module("pytesseract")
+        image_module = importlib.import_module("PIL.Image")
     except ImportError as exc:
         raise ValueError(
             "PDF OCR requires the 'ocr' optional dependencies; install with: "
@@ -308,7 +310,7 @@ def extract_document_pages_with_ocr(
                 ocr_pages.append(DocumentPage(str(document), index, native_text))
                 continue
             pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-            image = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
+            image = image_module.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
             try:
                 text = pytesseract.image_to_string(image, lang=language)
             except Exception as exc:
