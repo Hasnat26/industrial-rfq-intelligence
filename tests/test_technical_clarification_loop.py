@@ -270,3 +270,45 @@ def test_clarification_close_requires_answered_status() -> None:
         json={"note": "Cannot close unanswered clarification."},
     )
     assert response.status_code == 409
+
+
+def test_clarification_lifecycle_is_audited() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    created = client.post(
+        f"/offers/{offer['id']}/clarifications",
+        json={"question": "Confirm protection class."},
+    )
+    assert created.status_code == 201
+    clarification_id = created.json()["id"]
+
+    answered = client.post(
+        f"/clarifications/{clarification_id}/answer",
+        json={"response": "IP55"},
+    )
+    assert answered.status_code == 200
+
+    closed = client.post(
+        f"/clarifications/{clarification_id}/close",
+        json={"note": "Vendor response reviewed."},
+    )
+    assert closed.status_code == 200
+
+    audit = client.get(f"/packages/{package['id']}/audit")
+    assert audit.status_code == 200
+    events = [
+        item
+        for item in audit.json()
+        if item["event_type"].startswith("CLARIFICATION_")
+    ]
+    assert [(item["event_type"], item["from_status"], item["to_status"]) for item in events] == [
+        ("CLARIFICATION_CREATED", None, "OPEN"),
+        ("CLARIFICATION_ANSWERED", "OPEN", "ANSWERED"),
+        ("CLARIFICATION_CLOSED", "ANSWERED", "CLOSED"),
+    ]
+    assert all(item["offer_id"] == offer["id"] for item in events)
+    assert all(item["actor_user_id"] is not None for item in events)
