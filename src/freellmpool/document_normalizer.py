@@ -100,12 +100,17 @@ def normalize_document(
     suffix = document.suffix.casefold()
 
     if suffix != ".pdf":
-        markdown = converter.convert(str(document)).markdown
+        image_suffixes = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
+        try:
+            markdown = converter.convert(str(document)).markdown
+        except Exception as exc:
+            if not (ocr_fallback and suffix in image_suffixes):
+                raise ValueError(f"MarkItDown conversion failed for '{document}'") from exc
+            markdown = ""
         if not isinstance(markdown, str):
             raise ValueError(f"MarkItDown returned no Markdown content for '{document}'")
         content = markdown.strip()
-        image_suffixes = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
-        if ocr_fallback and suffix in image_suffixes and len(content) < ocr_min_text_chars:
+        if ocr_fallback and suffix in image_suffixes:
             try:
                 from PIL import Image
             except ImportError as exc:
