@@ -9,11 +9,46 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TypedDict
 
 from freellmpool.industrial import Requirement, VendorValue, build_matrix
 
 RequirementOutcome = Literal["COMPLIANT", "DEVIATION", "UNVERIFIED"]
+
+
+class DecisionSupportVendorPayload(TypedDict):
+    vendor: str
+    technical_score: float
+    evidence_coverage_pct: float
+    requirements_checked: int
+    compliant_count: int
+    deviation_count: int
+    major_deviation_count: int
+    minor_deviation_count: int
+    conflict_count: int
+    missing_evidence_count: int
+    weighted_requirements: float
+    weighted_points: float
+
+
+class DecisionSupportRowPayload(TypedDict):
+    requirement: str
+    vendor: str
+    parameter: str
+    required: str
+    offered: str
+    status: str
+    severity: str
+    evidence: str
+    claim_status: str
+    weight: float
+    score_factor: float
+
+
+class DecisionSupportResult(TypedDict):
+    formula: dict[str, object]
+    vendors: list[DecisionSupportVendorPayload]
+    rows: list[DecisionSupportRowPayload]
 DeviationSeverity = Literal["NONE", "MINOR", "MAJOR", "CRITICAL"]
 
 
@@ -78,7 +113,7 @@ def build_decision_support(
     vendor_data: Sequence[VendorValue],
     vendors: Sequence[str] | None = None,
     requirement_types: dict[str, str] | None = None,
-) -> dict[str, object]:
+) -> DecisionSupportResult:
     """Build deterministic, auditable vendor decision-support metrics.
 
     Score formula:
