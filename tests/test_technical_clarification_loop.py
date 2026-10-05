@@ -509,3 +509,43 @@ def test_rfq_revision_rejects_blank_reason() -> None:
         },
     )
     assert response.status_code == 422
+
+def test_technical_deviation_lifecycle_is_audited() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    created = client.post(
+        f"/offers/{offer['id']}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MAJOR",
+            "description": "Vendor quotation specifies 690 V.",
+            "status": "OPEN",
+        },
+    )
+    assert created.status_code == 201
+    deviation_id = created.json()["id"]
+
+    resolved = client.post(
+        f"/deviations/{deviation_id}/resolve",
+        json={"note": "Customer-approved revised voltage basis."},
+    )
+    assert resolved.status_code == 200
+    assert resolved.json()["status"] == "RESOLVED"
+
+    audit = client.get(f"/packages/{package['id']}/audit")
+    assert audit.status_code == 200
+    events = [
+        item
+        for item in audit.json()
+        if item["event_type"].startswith("TECHNICAL_DEVIATION_")
+    ]
+    assert [(item["event_type"], item["from_status"], item["to_status"]) for item in events] == [
+        ("TECHNICAL_DEVIATION_CREATED", None, "OPEN"),
+        ("TECHNICAL_DEVIATION_RESOLVED", "OPEN", "RESOLVED"),
+    ]
+    assert all(item["offer_id"] == offer["id"] for item in events)
+    assert all(item["actor_user_id"] is not None for item in events)
