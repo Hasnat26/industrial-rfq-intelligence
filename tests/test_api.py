@@ -984,3 +984,25 @@ def test_superseded_offer_deviation_cannot_be_resolved() -> None:
     )
     assert resolved.status_code == 409
     assert "superseded RFQ revision" in resolved.json()["detail"]
+
+
+def test_workflow_gate_transitions_cannot_repeat_after_lock_and_open() -> None:
+    seeded = _seed_offer()
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert accepted.status_code == 200
+
+    locked = client.post(f"/packages/{package_id}/technical-lock")
+    assert locked.status_code == 200
+    repeated_lock = client.post(f"/packages/{package_id}/technical-lock")
+    assert repeated_lock.status_code == 409
+
+    opened = client.post(f"/packages/{package_id}/commercial-open")
+    assert opened.status_code == 200
+    repeated_open = client.post(f"/packages/{package_id}/commercial-open")
+    assert repeated_open.status_code == 409
