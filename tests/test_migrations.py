@@ -168,3 +168,13 @@ def test_clarification_traceability_columns_are_migrated(tmp_path: Path) -> None
         "evaluation_status",
         "evaluation_evidence",
     } <= columns
+
+    connection = sqlite3.connect(database)
+    try:
+        foreign_keys = connection.execute(
+            "PRAGMA foreign_key_list(technical_clarifications)"
+        ).fetchall()
+    finally:
+        connection.close()
+    foreign_key_targets = {row[2] for row in foreign_keys}
+    assert {"rfq_revisions", "requirements"} <= foreign_key_targets
