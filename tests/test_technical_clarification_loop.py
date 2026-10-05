@@ -81,6 +81,9 @@ def test_vendor_specific_clarification_package_is_generated_from_gaps() -> None:
     assert len(data["gaps"]) == 1
     assert data["gaps"][0]["parameter"] == "Motor power"
     assert data["gaps"][0]["status"] == "UNVERIFIED"
+    assert data["gaps"][0]["rfq_revision_id"] == package["current_rfq_revision_id"]
+    assert data["gaps"][0]["requirement_id"] == 2
+    assert data["gaps"][0]["gap_type"] == "MISSING"
     assert "75 kW" in data["gaps"][0]["request"]
     assert data["subject"].startswith("Technical Clarification Required")
     assert "Motor power" in data["body"]
