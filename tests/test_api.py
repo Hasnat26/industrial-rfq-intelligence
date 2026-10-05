@@ -1221,3 +1221,30 @@ def test_package_audit_records_epc_gate_and_status_transitions() -> None:
     assert events[-1]["from_status"] == "OPEN"
     assert events[-1]["to_status"] == "IN_REVIEW"
 
+
+
+def test_final_decision_requires_completed_commercial_evaluation() -> None:
+    seeded = _seed_offer(mode="PROJECT_EPC")
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+    assert client.post(f"/offers/{offer_id}/technical-status", json={"status": "ACCEPTED"}).status_code == 200
+    assert client.post(f"/packages/{package_id}/technical-lock").status_code == 200
+    assert client.post(f"/packages/{package_id}/commercial-open").status_code == 200
+    blocked = client.post(
+        f"/packages/{package_id}/decision",
+        json={"selected_offer_id": offer_id, "rationale": "Best value"},
+    )
+    assert blocked.status_code == 409
+    assert client.post(f"/offers/{offer_id}/commercial-status", json={"status": "IN_REVIEW"}).status_code == 200
+    assert client.post(f"/offers/{offer_id}/commercial-status", json={"status": "COMPLETED"}).status_code == 200
+    decision = client.post(
+        f"/packages/{package_id}/decision",
+        json={"selected_offer_id": offer_id, "rationale": "Technically accepted and commercially completed."},
+    )
+    assert decision.status_code == 201
+    assert decision.json()["selected_offer_id"] == offer_id
+    assert decision.json()["decision_status"] == "FINAL"
+    fetched = client.get(f"/packages/{package_id}/decision")
+    assert fetched.status_code == 200
+    assert fetched.json()["rationale"].startswith("Technically accepted")
+

@@ -299,6 +299,24 @@ class QuotationBatchResponse(BaseModel):
     document_ids: list[int]
 
 
+class DecisionCreate(BaseModel):
+    selected_offer_id: int = Field(ge=1)
+    rationale: str = Field(min_length=1, max_length=5000)
+
+
+class DecisionRead(BaseModel):
+    id: int
+    package_id: int
+    selected_offer_id: int
+    decision_status: str
+    rationale: str
+    decided_by_user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class AuditEventRead(BaseModel):
     id: int
     package_id: int

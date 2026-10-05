@@ -229,6 +229,22 @@ def get_db() -> Generator[object, None, None]:
         db.close()
 
 
+class ProcurementDecision(Base):
+    __tablename__ = "procurement_decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), unique=True, index=True)
+    selected_offer_id: Mapped[int] = mapped_column(ForeignKey("vendor_offers.id"), index=True)
+    decision_status: Mapped[str] = mapped_column(String(30), default="DRAFT")
+    rationale: Mapped[str] = mapped_column(Text)
+    decided_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    package: Mapped[ProcurementPackage] = relationship()
+    selected_offer: Mapped[VendorOffer] = relationship()
+    decided_by: Mapped[User] = relationship()
+
+
 class ProcurementAuditEvent(Base):
     __tablename__ = "procurement_audit_events"
 
