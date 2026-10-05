@@ -78,6 +78,9 @@ def _subscription(db: Session, organization_id: int) -> OrganizationSubscription
         )
     )
     if subscription is not None:
+        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and _rollover_if_expired(db, subscription, datetime.now(UTC)):
+            db.commit()
+            db.refresh(subscription)
         return subscription
     now = datetime.now(UTC)
     subscription = OrganizationSubscription(
@@ -129,6 +132,8 @@ def update_subscription(
     subscription = _subscription(db, organization_id)
     subscription.plan_key = payload.plan_key
     subscription.status = payload.status
+    if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
+        _rollover_if_expired(db, subscription, datetime.now(UTC))
     subscription.billing_provider = payload.billing_provider
     subscription.external_customer_id = payload.external_customer_id
     subscription.external_subscription_id = payload.external_subscription_id
@@ -263,7 +268,9 @@ def rollover_subscription(
     subscription = _subscription(db, organization_id)
     previous_start = subscription.current_period_start
     previous_end = subscription.current_period_end
-    rolled_over = _rollover_if_expired(db, subscription, datetime.now(UTC))
+    rolled_over = False
+    if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
+        rolled_over = _rollover_if_expired(db, subscription, datetime.now(UTC))
     if rolled_over:
         db.commit()
         db.refresh(subscription)
