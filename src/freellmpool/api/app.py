@@ -779,7 +779,14 @@ def create_rfq_revision(
         to_status=revision_name,
         note=reason,
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"RFQ revision {revision_name} already exists",
+        ) from exc
     db.refresh(revision)
     return revision
 
