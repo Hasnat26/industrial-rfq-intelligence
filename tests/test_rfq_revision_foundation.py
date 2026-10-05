@@ -2,23 +2,16 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from freellmpool.api import db
 from freellmpool.api.app import app
-from freellmpool.api.db import (
-    Base,
-    ProcurementPackage,
-    RfqRevision,
-    SessionLocal,
-    VendorOffer,
-    engine,
-)
 
 
 client = TestClient(app)
 
 
 def setup_function() -> None:
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    db.Base.metadata.drop_all(bind=db.engine)
+    db.Base.metadata.create_all(bind=db.engine)
     client.headers.pop("Authorization", None)
     registered = client.post(
         "/auth/register",
@@ -69,14 +62,14 @@ def test_new_package_creates_r1_and_binds_requirements_and_offer() -> None:
     assert offer.status_code == 201, offer.text
     offer_id = offer.json()["id"]
 
-    db = SessionLocal()
+    db = db.SessionLocal()
     try:
-        revision = db.query(RfqRevision).filter_by(package_id=package_id).one()
-        persisted_offer = db.get(VendorOffer, offer_id)
+        revision = db.query(db.RfqRevision).filter_by(package_id=package_id).one()
+        persisted_offer = db.get(db.VendorOffer, offer_id)
         assert revision.revision == "R1"
         assert revision.status == "CURRENT"
         assert revision.reason == "Initial RFQ baseline"
-        package_row = db.get(ProcurementPackage, package_id)
+        package_row = db.get(db.ProcurementPackage, package_id)
         assert package_row is not None
         assert package_row.current_rfq_revision_id == revision.id
         assert persisted_offer is not None
@@ -118,10 +111,10 @@ def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
     )
     assert revision.status_code == 201, revision.text
 
-    db = SessionLocal()
+    db = db.SessionLocal()
     try:
-        r1 = db.get(VendorOffer, offer["id"])
-        r2 = db.get(VendorOffer, revision.json()["id"])
+        r1 = db.get(db.VendorOffer, offer["id"])
+        r2 = db.get(db.VendorOffer, revision.json()["id"])
         assert r1.rfq_revision_id is not None
         assert r2.rfq_revision_id == r1.rfq_revision_id
     finally:
