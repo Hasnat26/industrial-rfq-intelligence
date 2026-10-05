@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
@@ -141,7 +142,19 @@ async def receive_billing_webhook(
             received_at=datetime.now(UTC),
         )
         db.add(event)
-        db.flush()
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            existing = db.scalar(
+                select(BillingWebhookEvent).where(
+                    BillingWebhookEvent.provider == provider.upper(),
+                    BillingWebhookEvent.external_event_id == external_event_id,
+                )
+            )
+            if existing is None:
+                raise
+            return {"status": existing.status, "event_id": existing.id, "duplicate": True}
         _subscription_from_event(db, payload, provider)
         event.status = "PROCESSED"
         event.processed_at = datetime.now(UTC)
