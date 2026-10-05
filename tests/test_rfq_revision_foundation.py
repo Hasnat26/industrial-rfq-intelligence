@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from freellmpool.api import db
 from freellmpool.api.app import app
+from freellmpool.api import db
 
 
 client = TestClient(app)
