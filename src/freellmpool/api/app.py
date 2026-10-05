@@ -1069,8 +1069,8 @@ def lock_technical_bid(
     unresolved = [
         f"{offer.vendor_name}: unresolved technical issue"
         for offer in package.offers
-        if any(item.status == "OPEN" for item in offer.deviations)
-        or any(item.status == "OPEN" for item in offer.clarifications)
+        if any(item.status != "RESOLVED" for item in offer.deviations)
+        or any(item.status != "CLOSED" for item in offer.clarifications)
     ]
     if unresolved:
         raise HTTPException(
