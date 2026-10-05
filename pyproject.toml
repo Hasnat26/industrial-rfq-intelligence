@@ -51,6 +51,9 @@ dependencies = [
     "uvicorn>=0.30",
     "python-multipart>=0.0.20",
     "markitdown[pdf,docx,pptx,xlsx]==0.1.8",
+    "Pillow>=10.0",
+    "PyMuPDF>=1.24",
+    "pytesseract>=0.3.13",
 ]
 
 [project.urls]
