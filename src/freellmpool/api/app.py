@@ -1721,7 +1721,7 @@ def _technical_evaluation_rows(
     vendor_names: list[str] = []
 
     for latest in active_offers:
-        metadata[latest.vendor_name.casefold().strip()] = latest
+        metadata[" ".join(latest.vendor_name.casefold().split())] = latest
         vendor_names.append(latest.vendor_name)
         chain: list[VendorOffer] = []
         current: VendorOffer | None = latest
@@ -1759,8 +1759,8 @@ def _technical_evaluation_rows(
     )
     rows = [
         TechnicalEvaluationRow(
-            offer_id=metadata[finding.vendor.casefold().strip()].id,
-            technical_revision=metadata[finding.vendor.casefold().strip()].technical_revision,
+            offer_id=metadata[" ".join(finding.vendor.casefold().split())].id,
+            technical_revision=metadata[" ".join(finding.vendor.casefold().split())].technical_revision,
             rfq_revision_id=revision.id,
             rfq_revision=revision.revision,
             requirement=finding.requirement,
