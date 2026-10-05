@@ -481,11 +481,23 @@ class TechnicalClarification(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     offer_id: Mapped[int] = mapped_column(ForeignKey("vendor_offers.id"), index=True)
+    rfq_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+    )
+    requirement_id: Mapped[int | None] = mapped_column(
+        ForeignKey("requirements.id"), nullable=True, index=True
+    )
+    gap_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    evaluated_offered: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    evaluation_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    evaluation_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
     question: Mapped[str] = mapped_column(Text)
     response: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="OPEN")
     resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
     offer: Mapped[VendorOffer] = relationship(back_populates="clarifications")
+    rfq_revision: Mapped[RfqRevision | None] = relationship()
+    requirement: Mapped[Requirement | None] = relationship()
 
 
 class VendorDocument(Base):
