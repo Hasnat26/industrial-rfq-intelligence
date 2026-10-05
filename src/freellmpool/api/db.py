@@ -256,6 +256,36 @@ class AssetProduct(Base):
     offer: Mapped[VendorOffer | None] = relationship()
 
 
+class OrganizationSubscription(Base):
+    __tablename__ = "organization_subscriptions"
+    __table_args__ = (UniqueConstraint("organization_id", name="uq_organization_subscriptions_org"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    plan_key: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(30), default="ACTIVE")
+    billing_provider: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    external_customer_id: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    external_subscription_id: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+
+class UsageRecord(Base):
+    __tablename__ = "usage_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    metric: Mapped[str] = mapped_column(String(50), index=True)
+    quantity: Mapped[float] = mapped_column(Float)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    source_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+
 class BillingWebhookEvent(Base):
     """Idempotent provider webhook receipt ledger."""
 
