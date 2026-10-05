@@ -30,18 +30,26 @@ Deliverables:
 - document upload/storage;
 - batch quotation ingestion;
 - product-category configuration;
-- web review screen;\n- exportable CS/TBE-style report.
+- web review screen;
+- exportable CS/TBE-style report.
 
-## P2 - Project/EPC procurement workflow\n\n**Status: Complete.** PROJECT_EPC now has controlled technical issue resolution, revision lineage, technical bid locking, commercial opening/evaluation, final human decision, workflow audit trail, and browser visibility.\n\nDeliverables:
+## P2 - Project/EPC procurement workflow
+
+**Status: Complete.** PROJECT_EPC now has controlled technical issue resolution, revision lineage, technical bid locking, commercial opening/evaluation, final human decision, workflow audit trail, and browser visibility.
+
+Deliverables:
 
 - project/package hierarchy;
 - technical offer revisioning;
 - clarification/deviation workflow;
 - technical bid lock gate;
 - commercial opening/evaluation gate;
-- human-controlled final decision / approval record;\n- audit trail.
+- human-controlled final decision / approval record;
+- audit trail.
 
 ## P3 - Procurement memory
+
+**Status: Initial historical retrieval slice complete.** Procurement memory is now exposed as a read model over the canonical procurement ledger. It retrieves vendor history, product/category history, decision rationale, price/lead-time/warranty history, and reusable claim evidence without duplicating source records. Tenant-isolated search is available by vendor, category, package, and free-text query.
 
 Deliverables:
 
@@ -51,6 +59,8 @@ Deliverables:
 - price/lead-time/warranty history;
 - reusable evidence;
 - historical search and retrieval.
+
+Historical information remains decision support, not an automatic procurement instruction. The next P3 increment should add explicit product/manufacturer/model identity and richer historical aggregation where the source workflow captures those fields.
 
 ## P4 - Lifecycle intelligence
 
@@ -79,4 +89,4 @@ Deliverables:
 
 ## Immediate build priority
 
-P0/P1/P2 are now implemented. The next revenue-oriented priority is P3 procurement memory, starting with vendor/product/decision history and reusable evidence, before moving to lifecycle intelligence or broad category expansion.
+P0/P1/P2 are implemented and P3 now has its first usable historical-memory slice. The next revenue-oriented priority is to deepen P3 with explicit product identity and aggregated historical intelligence before moving to lifecycle intelligence or broad category expansion.
