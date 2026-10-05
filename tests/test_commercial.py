@@ -258,6 +258,7 @@ def test_subscription_rollover_advances_expired_period(monkeypatch) -> None:
     from datetime import UTC, datetime
     from freellmpool.api.db import OrganizationSubscription, SessionLocal
 
+
     organization = client.post("/organizations", json={"name": "Rollover Org"}).json()
     db = SessionLocal()
     try:
