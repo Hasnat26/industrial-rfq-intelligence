@@ -133,6 +133,14 @@ def test_project_epc_gate() -> None:
     assert opened.json()["commercial_evaluation_open"] is True
 
 
+def test_customer_web_app_exposes_batch_quotation_intake() -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Upload vendor quotations" in response.text
+    assert "quotations/batch" in response.text
+    assert "FormData" in response.text
+
+
 def test_health() -> None:
     response = client.get("/health")
     assert response.status_code == 200
