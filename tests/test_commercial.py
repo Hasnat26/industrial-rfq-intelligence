@@ -203,3 +203,52 @@ def test_unknown_billing_event_is_receipted_without_changing_status(monkeypatch)
     assert response.json()["status"] == "PROCESSED"
     subscription = client.get(f"/organizations/{organization['id']}/subscription").json()
     assert subscription["status"] == "ACTIVE"
+
+
+def test_usage_reconciliation_reports_consistent_entitlements() -> None:
+    organization = client.post("/organizations", json={"name": "Reconciliation Org"}).json()
+    usage = client.post(
+        f"/organizations/{organization['id']}/usage",
+        json={"metric": "vendor_offers", "quantity": 5},
+    )
+    assert usage.status_code == 201
+    response = client.get(f"/organizations/{organization['id']}/usage/reconciliation")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["subscription_status"] == "ACTIVE"
+    assert data["plan_key"] == "STARTER"
+    assert data["usage"]["vendor_offers"] == 5
+    assert data["exceeded_metrics"] == []
+    assert data["inactive"] is False
+    assert data["period_expired"] is False
+
+
+def test_usage_reconciliation_detects_existing_overage_without_mutating_state() -> None:
+    organization = client.post("/organizations", json={"name": "Overage Reconciliation Org"}).json()
+    response = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json={"plan_key": "PRO", "status": "ACTIVE"},
+    )
+    assert response.status_code == 200
+
+    from freellmpool.api.db import SessionLocal, UsageRecord
+    db = SessionLocal()
+    try:
+        db.add(
+            UsageRecord(
+                organization_id=organization["id"],
+                metric="vendor_offers",
+                quantity=1001,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    report = client.get(f"/organizations/{organization['id']}/usage/reconciliation")
+    assert report.status_code == 200
+    data = report.json()
+    assert data["exceeded_metrics"] == ["vendor_offers"]
+    subscription = client.get(f"/organizations/{organization['id']}/subscription").json()
+    assert subscription["status"] == "ACTIVE"
+    assert subscription["plan_key"] == "PRO"
