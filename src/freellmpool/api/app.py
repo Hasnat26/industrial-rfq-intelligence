@@ -225,7 +225,8 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
     ]
     grouped: dict[str, list[VendorOffer]] = {}
     for offer in package.offers:
-        grouped.setdefault(offer.vendor_key, []).append(offer)
+        if offer.rfq_revision_id == package.current_rfq_revision_id:
+            grouped.setdefault(offer.vendor_key, []).append(offer)
 
     vendor_values: list[VendorValue] = []
     vendor_names: list[str] = []
