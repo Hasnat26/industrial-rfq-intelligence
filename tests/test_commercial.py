@@ -54,9 +54,19 @@ def test_subscription_defaults_to_starter_and_usage_is_aggregated() -> None:
 
 
 def test_usage_is_tenant_isolated() -> None:
-    client.post("/organizations", json={"name": "Commercial Tenant"})
-    other = client.post("/organizations", json={"name": "Other Tenant"}).json()
-    response = client.get(f"/organizations/{other['id']}/usage")
+    organization = client.post("/organizations", json={"name": "Commercial Tenant"}).json()
+    registered = client.post(
+        "/auth/register",
+        json={"email": "other@example.com", "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": "other@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+    response = client.get(f"/organizations/{organization['id']}/usage")
     assert response.status_code == 404
     assert response.json()["detail"] == "organization not found"
 
