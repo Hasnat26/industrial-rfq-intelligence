@@ -1337,6 +1337,7 @@ def create_technical_clarification_request(
         raise HTTPException(status_code=404, detail="offer not found")
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
+    _require_current_rfq_offer(offer.package, offer)
     _require_technical_stage_open(offer.package)
     evaluation = _technical_evaluation_rows(offer.package, db)
     rows = [
