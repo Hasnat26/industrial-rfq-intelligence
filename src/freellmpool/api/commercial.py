@@ -94,14 +94,23 @@ def _member(db: Session, user: User, organization_id: int) -> None:
         raise HTTPException(status_code=404, detail="organization not found")
 
 
-def _subscription(db: Session, organization_id: int) -> OrganizationSubscription:
+def _subscription(
+    db: Session,
+    organization_id: int,
+    *,
+    auto_rollover: bool = True,
+) -> OrganizationSubscription:
     subscription = db.scalar(
         select(OrganizationSubscription).where(
             OrganizationSubscription.organization_id == organization_id
         )
     )
     if subscription is not None:
-        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and rollover_if_expired(subscription, datetime.now(UTC)):
+        if (
+            auto_rollover
+            and subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}
+            and rollover_if_expired(subscription, datetime.now(UTC))
+        ):
             db.commit()
             db.refresh(subscription)
         return subscription
@@ -283,7 +292,7 @@ def rollover_subscription(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> SubscriptionRolloverResponse:
     _member(db, user, organization_id)
-    subscription = _subscription(db, organization_id)
+    subscription = _subscription(db, organization_id, auto_rollover=False)
     previous_start = subscription.current_period_start
     previous_end = subscription.current_period_end
     rolled_over = False
