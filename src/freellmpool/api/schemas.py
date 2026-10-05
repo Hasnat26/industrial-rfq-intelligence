@@ -494,6 +494,8 @@ class UsageReconciliationResponse(BaseModel):
     exceeded_metrics: list[str]
     inactive: bool
     period_expired: bool
+    unknown_metrics: list[str] = []
+    negative_usage_metrics: list[str] = []
 
 
 class SubscriptionRolloverResponse(BaseModel):
