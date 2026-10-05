@@ -323,6 +323,24 @@ class TechnicalClarificationRead(TechnicalClarificationCreate):
     model_config = {"from_attributes": True}
 
 
+class TechnicalClarificationGapRead(BaseModel):
+    parameter: str
+    required: str
+    offered: str | None
+    status: str
+    request: str
+
+
+class TechnicalClarificationPackageRead(BaseModel):
+    offer_id: int
+    vendor: str
+    technical_revision: str
+    clarification_ids: list[int]
+    gaps: list[TechnicalClarificationGapRead]
+    subject: str
+    body: str
+
+
 class ClaimRead(ClaimCreate):
     id: int
     offer_id: int
