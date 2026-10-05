@@ -44,6 +44,9 @@ class LifecycleAssetSummary(BaseModel):
     lifecycle_costs_by_currency: dict[str, float]
     warranty_start: datetime | None
     warranty_end: datetime | None
+    reliability_failure_intervals_days: list[float]
+    mean_failure_interval_days: float | None
+    mean_failure_to_maintenance_days: float | None
 
 
 class LifecycleIntelligenceResponse(BaseModel):
@@ -82,6 +85,23 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
     for asset in sorted(assets, key=lambda item: item.asset_id):
         asset_events = sorted(by_asset.get(asset.asset_id, []), key=lambda item: (item.event_date, item.id))
         counts = Counter(event.event_type for event in asset_events)
+        failure_dates = [event.event_date for event in asset_events if event.event_type == "FAILURE"]
+        failure_intervals = [
+            (current - previous).total_seconds() / 86400
+            for previous, current in zip(failure_dates, failure_dates[1:])
+        ]
+        failure_to_maintenance = []
+        for index, event in enumerate(asset_events):
+            if event.event_type != "FAILURE":
+                continue
+            next_maintenance = next(
+                (candidate for candidate in asset_events[index + 1 :] if candidate.event_type == "MAINTENANCE"),
+                None,
+            )
+            if next_maintenance is not None:
+                failure_to_maintenance.append(
+                    (next_maintenance.event_date - event.event_date).total_seconds() / 86400
+                )
         summaries.append(
             LifecycleAssetSummary(
                 asset_id=asset.asset_id,
@@ -103,6 +123,9 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
                 lifecycle_costs_by_currency=dict(sorted(costs_by_asset.get(asset.asset_id, {}).items())),
                 warranty_start=asset.warranty_start,
                 warranty_end=asset.warranty_end,
+                reliability_failure_intervals_days=failure_intervals,
+                mean_failure_interval_days=(sum(failure_intervals) / len(failure_intervals)) if failure_intervals else None,
+                mean_failure_to_maintenance_days=(sum(failure_to_maintenance) / len(failure_to_maintenance)) if failure_to_maintenance else None,
             )
         )
     return LifecycleIntelligenceResponse(
