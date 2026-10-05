@@ -276,10 +276,17 @@ def cmd_industrial_rfq(args: argparse.Namespace) -> int:
 
 def cmd_industrial_document(args: argparse.Namespace) -> int:
     """Extract a local engineering document with source/page markers."""
-    from .industrial import document_text, extract_document_pages
+    from .industrial import document_text, extract_document_pages, extract_document_pages_with_ocr
 
     try:
-        pages = extract_document_pages(args.file)
+        if args.ocr:
+            pages = extract_document_pages_with_ocr(
+                args.file,
+                language=args.ocr_language,
+                min_text_chars=args.ocr_min_text_chars,
+            )
+        else:
+            pages = extract_document_pages(args.file)
         text = document_text(pages)
     except ValueError as exc:
         print(f"freellmpool industrial-document: {exc}", file=sys.stderr)
@@ -2438,6 +2445,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_document.add_argument("file", help="path to .txt, .md, or .pdf document")
     p_document.add_argument("--json", action="store_true", help="emit source/page metadata as JSON")
+    p_document.add_argument("--ocr", action="store_true", help="OCR sparse/scanned PDF pages")
+    p_document.add_argument("--ocr-language", default="eng", help="Tesseract language code (default: eng)")
+    p_document.add_argument("--ocr-min-text-chars", type=int, default=20, help="minimum native text length before OCR is skipped")
     p_document.set_defaults(func=cmd_industrial_document)
     p_roles = sub.add_parser("roles", help="list available ask roles")
     p_roles.set_defaults(func=cmd_roles)
