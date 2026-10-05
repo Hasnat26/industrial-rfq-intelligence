@@ -231,7 +231,7 @@ def test_clarification_lifecycle_open_answered_closed() -> None:
 
     answered = client.post(
         f"/clarifications/{clarification_id}/answer",
-        json={"question": "ignored", "response": "IP55"},
+        json={"response": "IP55"},
     )
     assert answered.status_code == 200
     assert answered.json()["status"] == "ANSWERED"
@@ -247,7 +247,7 @@ def test_clarification_lifecycle_open_answered_closed() -> None:
 
     duplicate = client.post(
         f"/clarifications/{clarification_id}/answer",
-        json={"question": "ignored", "response": "IP66"},
+        json={"response": "IP66"},
     )
     assert duplicate.status_code == 409
 
