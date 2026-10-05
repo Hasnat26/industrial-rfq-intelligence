@@ -7,8 +7,8 @@ derived from explicit requirement outcomes and evidence coverage.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Literal
 
 from freellmpool.industrial import Requirement, VendorValue, build_matrix
