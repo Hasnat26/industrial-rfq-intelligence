@@ -129,7 +129,7 @@ PDF, TXT, and Markdown documents can be converted into page-aware text:
 industrial-rfq-intelligence industrial-document specification.pdf
 ~~~
 
-PDF extraction preserves source/page provenance. OCR for scanned/image-only documents is not yet part of the current implementation.
+PDF extraction preserves source/page provenance. Scanned/image-only PDF pages can be processed through the optional OCR path, which preserves the original PDF page number. Install `pip install 'industrial-rfq-intelligence[ocr]'` and a Tesseract OCR executable, then use `extract_document_pages_with_ocr()` from the Python API. Native PDF text is retained when a page already contains sufficient machine-readable text; OCR is used only for sparse pages.
 
 ## Engineering report
 
