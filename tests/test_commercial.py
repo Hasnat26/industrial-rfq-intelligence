@@ -134,3 +134,23 @@ def test_billing_webhook_rejects_invalid_secret(monkeypatch) -> None:
         headers={"X-Billing-Webhook-Secret": "wrong"},
     )
     assert response.status_code == 401
+
+
+def test_billing_webhook_receipts_are_tenant_visible(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", "test-secret")
+    organization = client.post("/organizations", json={"name": "Webhook Tenant"}).json()
+    payload = {
+        "id": "evt_visible",
+        "type": "invoice.paid",
+        "organization_id": organization["id"],
+    }
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json=payload,
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert response.status_code == 202
+    listed = client.get(f"/organizations/{organization['id']}/billing/webhooks")
+    assert listed.status_code == 200
+    assert listed.json()[0]["external_event_id"] == "evt_visible"
+    assert "payload" not in listed.json()[0]

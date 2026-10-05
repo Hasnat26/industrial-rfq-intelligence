@@ -8,8 +8,14 @@ import json
 import os
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from freellmpool.api.auth import get_current_user, is_member
+from freellmpool.api.db import User, get_db
 from sqlalchemy import select
+
+from freellmpool.api.schemas import BillingWebhookEventRead
 
 from freellmpool.api.db import BillingWebhookEvent, SessionLocal
 
@@ -79,3 +85,23 @@ async def receive_billing_webhook(
         return {"status": event.status, "event_id": event.id, "duplicate": False}
     finally:
         db.close()
+
+
+@router.get(
+    "/organizations/{organization_id}/billing/webhooks",
+    response_model=list[BillingWebhookEventRead],
+)
+def list_billing_webhooks(
+    organization_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> list[BillingWebhookEvent]:
+    if not is_member(db, user.id, organization_id):
+        raise HTTPException(status_code=404, detail="organization not found")
+    return list(
+        db.scalars(
+            select(BillingWebhookEvent)
+            .where(BillingWebhookEvent.organization_id == organization_id)
+            .order_by(BillingWebhookEvent.received_at.desc())
+        ).all()
+    )
