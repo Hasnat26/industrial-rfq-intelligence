@@ -60,6 +60,32 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
             for action in summary_data["review_actions"]:
                 lines.append(f"- {action}")
 
+    integrated = report.get("integrated_evaluation", {})
+    if integrated:
+        lines += [
+            "",
+            "## Integrated technical-commercial evaluation",
+            "",
+            f"- Evaluation status: **{integrated['status']}**",
+            f"- Decision note: {integrated['decision_note']}",
+            "",
+            "| Vendor | Technical | Commercial | Integrated | Technical gate | Commercial gate | Disposition | Price | Currency | Lead time | Warranty |",
+            "|---|---:|---:|---:|---|---|---|---:|---|---:|---:|",
+        ]
+        for row in integrated["vendor_profiles"]:
+            lines.append(
+                f"| {row['vendor']} | {row['technical_score']:.2f} | {row['commercial_score']:.2f} | "
+                f"{row['integrated_score']:.2f} | {row['technical_gate']} | {row['commercial_gate']} | "
+                f"{row['disposition']} | {row['price'] if row['price'] is not None else 'MISSING'} | "
+                f"{row['currency'] or 'MISSING'} | "
+                f"{row['lead_time_weeks'] if row['lead_time_weeks'] is not None else 'MISSING'} | "
+                f"{row['warranty_months'] if row['warranty_months'] is not None else 'MISSING'} |"
+            )
+        if integrated["review_actions"]:
+            lines += ["", "### Integrated evaluation review actions", ""]
+            for action in integrated["review_actions"]:
+                lines.append(f"- {action}")
+
     commercial = report.get("commercial_comparison", [])
     if commercial:
         lines += [
