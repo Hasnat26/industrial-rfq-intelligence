@@ -62,14 +62,14 @@ def test_new_package_creates_r1_and_binds_requirements_and_offer() -> None:
     assert offer.status_code == 201, offer.text
     offer_id = offer.json()["id"]
 
-    db = db.SessionLocal()
+    session = db.SessionLocal()
     try:
-        revision = db.query(db.RfqRevision).filter_by(package_id=package_id).one()
-        persisted_offer = db.get(db.VendorOffer, offer_id)
+        revision = session.query(db.RfqRevision).filter_by(package_id=package_id).one()
+        persisted_offer = session.get(db.VendorOffer, offer_id)
         assert revision.revision == "R1"
         assert revision.status == "CURRENT"
         assert revision.reason == "Initial RFQ baseline"
-        package_row = db.get(db.ProcurementPackage, package_id)
+        package_row = session.get(db.ProcurementPackage, package_id)
         assert package_row is not None
         assert package_row.current_rfq_revision_id == revision.id
         assert persisted_offer is not None
@@ -80,7 +80,7 @@ def test_new_package_creates_r1_and_binds_requirements_and_offer() -> None:
             "Rated voltage",
         }
     finally:
-        db.close()
+        session.close()
 
 
 def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
