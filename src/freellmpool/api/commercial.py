@@ -16,6 +16,7 @@ from freellmpool.api.schemas import (
     UsageRecordCreate,
     UsageRecordRead,
     UsageSummaryResponse,
+    SubscriptionLifecycleUpdate,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -106,6 +107,37 @@ def get_subscription(
 ) -> OrganizationSubscription:
     _member(db, user, organization_id)
     return _subscription(db, organization_id)
+
+
+@router.put(
+    "/organizations/{organization_id}/subscription",
+    response_model=OrganizationSubscriptionRead,
+)
+def update_subscription(
+    organization_id: int,
+    payload: SubscriptionLifecycleUpdate,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrganizationSubscription:
+    _member(db, user, organization_id)
+    if payload.plan_key not in PLANS:
+        raise HTTPException(status_code=422, detail="unknown subscription plan")
+    if payload.status not in {"ACTIVE", "PAST_DUE", "CANCELED", "TRIALING"}:
+        raise HTTPException(status_code=422, detail="invalid subscription status")
+    subscription = _subscription(db, organization_id)
+    subscription.plan_key = payload.plan_key
+    subscription.status = payload.status
+    subscription.billing_provider = payload.billing_provider
+    subscription.external_customer_id = payload.external_customer_id
+    subscription.external_subscription_id = payload.external_subscription_id
+    if payload.current_period_start is not None:
+        subscription.current_period_start = payload.current_period_start
+    if payload.current_period_end is not None:
+        subscription.current_period_end = payload.current_period_end
+    subscription.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(subscription)
+    return subscription
 
 
 @router.post(
