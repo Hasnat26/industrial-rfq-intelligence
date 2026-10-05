@@ -449,6 +449,7 @@ def create_or_update_decision(
     offer = db.get(VendorOffer, payload.selected_offer_id)
     if offer is None or offer.package_id != package_id:
         raise HTTPException(status_code=404, detail="selected offer not found")
+    _require_current_rfq_offer(package, offer)
     if offer.technical_status not in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
         raise HTTPException(status_code=409, detail="selected offer is not technically accepted")
     if offer.commercial_status != "COMPLETED":
