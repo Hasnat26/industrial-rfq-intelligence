@@ -203,12 +203,22 @@ def _auto_create_document_claims(
     return len(candidates)
 
 
+def _active_vendor_offers(package: ProcurementPackage) -> list[VendorOffer]:
+    """Return the latest revision in each vendor's revision chain."""
+    return [
+        offer
+        for offer in package.offers
+        if not offer.revisions
+    ]
+
+
 def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
     """Build the canonical vendor/requirement comparison used by clarification requests."""
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
         for item in package.requirements
     ]
+    active_offers = _active_vendor_offers(package)
     vendor_values = [
         VendorValue(
             offer.vendor_name,
@@ -217,16 +227,16 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in package.offers
+        for offer in active_offers
         for claim in offer.claims
     ]
     matrix = build_matrix(
         requirements,
         vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
+        vendors=[offer.vendor_name for offer in active_offers],
     )
     claim_parameters_by_vendor: dict[str, set[str]] = {}
-    for offer in package.offers:
+    for offer in active_offers:
         parameters = claim_parameters_by_vendor.setdefault(offer.vendor_name, set())
         parameters.update(claim.parameter.casefold().strip() for claim in offer.claims)
     rows: list[dict[str, object]] = []
@@ -921,6 +931,7 @@ def create_offer_revision(
             status_code=409,
             detail=f"revision {revision} already exists for {offer.vendor_name}",
         )
+    offer.technical_status = "SUPERSEDED"
     revision_offer = VendorOffer(
         package_id=offer.package_id,
         parent_offer_id=offer.id,
@@ -1009,6 +1020,7 @@ async def resubmit_technical_offer(
         part_number=offer.part_number,
         vendor_key=_vendor_key(offer.vendor_name),
         technical_revision=revision,
+        technical_status="IN_REVIEW",
         source_text=document_text(pages),
     )
     document = VendorDocument(
@@ -1520,11 +1532,12 @@ def lock_technical_bid(
         raise HTTPException(status_code=404, detail="package not found")
     if not package.offers:
         raise HTTPException(status_code=409, detail="at least one vendor offer is required")
+    active_offers = _active_vendor_offers(package)
     blocking_statuses = {"PENDING", "IN_REVIEW", "CLARIFICATION_REQUIRED"}
-    blocking = [offer.vendor_name for offer in package.offers if offer.technical_status in blocking_statuses]
+    blocking = [offer.vendor_name for offer in active_offers if offer.technical_status in blocking_statuses]
     unresolved = [
         f"{offer.vendor_name}: unresolved technical issue"
-        for offer in package.offers
+        for offer in active_offers
         if any(item.status != "RESOLVED" for item in offer.deviations)
         or any(item.status != "CLOSED" for item in offer.clarifications)
     ]
