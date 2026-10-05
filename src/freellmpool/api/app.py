@@ -205,11 +205,7 @@ def _auto_create_document_claims(
 
 def _active_vendor_offers(package: ProcurementPackage) -> list[VendorOffer]:
     """Return the latest revision in each vendor's revision chain."""
-    return [
-        offer
-        for offer in package.offers
-        if not offer.revisions
-    ]
+    return [offer for offer in package.offers if not offer.revisions]
 
 
 def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
@@ -931,7 +927,6 @@ def create_offer_revision(
             status_code=409,
             detail=f"revision {revision} already exists for {offer.vendor_name}",
         )
-    offer.technical_status = "SUPERSEDED"
     revision_offer = VendorOffer(
         package_id=offer.package_id,
         parent_offer_id=offer.id,
@@ -1011,6 +1006,7 @@ async def resubmit_technical_offer(
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
 
+    offer.technical_status = "SUPERSEDED"
     revision_offer = VendorOffer(
         package_id=offer.package_id,
         parent_offer_id=offer.id,
@@ -1128,11 +1124,7 @@ def preview_technical_clarification(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
-    package = build_technical_clarification_package(
-        offer.vendor_name,
-        offer.technical_revision,
-        rows,
-    )
+    package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
     if not package.gaps:
         raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
     return TechnicalClarificationPackageRead(
@@ -1173,11 +1165,7 @@ def create_technical_clarification_request(
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
-    package = build_technical_clarification_package(
-        offer.vendor_name,
-        offer.technical_revision,
-        rows,
-    )
+    package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
     if not package.gaps:
         raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
     existing = {item.question.strip() for item in offer.clarifications if item.status != "CLOSED"}
@@ -2040,3 +2028,72 @@ def package_report(
             price=offer.price or "",
             currency=offer.currency or "",
             lead_time=offer.lead_time or "",
+            warranty=offer.warranty or "",
+            payment_terms="",
+            evidence=offer.source_text or "",
+            claim_status="UNVERIFIED",
+        )
+        for offer in package.offers
+        if any(
+            value
+            for value in (offer.price, offer.currency, offer.lead_time, offer.warranty, offer.source_text)
+        )
+    ]
+    report = build_report(requirements, vendor_values, commercial_values)
+    decision_support = build_decision_support(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+        requirement_types={item.tag: item.requirement_type for item in package.requirements},
+    )
+    report["decision_support"] = decision_support
+    commercial_values = [
+        CommercialValue(
+            offer.vendor_name,
+            offer.price or "",
+            offer.currency or "",
+            offer.lead_time or "",
+            offer.warranty or "",
+            "",
+            "",
+            "UNVERIFIED",
+        )
+        for offer in package.offers
+    ]
+    commercial_rows = build_commercial_risk_review(commercial_values)
+    settings = _get_evaluation_settings(db, package)
+    report["integrated_evaluation"] = build_integrated_evaluation(
+        decision_support["vendors"],
+        commercial_rows,
+        technical_weight=settings.technical_weight,
+        commercial_weight=settings.commercial_weight,
+    )
+    report["engineering_decision_summary"] = (
+        build_engineering_decision_summary(decision_support["vendors"])
+        if package.offers
+        else {
+            "status": "INSUFFICIENT_VENDOR_DATA",
+            "decision_basis": ["No vendor offers are available for engineering review."],
+            "vendor_profiles": [],
+            "review_actions": ["Obtain at least one vendor quotation before technical disposition."],
+        }
+    )
+    return report
+
+
+@app.get("/packages/{package_id}/report/markdown")
+def package_report_markdown(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> Response:
+    """Export the package review as an engineer-readable Markdown document."""
+    report = package_report(package_id, user, db)
+    markdown = render_engineering_report(report)
+    return Response(
+        content=markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="rfq-review-package-{package_id}.md"'
+        },
+    )
