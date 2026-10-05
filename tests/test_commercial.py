@@ -252,3 +252,37 @@ def test_usage_reconciliation_detects_existing_overage_without_mutating_state() 
     subscription = client.get(f"/organizations/{organization['id']}/subscription").json()
     assert subscription["status"] == "ACTIVE"
     assert subscription["plan_key"] == "PRO"
+
+
+def test_subscription_rollover_advances_expired_period(monkeypatch) -> None:
+    from datetime import UTC, datetime, timedelta
+    from freellmpool.api.db import SessionLocal, OrganizationSubscription
+
+    organization = client.post("/organizations", json={"name": "Rollover Org"}).json()
+    db = SessionLocal()
+    try:
+        subscription = db.query(OrganizationSubscription).filter_by(
+            organization_id=organization["id"]
+        ).one()
+        subscription.current_period_start = datetime(2026, 1, 1, tzinfo=UTC)
+        subscription.current_period_end = datetime(2026, 1, 31, tzinfo=UTC)
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.post(f"/organizations/{organization['id']}/subscription/rollover")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["rolled_over"] is True
+    assert data["current_period_start"] > data["previous_period_start"]
+    assert data["current_period_end"] > data["previous_period_end"]
+
+
+def test_subscription_rollover_is_idempotent_when_period_current() -> None:
+    organization = client.post("/organizations", json={"name": "Current Rollover Org"}).json()
+    response = client.post(f"/organizations/{organization['id']}/subscription/rollover")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["rolled_over"] is False
+    assert data["current_period_start"] == data["previous_period_start"]
+    assert data["current_period_end"] == data["previous_period_end"]
