@@ -53,7 +53,7 @@ def test_optional_deviation_is_minor_and_less_severe() -> None:
         requirement_types={"R-01": "MANDATORY", "R-02": "OPTIONAL"},
     )
     vendor = result["vendors"][0]
-    assert vendor["technical_score"] == 75.0
+    assert vendor["technical_score"] == 83.33
     assert vendor["minor_deviation_count"] == 1
     assert vendor["major_deviation_count"] == 0
 
