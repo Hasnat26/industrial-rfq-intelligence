@@ -1123,3 +1123,69 @@ def test_epc_workflow_visibility_is_tenant_isolated() -> None:
     )
     assert response.status_code == 404
 
+
+
+def test_project_epc_commercial_evaluation_is_controlled_and_visible() -> None:
+    organization = client.post("/organizations", json={"name": "Commercial EPC"}).json()
+    project = client.post("/projects", json={"organization_id": organization["id"], "name": "Project"}).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": "PROJECT_EPC",
+        },
+    ).json()
+    accepted = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Accepted", "price": "10000", "currency": "USD", "lead_time": "8 weeks", "warranty": "24 months"},
+    ).json()
+    rejected = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Rejected", "price": "8000", "currency": "USD"},
+    ).json()
+    assert client.post(f"/offers/{accepted['id']}/technical-status", json={"status": "ACCEPTED"}).status_code == 200
+    assert client.post(f"/offers/{rejected['id']}/technical-status", json={"status": "REJECTED"}).status_code == 200
+    assert client.post(f"/packages/{package['id']}/technical-lock").status_code == 200
+    assert client.post(f"/packages/{package['id']}/commercial-open").status_code == 200
+
+    before = client.get(f"/packages/{package['id']}/commercial-comparison")
+    assert before.status_code == 200
+    assert [row["vendor"] for row in before.json()["rows"]] == ["Vendor Accepted"]
+    assert before.json()["rows"][0]["price"] == "10000"
+
+    completed = client.post(
+        f"/offers/{accepted['id']}/commercial-status",
+        json={"status": "COMPLETED"},
+    )
+    assert completed.status_code == 409
+    in_review = client.post(
+        f"/offers/{accepted['id']}/commercial-status",
+        json={"status": "IN_REVIEW"},
+    )
+    assert in_review.status_code == 200
+    done = client.post(
+        f"/offers/{accepted['id']}/commercial-status",
+        json={"status": "COMPLETED"},
+    )
+    assert done.status_code == 200
+    assert done.json()["commercial_status"] == "COMPLETED"
+    again = client.post(
+        f"/offers/{accepted['id']}/commercial-status",
+        json={"status": "OPEN"},
+    )
+    assert again.status_code == 409
+
+
+def test_project_epc_commercial_evaluation_requires_gate() -> None:
+    seeded = _seed_offer(mode="PROJECT_EPC")
+    offer_id = seeded["offer"]["id"]
+    blocked = client.post(
+        f"/offers/{offer_id}/commercial-status",
+        json={"status": "IN_REVIEW"},
+    )
+    assert blocked.status_code == 409
+    hidden = client.get(f"/packages/{seeded['package']['id']}/commercial-comparison")
+    assert hidden.status_code == 409
+
