@@ -918,6 +918,8 @@ def create_offer_revision(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
+    if offer.revisions:
+        raise HTTPException(status_code=409, detail="use the latest technical revision for resubmission")
     revision = payload.technical_revision.strip()
     if not revision:
         raise HTTPException(status_code=422, detail="technical_revision must not be empty")
@@ -969,6 +971,8 @@ async def resubmit_technical_offer(
         raise HTTPException(status_code=404, detail="offer not found")
     package = offer.package
     _require_technical_stage_open(package)
+    if offer.revisions:
+        raise HTTPException(status_code=409, detail="use the latest technical revision for resubmission")
     revision = technical_revision.strip()
     if not revision:
         raise HTTPException(status_code=422, detail="technical_revision must not be empty")
@@ -1123,6 +1127,8 @@ def preview_technical_clarification(
     offer = db.get(VendorOffer, offer_id)
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
+    if offer.revisions:
+        raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
     rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
     package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
     if not package.gaps:
@@ -1163,6 +1169,8 @@ def create_technical_clarification_request(
     offer = db.get(VendorOffer, offer_id)
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
+    if offer.revisions:
+        raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
     _require_technical_stage_open(offer.package)
     rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
     package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
