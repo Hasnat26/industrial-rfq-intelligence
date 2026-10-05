@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
+
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,7 @@ from freellmpool.api.schemas import (
     SubscriptionLifecycleUpdate,
     UsageReconciliationResponse,
     SubscriptionRolloverResponse,
+    CommercialReconciliationResponse,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -283,4 +286,34 @@ def rollover_subscription(
         current_period_end=subscription.current_period_end,
         status=subscription.status,
         plan_key=subscription.plan_key,
+    )
+
+
+@router.post(
+    "/commercial/internal/reconcile",
+    response_model=CommercialReconciliationResponse,
+)
+def reconcile_commercial_state(
+    x_commercial_reconciliation_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CommercialReconciliationResponse:
+    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
+    if not expected:
+        raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
+    if x_commercial_reconciliation_secret != expected:
+        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
+    subscriptions = db.scalars(select(OrganizationSubscription)).all()
+    processed = 0
+    rolled_over = 0
+    for subscription in subscriptions:
+        processed += 1
+        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
+            if _rollover_if_expired(db, subscription, datetime.now(UTC)):
+                rolled_over += 1
+    if rolled_over:
+        db.commit()
+    return CommercialReconciliationResponse(
+        processed=processed,
+        rolled_over=rolled_over,
+        unchanged=processed - rolled_over,
     )

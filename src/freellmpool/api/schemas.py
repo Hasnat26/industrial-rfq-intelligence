@@ -505,3 +505,9 @@ class SubscriptionRolloverResponse(BaseModel):
     current_period_end: datetime
     status: str
     plan_key: str
+
+
+class CommercialReconciliationResponse(BaseModel):
+    processed: int
+    rolled_over: int
+    unchanged: int
