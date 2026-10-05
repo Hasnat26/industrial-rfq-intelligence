@@ -120,6 +120,23 @@ class TechnicalStatusUpdate(BaseModel):
     status: str = Field(min_length=1, max_length=40)
 
 
+class RfqRevisionCreate(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+    requirements: list[RequirementCreate] = Field(min_length=1)
+
+
+class RfqRevisionRead(BaseModel):
+    id: int
+    package_id: int
+    revision: str
+    status: str
+    reason: str | None
+    created_by_user_id: int | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class OfferRevisionCreate(BaseModel):
     technical_revision: str = Field(min_length=1, max_length=50)
     source_text: str | None = None
