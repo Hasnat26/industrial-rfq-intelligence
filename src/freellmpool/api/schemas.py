@@ -481,3 +481,16 @@ class BillingWebhookEventRead(BaseModel):
     error: str | None
 
     model_config = {"from_attributes": True}
+
+
+class UsageReconciliationResponse(BaseModel):
+    organization_id: int
+    subscription_status: str
+    plan_key: str
+    period_start: datetime
+    period_end: datetime
+    usage: dict[str, float]
+    limits: dict[str, int]
+    exceeded_metrics: list[str]
+    inactive: bool
+    period_expired: bool
