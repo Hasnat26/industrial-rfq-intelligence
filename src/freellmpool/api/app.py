@@ -18,6 +18,7 @@ from freellmpool.api.auth import authenticate, get_current_user, is_member, issu
 from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
+    OrganizationSubscription,
     ProcurementAuditEvent,
     ProcurementDecision,
     ProcurementPackage,
@@ -463,6 +464,16 @@ def create_organization(
             organization_id=organization.id,
             user_id=user.id,
             role="OWNER",
+        )
+    )
+    now = datetime.now(UTC)
+    db.add(
+        OrganizationSubscription(
+            organization_id=organization.id,
+            plan_key="STARTER",
+            status="ACTIVE",
+            current_period_start=now,
+            current_period_end=now + timedelta(days=30),
         )
     )
     db.commit()
