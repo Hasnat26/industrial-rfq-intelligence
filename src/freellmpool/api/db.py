@@ -172,6 +172,7 @@ class VendorOffer(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    parent_offer_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_offers.id"), nullable=True, index=True)
     vendor_name: Mapped[str] = mapped_column(String(200))
     vendor_key: Mapped[str] = mapped_column(String(200), default="")
     technical_revision: Mapped[str] = mapped_column(String(50), default="R1")
@@ -183,6 +184,10 @@ class VendorOffer(Base):
     warranty: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     package: Mapped[ProcurementPackage] = relationship(back_populates="offers")
+    parent_offer: Mapped[VendorOffer | None] = relationship(
+        remote_side="VendorOffer.id", back_populates="revisions"
+    )
+    revisions: Mapped[list[VendorOffer]] = relationship(back_populates="parent_offer")
     claims: Mapped[list[VendorClaim]] = relationship(back_populates="offer", cascade="all, delete-orphan")
     deviations: Mapped[list[TechnicalDeviation]] = relationship(
         back_populates="offer", cascade="all, delete-orphan"
