@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.db import LifecycleEvent, ProcurementPackage, User, VendorOffer, get_db
+from freellmpool.api.db import LifecycleEvent, ProcurementPackage, Project, User, VendorOffer, get_db
 from freellmpool.api.schemas import LifecycleEventCreate, LifecycleEventRead
 from freellmpool.procurement_domain import LifecycleEventType
 
@@ -102,9 +102,7 @@ def list_organization_lifecycle_events(
         db.scalars(
             select(LifecycleEvent)
             .join(ProcurementPackage, LifecycleEvent.package_id == ProcurementPackage.id)
-            .join(ProcurementPackage.project)
-            .where(
-                ProcurementPackage.project.has(ProcurementPackage.project.property.mapper.class_.organization_id == organization_id)
-            )
+            .join(Project, ProcurementPackage.project_id == Project.id)
+            .where(Project.organization_id == organization_id)
         ).all()
     )
