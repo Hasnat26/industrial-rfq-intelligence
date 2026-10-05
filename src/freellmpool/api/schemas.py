@@ -389,3 +389,23 @@ class AssetProductRead(AssetProductCreate):
     package_id: int
 
     model_config = {"from_attributes": True}
+
+
+class LifecycleCostCreate(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=200)
+    event_id: int | None = Field(default=None, ge=1)
+    cost_type: str = Field(min_length=1, max_length=30)
+    amount: float = Field(ge=0)
+    currency: str = Field(default="USD", min_length=1, max_length=10)
+    cost_date: datetime
+    description: str = Field(min_length=1, max_length=10000)
+    evidence: str | None = Field(default=None, max_length=10000)
+
+
+class LifecycleCostRead(LifecycleCostCreate):
+    id: int
+    package_id: int
+    created_by_user_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
