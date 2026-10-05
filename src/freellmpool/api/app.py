@@ -1373,6 +1373,11 @@ def create_technical_clarification_request(
         raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
     _require_current_rfq_offer(offer.package, offer)
     _require_technical_stage_open(offer.package)
+    if offer.technical_status not in {"PENDING", "IN_REVIEW", "CLARIFICATION_REQUIRED"}:
+        raise HTTPException(
+            status_code=409,
+            detail="technical clarification cannot be requested from the current technical status",
+        )
     evaluation = _technical_evaluation_rows(offer.package, db)
     rows = [
         row.model_dump()
