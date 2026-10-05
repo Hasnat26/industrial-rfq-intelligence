@@ -275,33 +275,45 @@ def cmd_industrial_rfq(args: argparse.Namespace) -> int:
 
 
 def cmd_industrial_document(args: argparse.Namespace) -> int:
-    """Extract a local engineering document with source/page markers."""
+    """Normalize a local engineering document to Markdown."""
+    from .document_normalizer import normalize_document
     from .industrial import document_text, extract_document_pages, extract_document_pages_with_ocr
 
     try:
-        if args.ocr:
-            pages = extract_document_pages_with_ocr(
-                args.file,
-                language=args.ocr_language,
-                min_text_chars=args.ocr_min_text_chars,
-            )
+        if args.legacy_pages or args.ocr:
+            if args.ocr:
+                pages = extract_document_pages_with_ocr(
+                    args.file,
+                    language=args.ocr_language,
+                    min_text_chars=args.ocr_min_text_chars,
+                )
+            else:
+                pages = extract_document_pages(args.file)
+            text = document_text(pages)
+            result = {
+                "source": str(args.file),
+                "pages": len(pages),
+                "text": text,
+            }
+            output = text
         else:
-            pages = extract_document_pages(args.file)
-        text = document_text(pages)
+            normalized = normalize_document(args.file)
+            result = {
+                "source": normalized.source,
+                "pages": normalized.page_count,
+                "markdown": normalized.markdown,
+            }
+            output = normalized.markdown
     except ValueError as exc:
         print(f"freellmpool industrial-document: {exc}", file=sys.stderr)
         return 2
+
     if args.json:
         import json
-        print(json.dumps({
-            "source": str(args.file),
-            "pages": len(pages),
-            "text": text,
-        }, indent=2, ensure_ascii=False))
+        print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        print(text)
+        print(output)
     return 0
-
 
 def cmd_roles(args: argparse.Namespace) -> int:
     print(format_roles())
@@ -2441,14 +2453,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_document = sub.add_parser(
         "industrial-document",
-        help="extract engineering text from TXT, Markdown, or PDF with provenance",
+        help="normalize engineering documents to Markdown with provenance",
     )
-    p_document.add_argument("file", help="path to .txt, .md, or .pdf document")
-    p_document.add_argument("--json", action="store_true", help="emit source/page metadata as JSON")
-    p_document.add_argument("--ocr", action="store_true", help="OCR sparse/scanned PDF pages")
+    p_document.add_argument("file", help="path to a supported document")
+    p_document.add_argument("--json", action="store_true", help="emit normalized metadata as JSON")
+    p_document.add_argument(
+        "--legacy-pages",
+        action="store_true",
+        help="use the legacy TXT/Markdown/PDF page extractor instead of MarkItDown",
+    )
+    p_document.add_argument("--ocr", action="store_true", help="use the legacy local OCR path for sparse/scanned PDF pages")
     p_document.add_argument("--ocr-language", default="eng", help="Tesseract language code (default: eng)")
     p_document.add_argument("--ocr-min-text-chars", type=int, default=20, help="minimum native text length before OCR is skipped")
-    p_document.set_defaults(func=cmd_industrial_document)
+    p_document.set_defaults(func=cmd_industrial_document, legacy_pages=False)
     p_roles = sub.add_parser("roles", help="list available ask roles")
     p_roles.set_defaults(func=cmd_roles)
 
