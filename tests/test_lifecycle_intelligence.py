@@ -132,3 +132,25 @@ def test_lifecycle_intelligence_reports_reliability_indicators() -> None:
     assert summary["reliability_failure_intervals_days"] == [32.0]
     assert summary["mean_failure_interval_days"] == 32.0
     assert summary["mean_failure_to_maintenance_days"] == 1.5
+
+
+def test_lifecycle_intelligence_reports_warranty_exposure() -> None:
+    organization = client.post("/organizations", json={"name": "Warranty Org"}).json()
+    project = client.post("/projects", json={"organization_id": organization["id"], "name": "Plant"}).json()
+    package = client.post(
+        "/packages",
+        json={"project_id": project["id"], "name": "Drive", "category": "VFD", "mode": "STANDARD"},
+    ).json()
+    client.post(
+        f"/packages/{package['id']}/assets",
+        json={
+            "asset_id": "VFD-WAR-001",
+            "warranty_end": "2030-01-01T00:00:00Z",
+        },
+    )
+    result = client.get(f"/organizations/{organization['id']}/lifecycle-intelligence")
+    assert result.status_code == 200, result.text
+    summary = result.json()["assets"][0]
+    assert summary["warranty_status"] == "ACTIVE"
+    assert summary["warranty_days_remaining"] is not None
+    assert summary["warranty_days_remaining"] > 0
