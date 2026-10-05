@@ -23,6 +23,7 @@ from freellmpool.api.schemas import (
     SubscriptionRolloverResponse,
     CommercialReconciliationResponse,
     CommercialReconciliationRunRead,
+    CommercialReconciliationHealthResponse,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -354,4 +355,42 @@ def reconciliation_runs(
         db.scalars(
             select(CommercialReconciliationRun).order_by(CommercialReconciliationRun.id.desc()).limit(50)
         ).all()
+    )
+
+
+@router.get(
+    "/commercial/internal/reconcile/health",
+    response_model=CommercialReconciliationHealthResponse,
+)
+def reconciliation_health(
+    x_commercial_reconciliation_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CommercialReconciliationHealthResponse:
+    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
+    if not expected:
+        raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
+    if x_commercial_reconciliation_secret != expected:
+        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
+    last_run = db.scalar(
+        select(CommercialReconciliationRun)
+        .order_by(CommercialReconciliationRun.id.desc())
+        .limit(1)
+    )
+    if last_run is None:
+        return CommercialReconciliationHealthResponse(
+            status="NO_RUNS",
+            last_run_status=None,
+            last_run_completed_at=None,
+            last_run_processed=None,
+            last_run_rolled_over=None,
+            last_run_error=None,
+        )
+    status_value = "HEALTHY" if last_run.status == "COMPLETED" else "DEGRADED"
+    return CommercialReconciliationHealthResponse(
+        status=status_value,
+        last_run_status=last_run.status,
+        last_run_completed_at=last_run.completed_at,
+        last_run_processed=last_run.processed,
+        last_run_rolled_over=last_run.rolled_over,
+        last_run_error=last_run.error,
     )
