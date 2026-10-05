@@ -312,3 +312,101 @@ def test_clarification_lifecycle_is_audited() -> None:
     ]
     assert all(item["offer_id"] == offer["id"] for item in events)
     assert all(item["actor_user_id"] is not None for item in events)
+
+
+def test_rfq_revision_supersedes_old_baseline_and_reanchors_evaluation() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+    assert offer["technical_revision"] == "R1"
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer updated the required motor duty.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "90 kW"},
+            ],
+        },
+    )
+    assert revision.status_code == 201
+    data = revision.json()
+    assert data["revision"] == "R2"
+    assert data["status"] == "CURRENT"
+    assert data["reason"] == "Customer updated the required motor duty."
+
+    offers = client.get(f"/packages/{package['id']}/offers")
+    assert offers.status_code == 200
+    assert offers.json()[0]["technical_status"] == "SUPERSEDED"
+
+    evaluation = client.get(f"/packages/{package['id']}/technical-evaluation")
+    assert evaluation.status_code == 200
+    assert evaluation.json()["rfq_revision"] == "R2"
+    assert evaluation.json()["rfq_revision_id"] == data["id"]
+    assert evaluation.json()["rows"] == []
+
+    audit = client.get(f"/packages/{package['id']}/audit")
+    assert audit.status_code == 200
+    events = audit.json()
+    assert any(item["event_type"] == "RFQ_REVISION_CREATED" for item in events)
+    assert any(
+        item["event_type"] == "RFQ_REVISION_SUPERSEDED_OFFER"
+        and item["offer_id"] == offer["id"]
+        for item in events
+    )
+
+
+def test_rfq_revision_is_blocked_after_technical_lock() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+    for parameter, value in [("Rated voltage", "415 V"), ("Motor power", "75 kW")]:
+        assert client.post(
+            f"/offers/{offer['id']}/claims",
+            json={
+                "parameter": parameter,
+                "value": value,
+                "evidence": "quotation.pdf p.1",
+                "claim_status": "VERIFIED",
+            },
+        ).status_code == 201
+    assert client.post(
+        f"/offers/{offer['id']}/technical-status",
+        json={"status": "ACCEPTED"},
+    ).status_code == 200
+    assert client.post(f"/packages/{package['id']}/technical-lock").status_code == 200
+
+    response = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Late customer change.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    )
+    assert response.status_code == 409
+
+
+def test_whitespace_only_clarification_answer_is_rejected() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+    created = client.post(
+        f"/offers/{offer['id']}/clarifications",
+        json={"question": "Confirm protection class."},
+    )
+    assert created.status_code == 201
+
+    response = client.post(
+        f"/clarifications/{created.json()['id']}/answer",
+        json={"response": "   "},
+    )
+    assert response.status_code == 422
