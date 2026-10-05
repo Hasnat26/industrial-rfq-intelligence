@@ -98,11 +98,11 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
         replacement_dates = [event.event_date for event in asset_events if event.event_type == "REPLACEMENT"]
         replacement_intervals = [
             (current - previous).total_seconds() / 86400
-            for previous, current in zip(replacement_dates, replacement_dates[1:])
+            for previous, current in zip(replacement_dates, replacement_dates[1:], strict=True)
         ]
         failure_intervals = [
             (current - previous).total_seconds() / 86400
-            for previous, current in zip(failure_dates, failure_dates[1:])
+            for previous, current in zip(failure_dates, failure_dates[1:], strict=True)
         ]
         now = datetime.now(UTC)
         warranty_status = "NOT_SET"
