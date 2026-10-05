@@ -284,3 +284,57 @@ def test_workflow_counts_only_current_rfq_offers() -> None:
     assert body["technical_status_counts"] == {}
     assert body["open_deviation_count"] == 0
     assert body["open_clarification_count"] == 0
+
+def test_cross_tenant_user_cannot_access_package_or_offer_workflow() -> None:
+    organization = client.post("/organizations", json={"name": "Tenant A Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Tenant A Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Tenant A Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Tenant A Vendor", "technical_revision": "R1"},
+    ).json()
+
+    registered = client.post(
+        "/auth/register",
+        json={"email": "tenant-b@example.com", "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201, registered.text
+    login = client.post(
+        "/auth/login",
+        json={"email": "tenant-b@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200, login.text
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Unauthorized cross-tenant revision.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+            ],
+        },
+    )
+    assert revision.status_code == 404
+
+    workflow = client.get(f"/packages/{package['id']}/workflow")
+    assert workflow.status_code == 404
+
+    technical = client.post(
+        f"/offers/{offer['id']}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert technical.status_code == 404
