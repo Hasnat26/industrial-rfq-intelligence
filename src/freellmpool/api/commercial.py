@@ -19,6 +19,7 @@ from freellmpool.api.db import (
     get_db,
 )
 from freellmpool.api.reconciliation import (
+    _as_utc,
     rollover_if_expired,
     run_commercial_reconciliation,
 )
@@ -266,7 +267,7 @@ def usage_reconciliation(
         limits=limits,
         exceeded_metrics=exceeded,
         inactive=subscription.status != "ACTIVE",
-        period_expired=subscription.current_period_end <= now,
+        period_expired=_as_utc(subscription.current_period_end) <= _as_utc(now),
         unknown_metrics=unknown_metrics,
         negative_usage_metrics=negative_usage_metrics,
     )
