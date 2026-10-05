@@ -1,45 +1,38 @@
 # Validation Status
 
-## P3-M6 validation scope
+## Current CI validation scope
 
-The repository CI configuration now covers the industrial RFQ workflow with:
+The active GitHub Actions CI workflow validates the Industrial RFQ product with:
 
 - Ruff linting;
-- mypy type checking including `industrial.py` and `industrial_report.py`;
-- the full pytest suite with coverage;
-- package/wheel smoke testing;
+- strict mypy validation for the Industrial RFQ modules and API/domain packages;
+- the full pytest suite;
+- focused branch/line coverage for the active Industrial RFQ modules;
+- package/wheel and sdist smoke testing;
 - product-native CLI version smoke;
-- industrial RFQ JSON CLI smoke;
+- industrial RFQ JSON CLI smoke; and
 - industrial RFQ Markdown CLI smoke.
 
-The obsolete MCP manifest validation job was removed because the repository no longer contains the legacy `server.json` manifest.
+Separate security workflows provide Bandit, pip-audit, zizmor, Trivy, and CodeQL validation.
 
-## Current verification status
+The legacy package-wide `scripts/check_coverage.py` gate is intentionally not part of the active CI contract. `tests/test_ci_config.py` explicitly prevents accidental reintroduction of that removed gate.
 
-P3-M7 verification refresh: CI is expected to run on pushes to `main` and pull requests targeting `main`.
+## Latest verified execution
 
-The validation commands are configured in GitHub Actions, but this environment has not independently executed the repository test suite.
+The latest verified CI run is **Run #413**, for commit `8e9a1d4e35ed942cfb59516d5d9aea6c1db963bf`.
 
-The GitHub Actions API currently reports no workflow runs for the repository. Therefore this milestone does **not** claim that pytest, Ruff, mypy, or the CLI smoke tests have passed on GitHub.
+The run completed with conclusion **success** across Python 3.11, 3.12, 3.13, and 3.14. Each matrix job completed linting, type checking, CLI smoke, pytest, and build/wheel smoke successfully. The latest test execution reported **167 passed**.
 
-Once Actions produces a run for the current `main` revision, the run should be checked for:
-
-1. all Python-version test jobs passing;
-2. Ruff passing;
-3. mypy passing;
-4. full pytest and coverage checks passing;
-5. industrial CLI smoke passing;
-6. wheel smoke passing.
-
-This distinction is intentional: repository configuration is not treated as evidence of successful execution.
-
-## Local execution limitation
-
-The current working environment cannot reliably clone/fetch the repository through the local network path to GitHub, so local execution of the complete repository test suite is not represented as completed evidence.
+This is execution evidence, not merely workflow configuration.
 
 ## Validation principle
 
 **Configured is not passed. A green execution result is required before claiming a test or CI check passed.**
+
 ## Sample RFQ reproducibility
 
-The active Industrial RFQ test suite loads examples/industrial_rfq/sample_input.json, renders the engineering report through the production renderer, and compares it byte-for-byte with examples/industrial_rfq/sample_report.md. This prevents the checked-in demonstration from drifting away from the actual deterministic workflow.
+The active Industrial RFQ test suite loads `examples/industrial_rfq/sample_input.json`, renders the engineering report through the production renderer, and compares it byte-for-byte with `examples/industrial_rfq/sample_report.md`. This prevents the checked-in demonstration from drifting away from the actual deterministic workflow.
+
+## Local execution limitation
+
+The current working environment does not independently represent a complete local repository test run. GitHub Actions is therefore the authoritative execution evidence for the latest revision.
