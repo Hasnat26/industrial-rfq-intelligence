@@ -241,6 +241,18 @@ class EngineeringDecisionSummaryRead(BaseModel):
     review_actions: list[str]
 
 
+class EvaluationWeightingRead(BaseModel):
+    package_id: int
+    technical_weight: float
+    commercial_weight: float
+    locked: bool
+
+
+class EvaluationWeightingUpdate(BaseModel):
+    technical_weight: float = Field(ge=0, le=100)
+    commercial_weight: float = Field(ge=0, le=100)
+
+
 class IntegratedVendorEvaluationRead(BaseModel):
     vendor: str
     technical_score: float
