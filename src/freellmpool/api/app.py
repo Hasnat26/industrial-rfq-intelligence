@@ -29,7 +29,6 @@ from freellmpool.api.db import (
     get_db,
     init_db,
 )
-from freellmpool.product_categories import list_product_categories, get_product_category
 from freellmpool.api.schemas import (
     ClaimCreate,
     ClaimRead,
@@ -78,6 +77,7 @@ from freellmpool.industrial import (
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.product_categories import get_product_category, list_product_categories
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 DOCUMENT_CHUNK_BYTES = 1024 * 1024
