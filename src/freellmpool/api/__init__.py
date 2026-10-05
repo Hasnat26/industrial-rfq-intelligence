@@ -11,3 +11,6 @@ __all__ = ["app"]
 
 app.include_router(lifecycle_router)
 app.include_router(assets_router)
+
+from .lifecycle_intelligence import router as lifecycle_intelligence_router
+app.include_router(lifecycle_intelligence_router)
