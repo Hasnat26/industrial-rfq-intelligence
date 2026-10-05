@@ -1887,7 +1887,7 @@ def commercial_comparison(
             lead_time=offer.lead_time,
             warranty=offer.warranty,
         )
-        for offer in sorted(package.offers, key=lambda item: item.id)
+        for offer in sorted(_active_vendor_offers(package), key=lambda item: item.id)
         if offer.commercial_status != "LOCKED"
     ]
     return CommercialComparisonResponse(
