@@ -423,3 +423,32 @@ def test_internal_reconciliation_creates_audit_run(monkeypatch) -> None:
     assert run["unchanged"] == 1
     assert run["completed_at"] is not None
     assert run["error"] is None
+
+
+def test_reconciliation_health_reports_no_runs(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    response = client.get(
+        "/commercial/internal/reconcile/health",
+        headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "NO_RUNS"
+
+
+def test_reconciliation_health_reports_latest_completed_run(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    run = client.post(
+        "/commercial/internal/reconcile",
+        headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
+    )
+    assert run.status_code == 200
+
+    response = client.get(
+        "/commercial/internal/reconcile/health",
+        headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "HEALTHY"
+    assert data["last_run_status"] == "COMPLETED"
+    assert data["last_run_completed_at"] is not None
