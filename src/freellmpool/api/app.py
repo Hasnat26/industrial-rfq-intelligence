@@ -1897,6 +1897,8 @@ def lock_technical_bid(
     package = db.get(ProcurementPackage, package_id)
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
+    if package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
     active_offers = _active_vendor_offers(package)
     if not active_offers:
         raise HTTPException(status_code=409, detail="at least one current vendor offer is required")
