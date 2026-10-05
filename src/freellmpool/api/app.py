@@ -78,6 +78,7 @@ from freellmpool.api.schemas import (
     QuotationBatchResponse,
     RequirementCreate,
     RfqResponse,
+    TechnicalClarificationAnswer,
     TechnicalClarificationCreate,
     TechnicalClarificationGapRead,
     TechnicalClarificationPackageRead,
@@ -1400,7 +1401,7 @@ def resolve_deviation(
 )
 def answer_clarification(
     clarification_id: int,
-    payload: TechnicalClarificationCreate,
+    payload: TechnicalClarificationAnswer,
     user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> TechnicalClarification:
