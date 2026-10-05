@@ -133,9 +133,25 @@ def test_project_epc_gate() -> None:
 
 
 def test_engineering_decision_summary_endpoint_is_auditable() -> None:
-    package = _seed_package()
+    organization = client.post("/organizations", json={"name": "Decision Summary"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "75 kW"},
+            ],
+        },
+    ).json()
     offer = client.post(
-        f"/packages/{package['package']['id']}/offers",
+        f"/packages/{package['id']}/offers",
         json={"vendor_name": "Vendor A", "technical_revision": "R1"},
     ).json()
     claim = client.post(
@@ -149,9 +165,7 @@ def test_engineering_decision_summary_endpoint_is_auditable() -> None:
     )
     assert claim.status_code == 201
 
-    response = client.get(
-        f"/packages/{package['package']['id']}/engineering-decision-summary"
-    )
+    response = client.get(f"/packages/{package['id']}/engineering-decision-summary")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "EVIDENCE_OR_DEVIATION_REVIEW_REQUIRED"
@@ -163,13 +177,29 @@ def test_engineering_decision_summary_endpoint_is_auditable() -> None:
 
 
 def test_package_report_contains_engineering_decision_summary() -> None:
-    package = _seed_package()
-    response = client.get(f"/packages/{package['package']['id']}/report")
+    organization = client.post("/organizations", json={"name": "Report Summary"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Empty Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    ).json()
+    response = client.get(f"/packages/{package['id']}/report")
     assert response.status_code == 200
     data = response.json()
     assert "decision_support" in data
     assert "engineering_decision_summary" in data
     assert data["engineering_decision_summary"]["status"] == "INSUFFICIENT_VENDOR_DATA"
+
 
 
 def test_customer_web_app_exposes_batch_quotation_intake() -> None:
