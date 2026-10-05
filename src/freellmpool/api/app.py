@@ -1061,6 +1061,7 @@ def create_offer_revision(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
+    _require_current_rfq_offer(offer.package, offer)
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for resubmission")
     revision = payload.technical_revision.strip()
@@ -1117,6 +1118,7 @@ async def resubmit_technical_offer(
         raise HTTPException(status_code=404, detail="offer not found")
     package = offer.package
     _require_technical_stage_open(package)
+    _require_current_rfq_offer(package, offer)
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for resubmission")
     revision = technical_revision.strip()
