@@ -145,6 +145,7 @@ class CommercialComparisonResponse(BaseModel):
 class OfferRead(BaseModel):
     id: int
     package_id: int
+    parent_offer_id: int | None
     vendor_name: str
     technical_revision: str
     technical_status: str
