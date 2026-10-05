@@ -4,13 +4,21 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.db import AssetProduct, LifecycleEvent, ProcurementPackage, Project, User, get_db
+from freellmpool.api.db import (
+    AssetProduct,
+    LifecycleEvent,
+    ProcurementPackage,
+    Project,
+    User,
+    get_db,
+)
 
 router = APIRouter(tags=["lifecycle"])
 
