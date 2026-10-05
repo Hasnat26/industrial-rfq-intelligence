@@ -205,3 +205,85 @@ def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
         assert r2.rfq_revision_id == r1.rfq_revision_id
     finally:
         session.close()
+
+def test_technical_lock_requires_current_rfq_offer() -> None:
+    organization = client.post("/organizations", json={"name": "RFQ Lock Isolation Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer revised the voltage requirement.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+
+    lock = client.post(f"/packages/{package['id']}/technical-lock")
+    assert lock.status_code == 409
+    assert "current vendor offer" in lock.json()["detail"]
+
+
+def test_workflow_counts_only_current_rfq_offers() -> None:
+    organization = client.post("/organizations", json={"name": "RFQ Workflow Counts Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer revised the voltage requirement.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+
+    workflow = client.get(f"/packages/{package['id']}/workflow")
+    assert workflow.status_code == 200, workflow.text
+    body = workflow.json()
+    assert body["offer_count"] == 0
+    assert body["technical_status_counts"] == {}
+    assert body["open_deviation_count"] == 0
+    assert body["open_clarification_count"] == 0
+
+    stale = client.get(f"/offers/{offer['id']}/technical-status")
+    assert stale.status_code == 405
