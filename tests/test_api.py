@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import io
 import json
 import os
@@ -597,4 +596,4 @@ def test_document_upload_blocked_after_technical_lock() -> None:
 
 
 def test_evidence_traceability() -> None:
-    seeded = _seed_offer(mode="STANDARD")
+    _seed_offer(mode="STANDARD")
