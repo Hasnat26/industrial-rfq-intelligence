@@ -38,9 +38,16 @@ def _subscription_from_event(db: Session, payload: dict[str, object], provider: 
     organization_id = payload.get("organization_id")
     if organization_id is None:
         return None
-    try:
-        organization_id = int(organization_id)
-    except (TypeError, ValueError):
+    if isinstance(organization_id, bool):
+        return None
+    if isinstance(organization_id, int):
+        normalized_organization_id = organization_id
+    elif isinstance(organization_id, str):
+        try:
+            normalized_organization_id = int(organization_id)
+        except ValueError:
+            return None
+    else:
         return None
 
     subscription = db.scalar(
