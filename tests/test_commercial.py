@@ -54,7 +54,7 @@ def test_subscription_defaults_to_starter_and_usage_is_aggregated() -> None:
 
 
 def test_usage_is_tenant_isolated() -> None:
-    organization = client.post("/organizations", json={"name": "Commercial Tenant"}).json()
+    client.post("/organizations", json={"name": "Commercial Tenant"})
     other = client.post("/organizations", json={"name": "Other Tenant"}).json()
     response = client.get(f"/organizations/{other['id']}/usage")
     assert response.status_code == 404
@@ -255,8 +255,8 @@ def test_usage_reconciliation_detects_existing_overage_without_mutating_state() 
 
 
 def test_subscription_rollover_advances_expired_period(monkeypatch) -> None:
-    from datetime import UTC, datetime, timedelta
-    from freellmpool.api.db import SessionLocal, OrganizationSubscription
+    from datetime import UTC, datetime
+    from freellmpool.api.db import OrganizationSubscription, SessionLocal
 
     organization = client.post("/organizations", json={"name": "Rollover Org"}).json()
     db = SessionLocal()
@@ -403,7 +403,7 @@ def test_usage_reconciliation_reports_unknown_and_negative_usage_anomalies() -> 
 
 def test_internal_reconciliation_creates_audit_run(monkeypatch) -> None:
     monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
-    organization = client.post("/organizations", json={"name": "Audit Run Org"}).json()
+    client.post("/organizations", json={"name": "Audit Run Org"})
     response = client.post(
         "/commercial/internal/reconcile",
         headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
@@ -455,7 +455,7 @@ def test_reconciliation_health_reports_latest_completed_run(monkeypatch) -> None
 
 
 def test_scheduler_safe_reconciliation_runner_records_completion() -> None:
-    from freellmpool.api.db import SessionLocal, CommercialReconciliationRun
+    from freellmpool.api.db import CommercialReconciliationRun, SessionLocal
     from freellmpool.api.reconciliation import run_commercial_reconciliation
 
     client.post("/organizations", json={"name": "Scheduler Runner Org"})

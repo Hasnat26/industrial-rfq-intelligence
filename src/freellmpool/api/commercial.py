@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -11,20 +10,26 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
+from freellmpool.api.db import (
+    CommercialReconciliationRun,
+    OrganizationSubscription,
+    UsageRecord,
+    User,
+    get_db,
+)
 from freellmpool.api.reconciliation import rollover_if_expired, run_commercial_reconciliation
-from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscription, UsageRecord, User, get_db
 from freellmpool.api.schemas import (
+    CommercialReconciliationHealthResponse,
+    CommercialReconciliationResponse,
+    CommercialReconciliationRunRead,
     OrganizationSubscriptionRead,
+    SubscriptionLifecycleUpdate,
     SubscriptionPlanRead,
+    SubscriptionRolloverResponse,
+    UsageReconciliationResponse,
     UsageRecordCreate,
     UsageRecordRead,
     UsageSummaryResponse,
-    SubscriptionLifecycleUpdate,
-    UsageReconciliationResponse,
-    SubscriptionRolloverResponse,
-    CommercialReconciliationResponse,
-    CommercialReconciliationRunRead,
-    CommercialReconciliationHealthResponse,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -139,7 +144,7 @@ def update_subscription(
     subscription.plan_key = payload.plan_key
     subscription.status = payload.status
     if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-        _rollover_if_expired(db, subscription, datetime.now(UTC))
+        rollover_if_expired(db, subscription, datetime.now(UTC))
     subscription.billing_provider = payload.billing_provider
     subscription.external_customer_id = payload.external_customer_id
     subscription.external_subscription_id = payload.external_subscription_id
@@ -265,7 +270,7 @@ def rollover_subscription(
     previous_end = subscription.current_period_end
     rolled_over = False
     if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-        rolled_over = _rollover_if_expired(db, subscription, datetime.now(UTC))
+        rolled_over = rollover_if_expired(db, subscription, datetime.now(UTC))
     if rolled_over:
         db.commit()
         db.refresh(subscription)
