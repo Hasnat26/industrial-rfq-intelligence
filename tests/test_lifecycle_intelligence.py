@@ -58,3 +58,40 @@ def test_lifecycle_intelligence_is_tenant_isolated() -> None:
     response = client.get(f"/organizations/{second['id']}/lifecycle-intelligence")
     assert response.status_code == 404
     assert response.json()["detail"] == "organization not found"
+
+
+def test_lifecycle_intelligence_includes_costs_and_warranty_dates() -> None:
+    organization = client.post("/organizations", json={"name": "Economics Org"}).json()
+    project = client.post("/projects", json={"organization_id": organization["id"], "name": "Plant"}).json()
+    package = client.post(
+        "/packages",
+        json={"project_id": project["id"], "name": "Motor", "category": "MOTOR", "mode": "STANDARD"},
+    ).json()
+    asset = client.post(
+        f"/packages/{package['id']}/assets",
+        json={
+            "asset_id": "M-001",
+            "warranty_start": "2026-01-01T00:00:00Z",
+            "warranty_end": "2028-01-01T00:00:00Z",
+        },
+    ).json()
+    for amount, currency in [(1000, "USD"), (250, "USD"), (100, "EUR")]:
+        response = client.post(
+            f"/packages/{package['id']}/lifecycle-costs",
+            json={
+                "asset_id": asset["asset_id"],
+                "cost_type": "MAINTENANCE",
+                "amount": amount,
+                "currency": currency,
+                "cost_date": "2026-09-01T00:00:00Z",
+                "description": "Lifecycle cost",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    result = client.get(f"/organizations/{organization['id']}/lifecycle-intelligence")
+    assert result.status_code == 200, result.text
+    summary = result.json()["assets"][0]
+    assert summary["lifecycle_costs_by_currency"] == {"EUR": 100.0, "USD": 1250.0}
+    assert summary["warranty_start"].startswith("2026-01-01")
+    assert summary["warranty_end"].startswith("2028-01-01")
