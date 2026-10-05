@@ -63,7 +63,17 @@ def _case_inputs(case: dict[str, Any]) -> tuple[list[Requirement], list[VendorVa
             item["value"],
             item.get("evidence", ""),
             item.get("claim_status", "UNVERIFIED"),
-            EvidenceProvenance(**item["provenance"]) if isinstance(item.get("provenance"), dict) else None,
+            (
+                EvidenceProvenance(
+                    source=str(item["provenance"].get("source", "")),
+                    page=item["provenance"].get("page"),
+                    section=item["provenance"].get("section"),
+                    table=item["provenance"].get("table"),
+                    cell=item["provenance"].get("cell"),
+                )
+                if isinstance(item.get("provenance"), dict)
+                else None
+            ),
         )
         for item in case["vendor_data"]
     ]
@@ -96,7 +106,7 @@ def evaluate_deterministic_case(case: dict[str, Any]) -> dict[str, Any]:
         "actual_statuses": actual_statuses,
         "claim_status_accuracy": (
             claim_status_matches / len(expected_claim_statuses)
-            if expected_claim_statuses
+            if claim_status_matches is not None and expected_claim_statuses
             else None
         ),
         "matrix_rows": len(matrix),
