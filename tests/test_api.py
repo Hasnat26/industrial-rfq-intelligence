@@ -132,6 +132,46 @@ def test_project_epc_gate() -> None:
     assert opened.json()["commercial_evaluation_open"] is True
 
 
+def test_engineering_decision_summary_endpoint_is_auditable() -> None:
+    package = _seed_package()
+    offer = client.post(
+        f"/packages/{package['package']['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+    claim = client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation.pdf, page 1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert claim.status_code == 201
+
+    response = client.get(
+        f"/packages/{package['package']['id']}/engineering-decision-summary"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "EVIDENCE_OR_DEVIATION_REVIEW_REQUIRED"
+    profile = data["vendor_profiles"][0]
+    assert profile["vendor"] == "Vendor A"
+    assert profile["missing_evidence_count"] == 1
+    assert profile["evidence_coverage_pct"] == 50.0
+    assert data["review_actions"]
+
+
+def test_package_report_contains_engineering_decision_summary() -> None:
+    package = _seed_package()
+    response = client.get(f"/packages/{package['package']['id']}/report")
+    assert response.status_code == 200
+    data = response.json()
+    assert "decision_support" in data
+    assert "engineering_decision_summary" in data
+    assert data["engineering_decision_summary"]["status"] == "INSUFFICIENT_VENDOR_DATA"
+
+
 def test_customer_web_app_exposes_batch_quotation_intake() -> None:
     response = client.get("/")
     assert response.status_code == 200
