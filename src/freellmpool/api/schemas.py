@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -306,7 +308,7 @@ class AuditEventRead(BaseModel):
     from_status: str | None
     to_status: str | None
     note: str | None
-    created_at: str
+    created_at: datetime
 
 
 class ProductCategoryParameterRead(BaseModel):
