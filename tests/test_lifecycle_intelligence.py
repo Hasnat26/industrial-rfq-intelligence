@@ -154,3 +154,38 @@ def test_lifecycle_intelligence_reports_warranty_exposure() -> None:
     assert summary["warranty_status"] == "ACTIVE"
     assert summary["warranty_days_remaining"] is not None
     assert summary["warranty_days_remaining"] > 0
+
+
+def test_lifecycle_intelligence_reports_spare_and_replacement_metrics() -> None:
+    organization = client.post("/organizations", json={"name": "Lifecycle Parts Org"}).json()
+    project = client.post("/projects", json={"organization_id": organization["id"], "name": "Plant"}).json()
+    package = client.post(
+        "/packages",
+        json={"project_id": project["id"], "name": "Drive", "category": "VFD", "mode": "STANDARD"},
+    ).json()
+    client.post(
+        f"/packages/{package['id']}/assets",
+        json={"asset_id": "VFD-PART-001"},
+    )
+    for event_type, date in [
+        ("SPARE_PART", "2026-01-10T00:00:00Z"),
+        ("REPLACEMENT", "2026-02-01T00:00:00Z"),
+        ("SPARE_PART", "2026-02-15T00:00:00Z"),
+        ("REPLACEMENT", "2026-03-03T00:00:00Z"),
+    ]:
+        response = client.post(
+            f"/packages/{package['id']}/lifecycle-events",
+            json={
+                "asset_id": "VFD-PART-001",
+                "event_type": event_type,
+                "event_date": date,
+                "description": event_type,
+            },
+        )
+        assert response.status_code == 201, response.text
+    result = client.get(f"/organizations/{organization['id']}/lifecycle-intelligence")
+    assert result.status_code == 200, result.text
+    summary = result.json()["assets"][0]
+    assert summary["spare_part_event_count"] == 2
+    assert summary["replacement_intervals_days"] == [30.0]
+    assert summary["mean_replacement_interval_days"] == 30.0
