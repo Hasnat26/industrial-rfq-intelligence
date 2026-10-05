@@ -2042,13 +2042,20 @@ def package_decision_support(
     package = db.get(ProcurementPackage, package_id)
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    active_offers = _active_vendor_offers(package)
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
+        for item in revision.requirements
     ]
     requirement_types = {
         item.tag: item.requirement_type
-        for item in package.requirements
+        for item in revision.requirements
     }
     vendor_values = [
         VendorValue(
@@ -2058,19 +2065,19 @@ def package_decision_support(
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in package.offers
+        for offer in active_offers
         for claim in offer.claims
     ]
     result = build_decision_support(
         requirements,
         vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
+        vendors=[offer.vendor_name for offer in active_offers],
         requirement_types=requirement_types,
     )
     return DecisionSupportResponse(
         package_id=package.id,
         requirements_checked=len(requirements),
-        vendors_checked=len(package.offers),
+        vendors_checked=len(active_offers),
         vendors=[DecisionSupportVendorRead.model_validate(item) for item in result["vendors"]],
         rows=[DecisionSupportRowRead.model_validate(item) for item in result["rows"]],
         formula=result["formula"],
@@ -2161,11 +2168,18 @@ def package_integrated_evaluation(
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
 
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    active_offers = _active_vendor_offers(package)
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
+        for item in revision.requirements
     ]
-    requirement_types = {item.tag: item.requirement_type for item in package.requirements}
+    requirement_types = {item.tag: item.requirement_type for item in revision.requirements}
     vendor_values = [
         VendorValue(
             offer.vendor_name,
@@ -2174,13 +2188,13 @@ def package_integrated_evaluation(
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in package.offers
+        for offer in active_offers
         for claim in offer.claims
     ]
     technical = build_decision_support(
         requirements,
         vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
+        vendors=[offer.vendor_name for offer in active_offers],
         requirement_types=requirement_types,
     )
     commercial_values = [
@@ -2194,7 +2208,7 @@ def package_integrated_evaluation(
             "",
             "UNVERIFIED",
         )
-        for offer in package.offers
+        for offer in active_offers
     ]
     commercial_rows = build_commercial_risk_review(commercial_values)
     settings = _get_evaluation_settings(db, package)
