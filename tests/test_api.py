@@ -676,6 +676,20 @@ def test_decision_support_endpoint_returns_auditable_vendor_scores() -> None:
 
 def test_decision_support_is_tenant_isolated() -> None:
     first = _seed_package()
+    first_token = client.headers["Authorization"]
+
+    registered = client.post(
+        "/auth/register",
+        json={"email": "second@example.com", "password": "second-password"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": "second@example.com", "password": "second-password"},
+    )
+    assert login.status_code == 200
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
     second = client.post("/organizations", json={"name": "Other Tenant"}).json()
     other_project = client.post(
         "/projects",
@@ -696,13 +710,12 @@ def test_decision_support_is_tenant_isolated() -> None:
             ],
         },
     ).json()
-    # The authenticated user owns both organizations in this test fixture, so
-    # this verifies package scoping rather than cross-user authorization.
-    response = client.get(f"/packages/{other_package['id']}/decision-support")
-    assert response.status_code == 200
-    assert response.json()["package_id"] == other_package["id"]
-    assert response.json()["package_id"] != first["package"]["id"]
 
+    client.headers["Authorization"] = first_token
+    forbidden = client.get(f"/packages/{other_package['id']}/decision-support")
+    assert forbidden.status_code == 404
+    allowed = client.get(f"/packages/{first['package']['id']}/decision-support")
+    assert allowed.status_code == 200
 
 def test_evidence_traceability() -> None:
     _seed_offer(mode="STANDARD")
