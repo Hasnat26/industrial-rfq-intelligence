@@ -368,3 +368,24 @@ class LifecycleEventRead(LifecycleEventCreate):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AssetProductCreate(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=200)
+    offer_id: int | None = Field(default=None, ge=1)
+    manufacturer: str | None = Field(default=None, max_length=200)
+    model: str | None = Field(default=None, max_length=200)
+    part_number: str | None = Field(default=None, max_length=200)
+    serial_number: str | None = Field(default=None, max_length=200)
+    installation_date: datetime | None = None
+    commissioning_date: datetime | None = None
+    warranty_start: datetime | None = None
+    warranty_end: datetime | None = None
+    status: str = Field(default="ACTIVE", min_length=1, max_length=30)
+
+
+class AssetProductRead(AssetProductCreate):
+    id: int
+    package_id: int
+
+    model_config = {"from_attributes": True}
