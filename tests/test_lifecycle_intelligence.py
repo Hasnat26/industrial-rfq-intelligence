@@ -1,6 +1,7 @@
+from fastapi.testclient import TestClient
+
 from freellmpool.api import app
 from freellmpool.api.db import Base, engine
-from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -52,7 +53,7 @@ def test_lifecycle_intelligence_aggregates_asset_events() -> None:
 
 
 def test_lifecycle_intelligence_is_tenant_isolated() -> None:
-    first = client.post("/organizations", json={"name": "First Org"}).json()
+    client.post("/organizations", json={"name": "First Org"}).json()
     second = client.post("/organizations", json={"name": "Second Org"}).json()
     response = client.get(f"/organizations/{second['id']}/lifecycle-intelligence")
     assert response.status_code == 404
