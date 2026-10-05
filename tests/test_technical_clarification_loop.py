@@ -352,6 +352,11 @@ def test_rfq_revision_supersedes_old_baseline_and_reanchors_evaluation() -> None
         json={"question": "Stale offer question", "status": "OPEN"},
     )
     assert stale_clarification.status_code == 409
+    stale_revision = client.post(
+        f"/offers/{offer['id']}/technical-revision",
+        json={"technical_revision": "R2", "source_text": "stale resubmission"},
+    )
+    assert stale_revision.status_code == 409
     comparison = client.get(f"/packages/{package['id']}/comparison")
     assert comparison.status_code == 200
     assert comparison.json()["rows"] == []
