@@ -225,22 +225,26 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
         ordered = sorted(chain, key=lambda item: item.id)
         latest = ordered[-1]
         vendor_names.append(latest.vendor_name)
-        claims_by_parameter: dict[str, VendorClaim] = {}
+        claims_by_parameter: dict[str, list[VendorClaim]] = {}
         for offer in ordered:
+            claims_this_revision: dict[str, list[VendorClaim]] = {}
             for claim in offer.claims:
-                claims_by_parameter[claim.parameter.casefold().strip()] = claim
+                claims_this_revision.setdefault(claim.parameter.casefold().strip(), []).append(claim)
+            for parameter, claims in claims_this_revision.items():
+                claims_by_parameter[parameter] = claims
         parameters = claim_parameters_by_vendor.setdefault(latest.vendor_name, set())
-        for claim in claims_by_parameter.values():
-            vendor_values.append(
-                VendorValue(
-                    latest.vendor_name,
-                    claim.parameter,
-                    claim.value,
-                    claim.evidence,
-                    _claim_status(claim.claim_status),
+        for claims in claims_by_parameter.values():
+            for claim in claims:
+                vendor_values.append(
+                    VendorValue(
+                        latest.vendor_name,
+                        claim.parameter,
+                        claim.value,
+                        claim.evidence,
+                        _claim_status(claim.claim_status),
+                    )
                 )
-            )
-            parameters.add(claim.parameter.casefold().strip())
+                parameters.add(claim.parameter.casefold().strip())
 
     matrix = build_matrix(requirements, vendor_values, vendors=vendor_names)
     rows: list[dict[str, object]] = []
