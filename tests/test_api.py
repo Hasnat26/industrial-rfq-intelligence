@@ -202,6 +202,56 @@ def test_package_report_contains_engineering_decision_summary() -> None:
 
 
 
+def test_integrated_evaluation_endpoint_exposes_auditable_gates() -> None:
+    organization = client.post("/organizations", json={"name": "Integrated Evaluation"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={
+            "vendor_name": "Vendor A",
+            "technical_revision": "R1",
+            "price": "10000",
+            "currency": "USD",
+            "lead_time": "8 weeks",
+            "warranty": "24 months",
+        },
+    ).json()
+    claim = client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quote.pdf, page 1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert claim.status_code == 201
+
+    response = client.get(f"/packages/{package['id']}/integrated-evaluation")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "COMMERCIAL_REVIEW_REQUIRED"
+    profile = data["vendor_profiles"][0]
+    assert profile["technical_score"] == 100.0
+    assert profile["technical_gate"] == "PASS"
+    assert profile["commercial_gate"] == "REVIEW"
+    assert "EVIDENCE_REVIEW" in profile["commercial_flags"]
+
+
 def test_customer_web_app_exposes_batch_quotation_intake() -> None:
     response = client.get("/")
     assert response.status_code == 200
