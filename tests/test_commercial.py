@@ -334,3 +334,37 @@ def test_canceled_subscription_does_not_roll_forward() -> None:
     response = client.get(f"/organizations/{organization['id']}/subscription")
     assert response.status_code == 200
     assert response.json()["current_period_end"].startswith("2026-01-31")
+
+
+def test_internal_reconciliation_requires_secret(monkeypatch) -> None:
+    monkeypatch.delenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", raising=False)
+    response = client.post("/commercial/internal/reconcile")
+    assert response.status_code == 503
+
+
+def test_internal_reconciliation_rolls_active_expired_subscriptions(monkeypatch) -> None:
+    from datetime import UTC, datetime
+    from freellmpool.api.db import SessionLocal, OrganizationSubscription
+
+    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    organization = client.post("/organizations", json={"name": "Internal Reconcile Org"}).json()
+    db = SessionLocal()
+    try:
+        subscription = db.query(OrganizationSubscription).filter_by(
+            organization_id=organization["id"]
+        ).one()
+        subscription.current_period_start = datetime(2026, 1, 1, tzinfo=UTC)
+        subscription.current_period_end = datetime(2026, 1, 31, tzinfo=UTC)
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.post(
+        "/commercial/internal/reconcile",
+        headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["processed"] == 1
+    assert data["rolled_over"] == 1
+    assert data["unchanged"] == 0
