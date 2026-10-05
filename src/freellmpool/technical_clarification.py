@@ -15,6 +15,10 @@ class TechnicalGap:
     offered: str | None
     status: str
     request: str
+    rfq_revision_id: int | None = None
+    requirement_id: int | None = None
+    gap_type: str | None = None
+    evidence: str = ""
 
 
 @dataclass(frozen=True)
@@ -70,6 +74,22 @@ def build_technical_clarification_package(
                 offered=offered,
                 status=status,
                 request=request,
+                rfq_revision_id=(
+                    int(row["rfq_revision_id"])
+                    if row.get("rfq_revision_id") is not None
+                    else None
+                ),
+                requirement_id=(
+                    int(row["requirement_id"])
+                    if row.get("requirement_id") is not None
+                    else None
+                ),
+                gap_type=(
+                    str(row["gap_type"]).strip()
+                    if row.get("gap_type") is not None
+                    else None
+                ),
+                evidence=str(row.get("evidence", "")).strip(),
             )
         )
 
