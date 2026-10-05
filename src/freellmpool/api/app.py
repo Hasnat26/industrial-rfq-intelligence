@@ -25,6 +25,7 @@ from freellmpool.api.db import (
     ProcurementPackage,
     Project,
     Requirement,
+    RfqRevision,
     TechnicalClarification,
     TechnicalDeviation,
     User,
@@ -633,6 +634,20 @@ def create_package(
         category=payload.category.strip(),
         mode=payload.mode,
     )
+    db.add(package)
+    db.flush()
+
+    rfq_revision = RfqRevision(
+        package_id=package.id,
+        revision="R1",
+        status="CURRENT",
+        reason="Initial RFQ baseline",
+        created_by_user_id=user.id,
+    )
+    db.add(rfq_revision)
+    db.flush()
+    package.current_rfq_revision_id = rfq_revision.id
+
     db.add(
         PackageEvaluationSettings(
             package=package,
@@ -643,6 +658,7 @@ def create_package(
     for item in payload.requirements:
         package.requirements.append(
             Requirement(
+                rfq_revision=rfq_revision,
                 tag=item.tag.strip(),
                 parameter=item.parameter.strip(),
                 required_value=item.required_value.strip(),
@@ -650,7 +666,6 @@ def create_package(
                 acceptance_rule=item.acceptance_rule,
             )
         )
-    db.add(package)
     db.commit()
     db.refresh(package)
     return package
@@ -714,8 +729,11 @@ def add_offer(
                 "already exists for this package"
             ),
         )
+    if package.current_rfq_revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
     offer = VendorOffer(
         package_id=package_id,
+        rfq_revision_id=package.current_rfq_revision_id,
         vendor_name=vendor_name,
         manufacturer=payload.manufacturer,
         model=payload.model,
@@ -866,8 +884,11 @@ async def batch_ingest_quotations(
     offers: list[VendorOffer] = []
     documents: list[VendorDocument] = []
     for entry, filename, content_type, pages in prepared:
+        if package.current_rfq_revision_id is None:
+            raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
         offer = VendorOffer(
             package_id=package_id,
+            rfq_revision_id=package.current_rfq_revision_id,
             vendor_name=entry.vendor_name.strip(),
             manufacturer=entry.manufacturer,
             model=entry.model,
@@ -941,8 +962,11 @@ def create_offer_revision(
             status_code=409,
             detail=f"revision {revision} already exists for {offer.vendor_name}",
         )
+    if offer.package.current_rfq_revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
     revision_offer = VendorOffer(
         package_id=offer.package_id,
+        rfq_revision_id=offer.package.current_rfq_revision_id,
         parent_offer_id=offer.id,
         vendor_name=offer.vendor_name,
         manufacturer=offer.manufacturer,
@@ -1022,9 +1046,12 @@ async def resubmit_technical_offer(
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
 
+    if package.current_rfq_revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
     offer.technical_status = "SUPERSEDED"
     revision_offer = VendorOffer(
         package_id=offer.package_id,
+        rfq_revision_id=package.current_rfq_revision_id,
         parent_offer_id=offer.id,
         vendor_name=offer.vendor_name,
         manufacturer=offer.manufacturer,
