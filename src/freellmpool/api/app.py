@@ -1517,8 +1517,19 @@ def resolve_deviation(
         raise HTTPException(status_code=409, detail="deviation is already resolved")
     if deviation.offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
+    previous_status = deviation.status
     deviation.status = "RESOLVED"
     deviation.resolution = payload.note.strip()
+    _audit(
+        db,
+        deviation.offer.package,
+        user,
+        "TECHNICAL_DEVIATION_RESOLVED",
+        offer=deviation.offer,
+        from_status=previous_status,
+        to_status="RESOLVED",
+        note=deviation.resolution,
+    )
     db.commit()
     db.refresh(deviation)
     return deviation
