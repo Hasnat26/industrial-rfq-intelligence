@@ -47,6 +47,8 @@ from freellmpool.api.schemas import (
     DecisionCreate,
     DecisionRead,
     DecisionSupportResponse,
+    DecisionSupportRowRead,
+    DecisionSupportVendorRead,
     EvidenceResponse,
     EvidenceRow,
     IssueResolution,
@@ -1462,8 +1464,8 @@ def package_decision_support(
         package_id=package.id,
         requirements_checked=len(requirements),
         vendors_checked=len(package.offers),
-        vendors=result["vendors"],
-        rows=result["rows"],
+        vendors=[DecisionSupportVendorRead.model_validate(item) for item in result["vendors"]],
+        rows=[DecisionSupportRowRead.model_validate(item) for item in result["rows"]],
         formula=result["formula"],
     )
 
