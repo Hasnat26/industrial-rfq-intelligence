@@ -1451,6 +1451,11 @@ def close_clarification(
         raise HTTPException(status_code=404, detail="clarification not found")
     if clarification.status == "CLOSED":
         raise HTTPException(status_code=409, detail="clarification is already closed")
+    if clarification.status != "ANSWERED":
+        raise HTTPException(
+            status_code=409,
+            detail="clarification must be ANSWERED before it can be closed",
+        )
     if clarification.offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
     clarification.status = "CLOSED"
