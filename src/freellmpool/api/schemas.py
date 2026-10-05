@@ -297,6 +297,18 @@ class QuotationBatchResponse(BaseModel):
     document_ids: list[int]
 
 
+class AuditEventRead(BaseModel):
+    id: int
+    package_id: int
+    offer_id: int | None
+    actor_user_id: int
+    event_type: str
+    from_status: str | None
+    to_status: str | None
+    note: str | None
+    created_at: str
+
+
 class ProductCategoryParameterRead(BaseModel):
     key: str
     label: str
