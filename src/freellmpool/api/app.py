@@ -78,6 +78,8 @@ from freellmpool.api.schemas import (
     RequirementCreate,
     RfqResponse,
     TechnicalClarificationCreate,
+    TechnicalClarificationGapRead,
+    TechnicalClarificationPackageRead,
     TechnicalClarificationRead,
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
@@ -109,6 +111,10 @@ from freellmpool.industrial import Requirement as EngineRequirement
 from freellmpool.industrial_report import render_engineering_report
 from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.product_categories import get_product_category, list_product_categories
+from freellmpool.technical_clarification import (
+    build_technical_clarification_package,
+    clarification_rows_for_vendor,
+)
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 DOCUMENT_CHUNK_BYTES = 1024 * 1024
@@ -195,6 +201,51 @@ def _auto_create_document_claims(
             )
         )
     return len(candidates)
+
+
+def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
+    """Build the canonical vendor/requirement comparison used by clarification requests."""
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+    ]
+    vendor_values = [
+        VendorValue(
+            offer.vendor_name,
+            claim.parameter,
+            claim.value,
+            claim.evidence,
+            _claim_status(claim.claim_status),
+        )
+        for offer in package.offers
+        for claim in offer.claims
+    ]
+    matrix = build_matrix(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+    )
+    claim_parameters_by_vendor: dict[str, set[str]] = {}
+    for offer in package.offers:
+        parameters = claim_parameters_by_vendor.setdefault(offer.vendor_name, set())
+        parameters.update(claim.parameter.casefold().strip() for claim in offer.claims)
+    rows: list[dict[str, object]] = []
+    for row in matrix:
+        status = str(row["status"])
+        if str(row["parameter"]).casefold().strip() not in claim_parameters_by_vendor.get(
+            str(row["vendor"]), set()
+        ):
+            status = "UNVERIFIED"
+        rows.append(
+            {
+                "vendor": row["vendor"],
+                "parameter": row["parameter"],
+                "required": row["required"],
+                "offered": None if row["offered"] == "MISSING" else row["offered"],
+                "status": status,
+            }
+        )
+    return rows
 
 
 def _extract_upload_pages(path: Path, filename: str) -> list[DocumentPage]:
@@ -894,6 +945,106 @@ def create_offer_revision(
     return revision_offer
 
 
+@app.post(
+    "/offers/{offer_id}/technical-resubmission",
+    response_model=OfferRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def resubmit_technical_offer(
+    offer_id: int,
+    technical_revision: str = Form(...),  # noqa: B008
+    file: UploadFile = File(...),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> VendorOffer:
+    """Create an auditable vendor technical resubmission with a new revision and document."""
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
+        raise HTTPException(status_code=404, detail="offer not found")
+    package = offer.package
+    _require_technical_stage_open(package)
+    revision = technical_revision.strip()
+    if not revision:
+        raise HTTPException(status_code=422, detail="technical_revision must not be empty")
+    if _find_duplicate_offer(package, _vendor_key(offer.vendor_name), revision) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"revision {revision} already exists for {offer.vendor_name}",
+        )
+    filename = _safe_filename(file.filename)
+    suffix = Path(filename).suffix.casefold()
+    if suffix not in SUPPORTED_DOCUMENT_SUFFIXES:
+        raise HTTPException(
+            status_code=415,
+            detail="unsupported document type; expected .pdf, .txt, or .md",
+        )
+    content_type = (file.content_type or "").strip()[:120] or None
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+            temporary_path = Path(temporary.name)
+            total = 0
+            while True:
+                chunk = await file.read(DOCUMENT_CHUNK_BYTES)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_DOCUMENT_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="document exceeds the maximum upload size of 10 MB",
+                    )
+                temporary.write(chunk)
+        pages = _extract_upload_pages(temporary_path, filename)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+    revision_offer = VendorOffer(
+        package_id=offer.package_id,
+        parent_offer_id=offer.id,
+        vendor_name=offer.vendor_name,
+        manufacturer=offer.manufacturer,
+        model=offer.model,
+        part_number=offer.part_number,
+        vendor_key=_vendor_key(offer.vendor_name),
+        technical_revision=revision,
+        source_text=document_text(pages),
+    )
+    document = VendorDocument(
+        offer=revision_offer,
+        filename=filename,
+        content_type=content_type,
+        document_type="VENDOR_TECHNICAL_RESUBMISSION",
+        page_count=len(pages),
+        extracted_text=document_text(pages),
+        pages=[VendorDocumentPage(page_number=page.page, text=page.text) for page in pages],
+    )
+    db.add(revision_offer)
+    db.flush()
+    _auto_create_document_claims(db, revision_offer, document, pages)
+    _audit(
+        db,
+        package,
+        user,
+        "TECHNICAL_OFFER_RESUBMITTED",
+        revision_offer,
+        from_status=offer.technical_revision,
+        to_status=revision,
+        note=f"Technical resubmission uploaded as {filename}",
+    )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"revision {revision} already exists for {offer.vendor_name}",
+        ) from exc
+    db.refresh(revision_offer)
+    return revision_offer
+
+
 @app.post("/offers/{offer_id}/claims", response_model=ClaimRead, status_code=status.HTTP_201_CREATED)
 def add_claim(
     offer_id: int,
@@ -950,6 +1101,115 @@ def add_claim(
     db.commit()
     db.refresh(claim)
     return claim
+
+
+@app.get(
+    "/offers/{offer_id}/technical-clarification-package",
+    response_model=TechnicalClarificationPackageRead,
+)
+def preview_technical_clarification(
+    offer_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalClarificationPackageRead:
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
+        raise HTTPException(status_code=404, detail="offer not found")
+    rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
+    package = build_technical_clarification_package(
+        offer.vendor_name,
+        offer.technical_revision,
+        rows,
+    )
+    if not package.gaps:
+        raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
+    return TechnicalClarificationPackageRead(
+        offer_id=offer.id,
+        vendor=package.vendor,
+        technical_revision=package.technical_revision,
+        clarification_ids=[
+            item.id for item in sorted(offer.clarifications, key=lambda item: item.id)
+            if item.status != "CLOSED"
+        ],
+        gaps=[
+            TechnicalClarificationGapRead(
+                parameter=item.parameter,
+                required=item.required,
+                offered=item.offered,
+                status=item.status,
+                request=item.request,
+            )
+            for item in package.gaps
+        ],
+        subject=package.subject,
+        body=package.body,
+    )
+
+
+@app.post(
+    "/offers/{offer_id}/technical-clarification-request",
+    response_model=TechnicalClarificationPackageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_technical_clarification_request(
+    offer_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalClarificationPackageRead:
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
+        raise HTTPException(status_code=404, detail="offer not found")
+    _require_technical_stage_open(offer.package)
+    rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
+    package = build_technical_clarification_package(
+        offer.vendor_name,
+        offer.technical_revision,
+        rows,
+    )
+    if not package.gaps:
+        raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
+    existing = {item.question.strip() for item in offer.clarifications if item.status != "CLOSED"}
+    clarification_ids: list[int] = []
+    for gap in package.gaps:
+        if gap.request in existing:
+            continue
+        clarification = TechnicalClarification(offer_id=offer.id, question=gap.request, status="OPEN")
+        db.add(clarification)
+        db.flush()
+        clarification_ids.append(clarification.id)
+    if offer.technical_status != "CLARIFICATION_REQUIRED":
+        old_status = offer.technical_status
+        offer.technical_status = "CLARIFICATION_REQUIRED"
+        _audit(
+            db,
+            offer.package,
+            user,
+            "TECHNICAL_CLARIFICATION_REQUESTED",
+            offer,
+            from_status=old_status,
+            to_status="CLARIFICATION_REQUIRED",
+            note=package.subject,
+        )
+    db.commit()
+    db.refresh(offer)
+    return TechnicalClarificationPackageRead(
+        offer_id=offer.id,
+        vendor=package.vendor,
+        technical_revision=offer.technical_revision,
+        clarification_ids=clarification_ids,
+        gaps=[
+            TechnicalClarificationGapRead(
+                parameter=item.parameter,
+                required=item.required,
+                offered=item.offered,
+                status=item.status,
+                request=item.request,
+            )
+            for item in package.gaps
+        ],
+        subject=package.subject,
+        body=package.body,
+    )
 
 
 @app.post(
@@ -1393,47 +1653,16 @@ def compare_package(
     package = db.get(ProcurementPackage, package_id)
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
-
-    requirements = [
-        EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
-    ]
-    vendor_values = [
-        VendorValue(
-            offer.vendor_name,
-            claim.parameter,
-            claim.value,
-            claim.evidence,
-            _claim_status(claim.claim_status),
+    rows = [
+        ComparisonRow(
+            vendor=str(row["vendor"]),
+            parameter=str(row["parameter"]),
+            required=str(row["required"]),
+            offered=None if row["offered"] is None else str(row["offered"]),
+            status=str(row["status"]),
         )
-        for offer in package.offers
-        for claim in offer.claims
+        for row in _technical_comparison_rows(package)
     ]
-    matrix = build_matrix(
-        requirements,
-        vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
-    )
-    claim_parameters_by_vendor: dict[str, set[str]] = {}
-    for offer in package.offers:
-        parameters = claim_parameters_by_vendor.setdefault(offer.vendor_name, set())
-        parameters.update(claim.parameter.casefold().strip() for claim in offer.claims)
-    rows = []
-    for row in matrix:
-        status = row["status"]
-        if row["parameter"].casefold().strip() not in claim_parameters_by_vendor.get(
-            row["vendor"], set()
-        ):
-            status = "UNVERIFIED"
-        rows.append(
-            ComparisonRow(
-                vendor=row["vendor"],
-                parameter=row["parameter"],
-                required=row["required"],
-                offered=None if row["offered"] == "MISSING" else row["offered"],
-                status=status,
-            )
-        )
     return ComparisonResponse(
         package_id=package.id,
         technical_locked=package.technical_bid_locked,
@@ -1798,72 +2027,3 @@ def package_report(
             price=offer.price or "",
             currency=offer.currency or "",
             lead_time=offer.lead_time or "",
-            warranty=offer.warranty or "",
-            payment_terms="",
-            evidence=offer.source_text or "",
-            claim_status="UNVERIFIED",
-        )
-        for offer in package.offers
-        if any(
-            value
-            for value in (offer.price, offer.currency, offer.lead_time, offer.warranty, offer.source_text)
-        )
-    ]
-    report = build_report(requirements, vendor_values, commercial_values)
-    decision_support = build_decision_support(
-        requirements,
-        vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
-        requirement_types={item.tag: item.requirement_type for item in package.requirements},
-    )
-    report["decision_support"] = decision_support
-    commercial_values = [
-        CommercialValue(
-            offer.vendor_name,
-            offer.price or "",
-            offer.currency or "",
-            offer.lead_time or "",
-            offer.warranty or "",
-            "",
-            "",
-            "UNVERIFIED",
-        )
-        for offer in package.offers
-    ]
-    commercial_rows = build_commercial_risk_review(commercial_values)
-    settings = _get_evaluation_settings(db, package)
-    report["integrated_evaluation"] = build_integrated_evaluation(
-        decision_support["vendors"],
-        commercial_rows,
-        technical_weight=settings.technical_weight,
-        commercial_weight=settings.commercial_weight,
-    )
-    report["engineering_decision_summary"] = (
-        build_engineering_decision_summary(decision_support["vendors"])
-        if package.offers
-        else {
-            "status": "INSUFFICIENT_VENDOR_DATA",
-            "decision_basis": ["No vendor offers are available for engineering review."],
-            "vendor_profiles": [],
-            "review_actions": ["Obtain at least one vendor quotation before technical disposition."],
-        }
-    )
-    return report
-
-
-@app.get("/packages/{package_id}/report/markdown")
-def package_report_markdown(
-    package_id: int,
-    user: User = Depends(get_current_user),  # noqa: B008
-    db: Session = Depends(get_db),  # noqa: B008
-) -> Response:
-    """Export the package review as an engineer-readable Markdown document."""
-    report = package_report(package_id, user, db)
-    markdown = render_engineering_report(report)
-    return Response(
-        content=markdown,
-        media_type="text/markdown; charset=utf-8",
-        headers={
-            "Content-Disposition": f'attachment; filename="rfq-review-package-{package_id}.md"'
-        },
-    )
