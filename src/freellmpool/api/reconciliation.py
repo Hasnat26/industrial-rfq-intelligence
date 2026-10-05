@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -24,7 +25,7 @@ def run_commercial_reconciliation(db: Session) -> CommercialReconciliationRespon
         for subscription in subscriptions:
             processed += 1
             if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-                if _rollover_if_expired(db, subscription, __import__("datetime").datetime.now(__import__("datetime").UTC)):
+                if _rollover_if_expired(db, subscription, datetime.now(UTC)):
                     rolled_over += 1
         run.processed = processed
         run.rolled_over = rolled_over
