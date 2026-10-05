@@ -42,6 +42,7 @@ class LifecycleAssetSummary(BaseModel):
     first_event_date: datetime | None
     latest_event_date: datetime | None
     lifecycle_costs_by_currency: dict[str, float]
+    lifecycle_costs_by_type_currency: dict[str, dict[str, float]]
     warranty_start: datetime | None
     warranty_end: datetime | None
     reliability_failure_intervals_days: list[float]
@@ -78,9 +79,12 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
             ).all()
         )
     costs_by_asset: dict[str, dict[str, float]] = {}
+    costs_by_asset_type: dict[str, dict[str, dict[str, float]]] = {}
     for cost in costs:
         currency_totals = costs_by_asset.setdefault(cost.asset_id, {})
         currency_totals[cost.currency] = currency_totals.get(cost.currency, 0.0) + cost.amount
+        type_totals = costs_by_asset_type.setdefault(cost.asset_id, {}).setdefault(cost.cost_type, {})
+        type_totals[cost.currency] = type_totals.get(cost.currency, 0.0) + cost.amount
     for event in events:
         by_asset.setdefault(event.asset_id, []).append(event)
     summaries = []
@@ -133,6 +137,10 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
                 first_event_date=asset_events[0].event_date if asset_events else None,
                 latest_event_date=asset_events[-1].event_date if asset_events else None,
                 lifecycle_costs_by_currency=dict(sorted(costs_by_asset.get(asset.asset_id, {}).items())),
+                lifecycle_costs_by_type_currency={
+                    cost_type: dict(sorted(currency_totals.items()))
+                    for cost_type, currency_totals in sorted(costs_by_asset_type.get(asset.asset_id, {}).items())
+                },
                 warranty_start=asset.warranty_start,
                 warranty_end=asset.warranty_end,
                 reliability_failure_intervals_days=failure_intervals,
