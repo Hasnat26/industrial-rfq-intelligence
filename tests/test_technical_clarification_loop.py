@@ -410,3 +410,46 @@ def test_whitespace_only_clarification_answer_is_rejected() -> None:
         json={"response": "   "},
     )
     assert response.status_code == 422
+
+
+def test_rfq_revision_ignores_superseded_offers_when_locking_new_cycle() -> None:
+    package = _package()
+    old_offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+    client.post(f"/offers/{old_offer['id']}/technical-clarification-request")
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer updated the required motor duty.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "90 kW"},
+            ],
+        },
+    )
+    assert revision.status_code == 201
+
+    new_offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor B", "technical_revision": "R1"},
+    ).json()
+    for parameter, value in [("Rated voltage", "415 V"), ("Motor power", "90 kW")]:
+        assert client.post(
+            f"/offers/{new_offer['id']}/claims",
+            json={
+                "parameter": parameter,
+                "value": value,
+                "evidence": "quotation-r2.pdf p.1",
+                "claim_status": "VERIFIED",
+            },
+        ).status_code == 201
+    assert client.post(
+        f"/offers/{new_offer['id']}/technical-status",
+        json={"status": "ACCEPTED"},
+    ).status_code == 200
+
+    locked = client.post(f"/packages/{package['id']}/technical-lock")
+    assert locked.status_code == 200
