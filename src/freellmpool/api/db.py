@@ -118,7 +118,7 @@ class ProcurementPackage(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
     current_rfq_revision_id: Mapped[int | None] = mapped_column(
-        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+        ForeignKey("rfq_revisions.id", use_alter=True), nullable=True, index=True
     )
     name: Mapped[str] = mapped_column(String(250))
     category: Mapped[str] = mapped_column(String(100), index=True)
