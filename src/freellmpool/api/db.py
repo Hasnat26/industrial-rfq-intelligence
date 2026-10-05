@@ -256,6 +256,27 @@ class AssetProduct(Base):
     offer: Mapped[VendorOffer | None] = relationship()
 
 
+class BillingWebhookEvent(Base):
+    """Idempotent provider webhook receipt ledger."""
+
+    __tablename__ = "billing_webhook_events"
+    __table_args__ = (UniqueConstraint("provider", "external_event_id", name="uq_billing_webhook_provider_event"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        ForeignKey("organizations.id"), nullable=True, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(30), index=True)
+    external_event_id: Mapped[str] = mapped_column(String(200))
+    event_type: Mapped[str] = mapped_column(String(100))
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(30), default="RECEIVED")
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+
 class LifecycleEvent(Base):
     """Canonical post-procurement event linked to a package and optional offer."""
 
