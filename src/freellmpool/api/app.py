@@ -702,6 +702,9 @@ def create_rfq_revision(
     current = db.get(RfqRevision, current_id)
     if current is None or current.package_id != package.id:
         raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    reason = payload.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=422, detail="reason must not be empty")
     requirements = payload.requirements
     tags: set[str] = set()
     for item in requirements:
@@ -725,7 +728,7 @@ def create_rfq_revision(
         package_id=package.id,
         revision=revision_name,
         status="CURRENT",
-        reason=payload.reason.strip(),
+        reason=reason,
         created_by_user_id=user.id,
         supersedes_revision_id=current.id,
     )
@@ -764,7 +767,7 @@ def create_rfq_revision(
         "RFQ_REVISION_CREATED",
         from_status=current.revision,
         to_status=revision_name,
-        note=payload.reason.strip(),
+        note=reason,
     )
     db.commit()
     db.refresh(revision)
