@@ -130,9 +130,10 @@ def build_decision_support(
                 elif severity == "MINOR":
                     minor += 1
             else:
-                missing += 1
                 if severity == "CRITICAL":
                     conflicts += 1
+                else:
+                    missing += 1
 
             if row["offered"] != "MISSING" and row["evidence"].strip():
                 evidence_count += 1
