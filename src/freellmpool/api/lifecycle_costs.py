@@ -79,7 +79,7 @@ def lifecycle_cost_summary(
     organization_id: int,
     db: Session = Depends(get_db),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> dict:
+) -> dict[str, object]:
     if not is_member(db, user.id, organization_id):
         raise HTTPException(status_code=404, detail="organization not found")
     rows = list(
