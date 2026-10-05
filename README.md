@@ -132,7 +132,7 @@ normalized = normalize_document("specification.pdf")
 print(normalized.markdown)
 ~~~
 
-The RFQ document-to-LLM ingestion path uses this Markdown normalization layer by default. The legacy page extractor remains available as a deterministic fallback. The separate Tesseract OCR path is retained for deployments that explicitly require local OCR; it is not the canonical parser.
+The RFQ document-to-LLM ingestion path uses this Markdown normalization layer by default. MarkItDown handles the canonical document parsing/rendering, while sparse/scanned PDF pages and standalone document images automatically fall back to local Tesseract OCR. PDF page markers remain explicit, so OCR-derived claims retain page provenance. Install the package with the `ocr` dependencies and a Tesseract runtime in deployments that process scanned documents. The legacy page extractor remains available as an explicit compatibility fallback.
 
 ## Engineering report
 
