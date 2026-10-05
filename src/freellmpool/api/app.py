@@ -18,6 +18,7 @@ from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
     ProcurementPackage,
+    ProcurementAuditEvent,
     Project,
     Requirement,
     TechnicalClarification,
@@ -52,6 +53,7 @@ from freellmpool.api.schemas import (
     PackageCreate,
     PackageRead,
     PackageWorkflowResponse,
+    AuditEventRead,
     ProductCategoryParameterRead,
     ProductCategoryRead,
     ProjectCreate,
@@ -270,6 +272,48 @@ def list_packages(
         .order_by(ProcurementPackage.id)
     ).all()
     return [PackageRead.model_validate(row) for row in rows]
+
+
+
+def _audit(
+    db: Session,
+    package: ProcurementPackage,
+    user: User,
+    event_type: str,
+    offer: VendorOffer | None = None,
+    from_status: str | None = None,
+    to_status: str | None = None,
+    note: str | None = None,
+) -> None:
+    db.add(
+        ProcurementAuditEvent(
+            package_id=package.id,
+            offer_id=offer.id if offer is not None else None,
+            actor_user_id=user.id,
+            event_type=event_type,
+            from_status=from_status,
+            to_status=to_status,
+            note=note,
+        )
+    )
+
+
+@app.get("/packages/{package_id}/audit", response_model=list[AuditEventRead])
+def package_audit(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[ProcurementAuditEvent]:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    return list(
+        db.scalars(
+            select(ProcurementAuditEvent)
+            .where(ProcurementAuditEvent.package_id == package_id)
+            .order_by(ProcurementAuditEvent.id)
+        )
+    )
 
 
 @app.get("/health")
