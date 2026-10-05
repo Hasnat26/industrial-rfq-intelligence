@@ -185,6 +185,7 @@ class TechnicalEvaluationRow(BaseModel):
     offer_id: int
     technical_revision: str
     rfq_revision_id: int
+    requirement_id: int
     rfq_revision: str
     requirement: str
     vendor: str
@@ -358,6 +359,10 @@ class TechnicalClarificationGapRead(BaseModel):
     offered: str | None
     status: str
     request: str
+    rfq_revision_id: int | None = None
+    requirement_id: int | None = None
+    gap_type: str | None = None
+    evidence: str = ""
 
 
 class TechnicalClarificationPackageRead(BaseModel):

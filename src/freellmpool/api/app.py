@@ -114,10 +114,7 @@ from freellmpool.industrial import Requirement as EngineRequirement
 from freellmpool.industrial_report import render_engineering_report
 from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.product_categories import get_product_category, list_product_categories
-from freellmpool.technical_clarification import (
-    build_technical_clarification_package,
-    clarification_rows_for_vendor,
-)
+from freellmpool.technical_clarification import build_technical_clarification_package
 from freellmpool.technical_comparison import compare_technical_requirements
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
@@ -1171,7 +1168,12 @@ def preview_technical_clarification(
         raise HTTPException(status_code=404, detail="offer not found")
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
-    rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
+    evaluation = _technical_evaluation_rows(offer.package, db)
+    rows = [
+        row.model_dump()
+        for row in evaluation.rows
+        if row.offer_id == offer.id
+    ]
     package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
     if not package.gaps:
         raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
@@ -1190,6 +1192,10 @@ def preview_technical_clarification(
                 offered=item.offered,
                 status=item.status,
                 request=item.request,
+                rfq_revision_id=item.rfq_revision_id,
+                requirement_id=item.requirement_id,
+                gap_type=item.gap_type,
+                evidence=item.evidence,
             )
             for item in package.gaps
         ],
@@ -1214,7 +1220,12 @@ def create_technical_clarification_request(
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for clarification")
     _require_technical_stage_open(offer.package)
-    rows = clarification_rows_for_vendor(_technical_comparison_rows(offer.package), offer.vendor_name)
+    evaluation = _technical_evaluation_rows(offer.package, db)
+    rows = [
+        row.model_dump()
+        for row in evaluation.rows
+        if row.offer_id == offer.id
+    ]
     package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
     if not package.gaps:
         raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
@@ -1223,7 +1234,17 @@ def create_technical_clarification_request(
     for gap in package.gaps:
         if gap.request in existing:
             continue
-        clarification = TechnicalClarification(offer_id=offer.id, question=gap.request, status="OPEN")
+        clarification = TechnicalClarification(
+            offer_id=offer.id,
+            rfq_revision_id=gap.rfq_revision_id,
+            requirement_id=gap.requirement_id,
+            gap_type=gap.gap_type,
+            evaluated_offered=gap.offered,
+            evaluation_status=gap.status,
+            evaluation_evidence=gap.evidence,
+            question=gap.request,
+            status="OPEN",
+        )
         db.add(clarification)
         db.flush()
         clarification_ids.append(clarification.id)
@@ -1254,6 +1275,10 @@ def create_technical_clarification_request(
                 offered=item.offered,
                 status=item.status,
                 request=item.request,
+                rfq_revision_id=item.rfq_revision_id,
+                requirement_id=item.requirement_id,
+                gap_type=item.gap_type,
+                evidence=item.evidence,
             )
             for item in package.gaps
         ],
@@ -1757,11 +1782,16 @@ def _technical_evaluation_rows(
         vendor_values,
         vendors=vendor_names,
     )
+    requirement_ids = {
+        item.tag.casefold().strip(): item.id
+        for item in revision.requirements
+    }
     rows = [
         TechnicalEvaluationRow(
             offer_id=metadata[" ".join(finding.vendor.casefold().split())].id,
             technical_revision=metadata[" ".join(finding.vendor.casefold().split())].technical_revision,
             rfq_revision_id=revision.id,
+            requirement_id=requirement_ids[finding.requirement.casefold().strip()],
             rfq_revision=revision.revision,
             requirement=finding.requirement,
             vendor=finding.vendor,

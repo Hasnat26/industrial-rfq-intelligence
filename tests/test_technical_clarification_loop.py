@@ -81,6 +81,10 @@ def test_vendor_specific_clarification_package_is_generated_from_gaps() -> None:
     assert len(data["gaps"]) == 1
     assert data["gaps"][0]["parameter"] == "Motor power"
     assert data["gaps"][0]["status"] == "UNVERIFIED"
+    assert data["gaps"][0]["rfq_revision_id"] == 1
+    assert data["gaps"][0]["requirement_id"] == 2
+    assert data["gaps"][0]["gap_type"] == "MISSING"
+    assert data["gaps"][0]["evidence"] == "No matching quotation field"
     assert "75 kW" in data["gaps"][0]["request"]
     assert data["subject"].startswith("Technical Clarification Required")
     assert "Motor power" in data["body"]
@@ -106,9 +110,11 @@ def test_create_clarification_is_audited_and_sets_vendor_status() -> None:
     assert clarifications.status_code == 200
     persisted = clarifications.json()
     assert len(persisted) == 2
-    assert all(item["rfq_revision_id"] is None for item in persisted)
-    assert all(item["requirement_id"] is None for item in persisted)
-    assert all(item["gap_type"] is None for item in persisted)
+    assert {item["rfq_revision_id"] for item in persisted} == {1}
+    assert {item["requirement_id"] for item in persisted} == {1, 2}
+    assert {item["gap_type"] for item in persisted} == {"MISSING"}
+    assert all(item["evaluated_offered"] is None for item in persisted)
+    assert all(item["evaluation_status"] == "UNVERIFIED" for item in persisted)
     assert all("evaluation_evidence" in item for item in persisted)
 
     audit = client.get(f"/packages/{package['id']}/audit")
