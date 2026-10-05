@@ -1847,7 +1847,32 @@ def update_technical_status(
     status_value = payload.status.strip().upper()
     if status_value not in allowed:
         raise HTTPException(status_code=422, detail="invalid technical status")
+    allowed_next = {
+        "PENDING": {"PENDING", "IN_REVIEW", "REJECTED"},
+        "IN_REVIEW": {
+            "IN_REVIEW",
+            "CLARIFICATION_REQUIRED",
+            "ACCEPTED",
+            "ACCEPTED_WITH_DEVIATION",
+            "REJECTED",
+        },
+        "CLARIFICATION_REQUIRED": {
+            "CLARIFICATION_REQUIRED",
+            "IN_REVIEW",
+            "ACCEPTED",
+            "ACCEPTED_WITH_DEVIATION",
+            "REJECTED",
+        },
+        "ACCEPTED": {"ACCEPTED"},
+        "ACCEPTED_WITH_DEVIATION": {"ACCEPTED_WITH_DEVIATION"},
+        "REJECTED": {"REJECTED"},
+    }
     old_status = offer.technical_status
+    if status_value not in allowed_next[old_status]:
+        raise HTTPException(
+            status_code=409,
+            detail=f"invalid technical status transition from {old_status} to {status_value}",
+        )
     offer.technical_status = status_value
     _audit(db, offer.package, user, "TECHNICAL_STATUS_CHANGED", offer, old_status, status_value)
     db.commit()
