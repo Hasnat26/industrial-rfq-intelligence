@@ -13,7 +13,6 @@ def setup_function() -> None:
         connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
         Base.metadata.drop_all(bind=connection)
         Base.metadata.create_all(bind=connection)
-        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
     client.headers.pop("Authorization", None)
     registered = client.post(
         "/auth/register",
