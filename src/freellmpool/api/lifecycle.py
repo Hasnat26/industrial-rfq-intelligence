@@ -7,7 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.db import LifecycleEvent, ProcurementPackage, Project, User, VendorOffer, get_db
+from freellmpool.api.db import (
+    LifecycleEvent,
+    ProcurementPackage,
+    Project,
+    User,
+    VendorOffer,
+    get_db,
+)
 from freellmpool.api.schemas import LifecycleEventCreate, LifecycleEventRead
 from freellmpool.procurement_domain import LifecycleEventType
 
@@ -43,8 +50,8 @@ def _validate_event_type(value: str) -> str:
 def create_lifecycle_event(
     package_id: int,
     payload: LifecycleEventCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ) -> LifecycleEvent:
     package = _package_for_user(db, package_id, user)
     event_type = _validate_event_type(payload.event_type)
