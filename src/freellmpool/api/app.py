@@ -1043,6 +1043,7 @@ async def batch_ingest_quotations(
         offers, documents, prepared, strict=True
     ):
         _auto_create_document_claims(db, offer, document, prepared_item[3])
+    _audit(db, package, user, "QUOTATION_BATCH_INGESTED", to_status=str(len(offers)), note="; ".join(f"{offer.vendor_name} revision {offer.technical_revision}" for offer in offers))
     try:
         db.commit()
     except IntegrityError as exc:
