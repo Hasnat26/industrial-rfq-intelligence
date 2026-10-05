@@ -1509,7 +1509,16 @@ def package_engineering_decision_summary(
         vendors=[offer.vendor_name for offer in package.offers],
         requirement_types=requirement_types,
     )
-    summary = build_engineering_decision_summary(result["vendors"])
+    summary = (
+        build_engineering_decision_summary(result["vendors"])
+        if package.offers
+        else {
+            "status": "INSUFFICIENT_VENDOR_DATA",
+            "decision_basis": ["No vendor offers are available for engineering review."],
+            "vendor_profiles": [],
+            "review_actions": ["Obtain at least one vendor quotation before technical disposition."],
+        }
+    )
     return EngineeringDecisionSummaryRead(
         package_id=package.id,
         status=summary["status"],
@@ -1654,8 +1663,15 @@ def package_report(
         requirement_types={item.tag: item.requirement_type for item in package.requirements},
     )
     report["decision_support"] = decision_support
-    report["engineering_decision_summary"] = build_engineering_decision_summary(
-        decision_support["vendors"]
+    report["engineering_decision_summary"] = (
+        build_engineering_decision_summary(decision_support["vendors"])
+        if package.offers
+        else {
+            "status": "INSUFFICIENT_VENDOR_DATA",
+            "decision_basis": ["No vendor offers are available for engineering review."],
+            "vendor_profiles": [],
+            "review_actions": ["Obtain at least one vendor quotation before technical disposition."],
+        }
     )
     return report
 
