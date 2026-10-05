@@ -241,6 +241,31 @@ class EngineeringDecisionSummaryRead(BaseModel):
     review_actions: list[str]
 
 
+class IntegratedVendorEvaluationRead(BaseModel):
+    vendor: str
+    technical_score: float
+    commercial_score: float
+    integrated_score: float
+    evidence_coverage_pct: float
+    commercial_flags: list[str]
+    technical_gate: str
+    commercial_gate: str
+    disposition: str
+    price: float | None
+    currency: str
+    lead_time_weeks: float | None
+    warranty_months: float | None
+
+
+class IntegratedEvaluationResponse(BaseModel):
+    package_id: int
+    status: str
+    formula: dict[str, object]
+    decision_note: str
+    vendor_profiles: list[IntegratedVendorEvaluationRead]
+    review_actions: list[str]
+
+
 class ClaimCreate(BaseModel):
     parameter: str = Field(min_length=1, max_length=200)
     value: str = Field(min_length=1, max_length=250)
