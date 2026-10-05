@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.db import LifecycleCostRecord, LifecycleEvent, ProcurementPackage, Project, User, get_db
+from freellmpool.api.db import (\n    LifecycleCostRecord,\n    LifecycleEvent,\n    ProcurementPackage,\n    Project,\n    User,\n    get_db,\n)
 from freellmpool.api.schemas import LifecycleCostCreate, LifecycleCostRead
 
 router = APIRouter(tags=["lifecycle"])
