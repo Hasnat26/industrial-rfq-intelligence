@@ -513,3 +513,16 @@ class CommercialReconciliationResponse(BaseModel):
     processed: int
     rolled_over: int
     unchanged: int
+
+
+class CommercialReconciliationRunRead(BaseModel):
+    id: int
+    processed: int
+    rolled_over: int
+    unchanged: int
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    error: str | None
+
+    model_config = {"from_attributes": True}
