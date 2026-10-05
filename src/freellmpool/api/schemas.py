@@ -181,6 +181,44 @@ class ComparisonResponse(BaseModel):
     rows: list[ComparisonRow]
 
 
+class DecisionSupportVendorRead(BaseModel):
+    vendor: str
+    technical_score: float
+    evidence_coverage_pct: float
+    requirements_checked: int
+    compliant_count: int
+    deviation_count: int
+    major_deviation_count: int
+    minor_deviation_count: int
+    conflict_count: int
+    missing_evidence_count: int
+    weighted_requirements: float
+    weighted_points: float
+
+
+class DecisionSupportRowRead(BaseModel):
+    requirement: str
+    vendor: str
+    parameter: str
+    required: str
+    offered: str
+    status: str
+    severity: str
+    evidence: str
+    claim_status: str
+    weight: float
+    score_factor: float
+
+
+class DecisionSupportResponse(BaseModel):
+    package_id: int
+    requirements_checked: int
+    vendors_checked: int
+    vendors: list[DecisionSupportVendorRead]
+    rows: list[DecisionSupportRowRead]
+    formula: dict[str, object]
+
+
 class ClaimCreate(BaseModel):
     parameter: str = Field(min_length=1, max_length=200)
     value: str = Field(min_length=1, max_length=250)
