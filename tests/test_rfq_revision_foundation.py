@@ -111,11 +111,11 @@ def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
     )
     assert revision.status_code == 201, revision.text
 
-    db = db.SessionLocal()
+    session = db.SessionLocal()
     try:
-        r1 = db.get(db.VendorOffer, offer["id"])
-        r2 = db.get(db.VendorOffer, revision.json()["id"])
+        r1 = session.get(db.VendorOffer, offer["id"])
+        r2 = session.get(db.VendorOffer, revision.json()["id"])
         assert r1.rfq_revision_id is not None
         assert r2.rfq_revision_id == r1.rfq_revision_id
     finally:
-        db.close()
+        session.close()
