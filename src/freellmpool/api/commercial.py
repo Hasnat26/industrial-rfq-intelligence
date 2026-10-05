@@ -32,9 +32,15 @@ from freellmpool.api.schemas import (
     UsageSummaryResponse,
 )
 
+class PlanConfig(TypedDict):
+    name: str
+    monthly_price_usd: float
+    limits: dict[str, int]
+
+
 router = APIRouter(tags=["commercial"])
 
-PLANS = {
+PLANS: dict[str, PlanConfig] = {
     "STARTER": {
         "name": "Starter",
         "monthly_price_usd": 0.0,
@@ -144,7 +150,7 @@ def update_subscription(
     subscription.plan_key = payload.plan_key
     subscription.status = payload.status
     if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-        rollover_if_expired(db, subscription, datetime.now(UTC))
+        rollover_if_expired(subscription, datetime.now(UTC))
     subscription.billing_provider = payload.billing_provider
     subscription.external_customer_id = payload.external_customer_id
     subscription.external_subscription_id = payload.external_subscription_id
