@@ -118,6 +118,7 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = [
+    "tests/test_document_normalizer.py",
     "tests/test_industrial_demo.py",
     "tests/test_industrial_report.py",
     "tests/test_security_config.py",
