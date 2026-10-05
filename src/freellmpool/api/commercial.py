@@ -22,6 +22,7 @@ from freellmpool.api.schemas import (
     UsageReconciliationResponse,
     SubscriptionRolloverResponse,
     CommercialReconciliationResponse,
+    CommercialReconciliationRunRead,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -333,4 +334,24 @@ def reconcile_commercial_state(
         processed=processed,
         rolled_over=rolled_over,
         unchanged=processed - rolled_over,
+    )
+
+
+@router.get(
+    "/commercial/internal/reconcile/runs",
+    response_model=list[CommercialReconciliationRunRead],
+)
+def reconciliation_runs(
+    x_commercial_reconciliation_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[CommercialReconciliationRun]:
+    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
+    if not expected:
+        raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
+    if x_commercial_reconciliation_secret != expected:
+        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
+    return list(
+        db.scalars(
+            select(CommercialReconciliationRun).order_by(CommercialReconciliationRun.id.desc()).limit(50)
+        ).all()
     )
