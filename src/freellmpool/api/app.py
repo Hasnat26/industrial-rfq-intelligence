@@ -1393,13 +1393,10 @@ def compare_package(
         vendor_values,
         vendors=[offer.vendor_name for offer in package.offers],
     )
-    claim_parameters_by_vendor = {
-        offer.vendor_name: {
-            claim.parameter.casefold().strip()
-            for claim in offer.claims
-        }
-        for offer in package.offers
-    }
+    claim_parameters_by_vendor: dict[str, set[str]] = {}
+    for offer in package.offers:
+        parameters = claim_parameters_by_vendor.setdefault(offer.vendor_name, set())
+        parameters.update(claim.parameter.casefold().strip() for claim in offer.claims)
     rows = []
     for row in matrix:
         status = row["status"]
