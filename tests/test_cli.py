@@ -1693,3 +1693,32 @@ def test_cli_playground_probe_is_data_free_and_does_not_follow_redirects(
     redirect_handler = captured["handlers"][0]
     assert isinstance(redirect_handler, urllib.request.HTTPRedirectHandler)
     assert redirect_handler.redirect_request(None, None, 302, "", {}, "https://evil.invalid") is None
+
+
+def test_cli_commercial_reconcile_requires_scheduler_secret(monkeypatch, capsys) -> None:
+    from freellmpool.cli import main
+
+    monkeypatch.delenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", raising=False)
+    assert main(["commercial", "reconcile"]) == 2
+    assert "not configured" in capsys.readouterr().err
+
+
+def test_cli_commercial_reconcile_runs_without_http(monkeypatch, capsys) -> None:
+    from types import SimpleNamespace
+    from freellmpool.cli import main
+
+    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "scheduler-secret")
+    fake_result = SimpleNamespace(processed=3, rolled_over=1, unchanged=2)
+
+    class FakeSession:
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(
+        "freellmpool.api.reconciliation.run_commercial_reconciliation",
+        lambda db: fake_result,
+    )
+    monkeypatch.setattr("freellmpool.api.db.SessionLocal", lambda: FakeSession())
+
+    assert main(["commercial", "reconcile", "--json"]) == 0
+    assert capsys.readouterr().out.strip() == '{"processed": 3, "rolled_over": 1, "unchanged": 2}'
