@@ -95,7 +95,7 @@ def _normalise_requirements(
 def _normalise_vendor_data(
     vendor_data: Sequence[VendorValue] | None,
 ) -> tuple[VendorValue, ...]:
-    return tuple(vendor_data or DEFAULT_VENDOR_DATA)
+    return tuple(DEFAULT_VENDOR_DATA if vendor_data is None else vendor_data)
 
 
 def _parse_provenance(item: dict[str, object], location: str) -> EvidenceProvenance | None:
