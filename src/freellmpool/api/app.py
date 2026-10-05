@@ -19,6 +19,7 @@ from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
     OrganizationSubscription,
+    PackageEvaluationSettings,
     ProcurementAuditEvent,
     ProcurementDecision,
     ProcurementPackage,
@@ -51,6 +52,8 @@ from freellmpool.api.schemas import (
     DecisionSupportVendorRead,
     EngineeringDecisionSummaryRead,
     EngineeringVendorProfileRead,
+    EvaluationWeightingRead,
+    EvaluationWeightingUpdate,
     EvidenceResponse,
     EvidenceRow,
     IntegratedEvaluationResponse,
@@ -560,6 +563,13 @@ def create_package(
         name=payload.name.strip(),
         category=payload.category.strip(),
         mode=payload.mode,
+    )
+    db.add(
+        PackageEvaluationSettings(
+            package=package,
+            technical_weight=70.0,
+            commercial_weight=30.0,
+        )
     )
     for item in payload.requirements:
         package.requirements.append(
@@ -1477,6 +1487,79 @@ def package_decision_support(
     )
 
 
+def _get_evaluation_settings(db: Session, package: ProcurementPackage) -> PackageEvaluationSettings:
+    settings = db.scalar(
+        select(PackageEvaluationSettings).where(
+            PackageEvaluationSettings.package_id == package.id
+        )
+    )
+    if settings is None:
+        settings = PackageEvaluationSettings(
+            package_id=package.id,
+            technical_weight=70.0,
+            commercial_weight=30.0,
+        )
+        db.add(settings)
+        db.flush()
+    return settings
+
+
+@app.get("/packages/{package_id}/evaluation-weighting", response_model=EvaluationWeightingRead)
+def get_evaluation_weighting(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> EvaluationWeightingRead:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    settings = _get_evaluation_settings(db, package)
+    db.commit()
+    return EvaluationWeightingRead(
+        package_id=package.id,
+        technical_weight=settings.technical_weight,
+        commercial_weight=settings.commercial_weight,
+        locked=package.commercial_evaluation_open,
+    )
+
+
+@app.put("/packages/{package_id}/evaluation-weighting", response_model=EvaluationWeightingRead)
+def update_evaluation_weighting(
+    package_id: int,
+    payload: EvaluationWeightingUpdate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> EvaluationWeightingRead:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    if package.commercial_evaluation_open:
+        raise HTTPException(status_code=409, detail="evaluation weighting is locked after commercial opening")
+    if abs((payload.technical_weight + payload.commercial_weight) - 100.0) > 1e-9:
+        raise HTTPException(status_code=422, detail="technical and commercial weights must total 100%")
+    settings = _get_evaluation_settings(db, package)
+    old = f"{settings.technical_weight:.2f}/{settings.commercial_weight:.2f}"
+    settings.technical_weight = payload.technical_weight
+    settings.commercial_weight = payload.commercial_weight
+    settings.updated_at = datetime.now(UTC)
+    _audit(
+        db,
+        package,
+        user,
+        "EVALUATION_WEIGHTING_CHANGED",
+        from_status=old,
+        to_status=f"{payload.technical_weight:.2f}/{payload.commercial_weight:.2f}",
+    )
+    db.commit()
+    db.refresh(settings)
+    return EvaluationWeightingRead(
+        package_id=package.id,
+        technical_weight=settings.technical_weight,
+        commercial_weight=settings.commercial_weight,
+        locked=False,
+    )
+
+
 @app.get("/packages/{package_id}/integrated-evaluation", response_model=IntegratedEvaluationResponse)
 def package_integrated_evaluation(
     package_id: int,
@@ -1524,7 +1607,13 @@ def package_integrated_evaluation(
         for offer in package.offers
     ]
     commercial_rows = build_commercial_risk_review(commercial_values)
-    evaluation = build_integrated_evaluation(technical["vendors"], commercial_rows)
+    settings = _get_evaluation_settings(db, package)
+    evaluation = build_integrated_evaluation(
+        technical["vendors"],
+        commercial_rows,
+        technical_weight=settings.technical_weight,
+        commercial_weight=settings.commercial_weight,
+    )
     return IntegratedEvaluationResponse(
         package_id=package.id,
         status=evaluation["status"],
@@ -1742,9 +1831,12 @@ def package_report(
         for offer in package.offers
     ]
     commercial_rows = build_commercial_risk_review(commercial_values)
+    settings = _get_evaluation_settings(db, package)
     report["integrated_evaluation"] = build_integrated_evaluation(
         decision_support["vendors"],
         commercial_rows,
+        technical_weight=settings.technical_weight,
+        commercial_weight=settings.commercial_weight,
     )
     report["engineering_decision_summary"] = (
         build_engineering_decision_summary(decision_support["vendors"])
