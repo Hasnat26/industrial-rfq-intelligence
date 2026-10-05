@@ -2397,12 +2397,19 @@ def package_report(
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
 
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    active_offers = _active_vendor_offers(package)
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
+        for item in revision.requirements
     ]
     vendor_values: list[VendorValue] = []
-    for offer in package.offers:
+    for offer in active_offers:
         for claim in offer.claims:
             provenance = (
                 EvidenceProvenance(
@@ -2437,7 +2444,7 @@ def package_report(
             evidence=offer.source_text or "",
             claim_status="UNVERIFIED",
         )
-        for offer in package.offers
+        for offer in active_offers
         if any(
             value
             for value in (offer.price, offer.currency, offer.lead_time, offer.warranty, offer.source_text)
@@ -2447,8 +2454,8 @@ def package_report(
     decision_support = build_decision_support(
         requirements,
         vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
-        requirement_types={item.tag: item.requirement_type for item in package.requirements},
+        vendors=[offer.vendor_name for offer in active_offers],
+        requirement_types={item.tag: item.requirement_type for item in revision.requirements},
     )
     report["decision_support"] = decision_support
     commercial_values = [
@@ -2462,7 +2469,7 @@ def package_report(
             "",
             "UNVERIFIED",
         )
-        for offer in package.offers
+        for offer in active_offers
     ]
     commercial_rows = build_commercial_risk_review(commercial_values)
     settings = _get_evaluation_settings(db, package)
@@ -2474,7 +2481,7 @@ def package_report(
     )
     report["engineering_decision_summary"] = (
         build_engineering_decision_summary(decision_support["vendors"])
-        if package.offers
+        if active_offers
         else {
             "status": "INSUFFICIENT_VENDOR_DATA",
             "decision_basis": ["No vendor offers are available for engineering review."],
