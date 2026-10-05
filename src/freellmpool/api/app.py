@@ -481,7 +481,14 @@ def create_or_update_decision(
         from_status=str(previous_offer_id) if previous_offer_id is not None else None,
         to_status=str(offer.id), note=payload.rationale.strip(),
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="a final decision already exists for this package",
+        ) from exc
     db.refresh(decision)
     return decision
 
