@@ -1461,6 +1461,11 @@ def add_deviation(
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     _require_current_rfq_offer(offer.package, offer)
+    if offer.technical_status in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION", "REJECTED"}:
+        raise HTTPException(
+            status_code=409,
+            detail="technical deviation cannot be created from the current technical status",
+        )
     severity = payload.severity.strip().upper()
     deviation_status = payload.status.strip().upper()
     if severity not in {"MINOR", "MAJOR"}:
@@ -1513,6 +1518,11 @@ def add_clarification(
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     _require_current_rfq_offer(offer.package, offer)
+    if offer.technical_status not in {"PENDING", "IN_REVIEW", "CLARIFICATION_REQUIRED"}:
+        raise HTTPException(
+            status_code=409,
+            detail="technical clarification cannot be created from the current technical status",
+        )
     clarification_status = payload.status.strip().upper()
     if clarification_status not in {"OPEN", "ANSWERED"}:
         raise HTTPException(
