@@ -1,4 +1,8 @@
 name: CI
+concurrency:
+  group: industrial-rfq-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
