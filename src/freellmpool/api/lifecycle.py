@@ -50,8 +50,8 @@ def _validate_event_type(value: str) -> str:
 def create_lifecycle_event(
     package_id: int,
     payload: LifecycleEventCreate,
-    db: Session = Depends(get_db),  # noqa: B008  # noqa: B008
-    user: User = Depends(get_current_user),  # noqa: B008  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
 ) -> LifecycleEvent:
     package = _package_for_user(db, package_id, user)
     event_type = _validate_event_type(payload.event_type)
