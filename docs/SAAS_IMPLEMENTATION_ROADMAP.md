@@ -12,9 +12,9 @@
 **Status (authentication + tenancy + batch ingestion milestones):** persistent
 database, organization/user model, web API, authentication, tenant isolation,
 and the migration foundation are delivered. See `docs/SAAS_AUTH_AND_TENANCY.md`
-for the architecture and migration workflow. Document storage/ingestion APIs
-and atomic batch quotation ingestion (`POST /packages/{id}/quotations/batch`)
-are in place; product-category configuration is now available as a reviewed API catalog; the web review screen and the exportable report remain open product work.
+for the architecture and migration workflow. Document storage/ingestion APIs,
+atomic batch quotation ingestion (`POST /packages/{id}/quotations/batch`),
+product-category configuration, browser review UI, and exportable report are delivered.
 
 Target workflow:
 
@@ -30,20 +30,16 @@ Deliverables:
 - document upload/storage;
 - batch quotation ingestion;
 - product-category configuration;
-- web review screen;
-- exportable CS/TBE-style report. **Export API delivered; browser review UI remains open.**
+- web review screen;\n- exportable CS/TBE-style report.
 
-## P2 - Project/EPC procurement workflow
-
-Deliverables:
+## P2 - Project/EPC procurement workflow\n\n**Status: Complete.** PROJECT_EPC now has controlled technical issue resolution, revision lineage, technical bid locking, commercial opening/evaluation, final human decision, workflow audit trail, and browser visibility.\n\nDeliverables:
 
 - project/package hierarchy;
 - technical offer revisioning;
 - clarification/deviation workflow;
 - technical bid lock gate;
 - commercial opening/evaluation gate;
-- approval workflow;
-- audit trail.
+- human-controlled final decision / approval record;\n- audit trail.
 
 ## P3 - Procurement memory
 
@@ -83,4 +79,4 @@ Deliverables:
 
 ## Immediate build priority
 
-Do not implement the entire platform at once. The first revenue-oriented slice should prove one complete customer workflow end-to-end before adding lifecycle intelligence or broad product-category coverage.
+P0/P1/P2 are now implemented. The next revenue-oriented priority is P3 procurement memory, starting with vendor/product/decision history and reusable evidence, before moving to lifecycle intelligence or broad category expansion.
