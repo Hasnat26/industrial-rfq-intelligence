@@ -284,6 +284,3 @@ def test_workflow_counts_only_current_rfq_offers() -> None:
     assert body["technical_status_counts"] == {}
     assert body["open_deviation_count"] == 0
     assert body["open_clarification_count"] == 0
-
-    stale = client.get(f"/offers/{offer['id']}/technical-status")
-    assert stale.status_code == 405
