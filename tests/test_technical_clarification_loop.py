@@ -356,6 +356,12 @@ def test_rfq_revision_supersedes_old_baseline_and_reanchors_evaluation() -> None
     integrated = client.get(f"/packages/{package['id']}/integrated-evaluation")
     assert integrated.status_code == 200
     assert integrated.json()["vendor_profiles"] == []
+    engineering = client.get(f"/packages/{package['id']}/engineering-decision-summary")
+    assert engineering.status_code == 200
+    assert engineering.json()["vendor_profiles"] == []
+    evidence = client.get(f"/packages/{package['id']}/evidence")
+    assert evidence.status_code == 200
+    assert evidence.json()["rows"] == []
 
     audit = client.get(f"/packages/{package['id']}/audit")
     assert audit.status_code == 200
