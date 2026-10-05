@@ -49,6 +49,8 @@ from freellmpool.api.schemas import (
     DecisionSupportResponse,
     DecisionSupportRowRead,
     DecisionSupportVendorRead,
+    EngineeringDecisionSummaryRead,
+    EngineeringVendorProfileRead,
     EvidenceResponse,
     EvidenceRow,
     IssueResolution,
@@ -83,6 +85,7 @@ from freellmpool.api.schemas import (
 from freellmpool.api.security import hash_password
 from freellmpool.api.web import web_app
 from freellmpool.decision_support import build_decision_support
+from freellmpool.engineering_decision import build_engineering_decision_summary
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -1470,6 +1473,55 @@ def package_decision_support(
     )
 
 
+@app.get("/packages/{package_id}/engineering-decision-summary", response_model=EngineeringDecisionSummaryRead)
+def package_engineering_decision_summary(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> EngineeringDecisionSummaryRead:
+    """Return an auditable technical disposition without selecting a supplier."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+    ]
+    requirement_types = {
+        item.tag: item.requirement_type
+        for item in package.requirements
+    }
+    vendor_values = [
+        VendorValue(
+            offer.vendor_name,
+            claim.parameter,
+            claim.value,
+            claim.evidence,
+            _claim_status(claim.claim_status),
+        )
+        for offer in package.offers
+        for claim in offer.claims
+    ]
+    result = build_decision_support(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+        requirement_types=requirement_types,
+    )
+    summary = build_engineering_decision_summary(result["vendors"])
+    return EngineeringDecisionSummaryRead(
+        package_id=package.id,
+        status=summary["status"],
+        decision_basis=summary["decision_basis"],
+        vendor_profiles=[
+            EngineeringVendorProfileRead.model_validate(item)
+            for item in summary["vendor_profiles"]
+        ],
+        review_actions=summary["review_actions"],
+    )
+
+
 @app.get("/packages/{package_id}/evidence", response_model=EvidenceResponse)
 def package_evidence(
     package_id: int,
@@ -1594,7 +1646,18 @@ def package_report(
             for value in (offer.price, offer.currency, offer.lead_time, offer.warranty, offer.source_text)
         )
     ]
-    return build_report(requirements, vendor_values, commercial_values)
+    report = build_report(requirements, vendor_values, commercial_values)
+    decision_support = build_decision_support(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+        requirement_types={item.tag: item.requirement_type for item in package.requirements},
+    )
+    report["decision_support"] = decision_support
+    report["engineering_decision_summary"] = build_engineering_decision_summary(
+        decision_support["vendors"]
+    )
+    return report
 
 
 @app.get("/packages/{package_id}/report/markdown")
