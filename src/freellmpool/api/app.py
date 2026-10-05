@@ -682,6 +682,7 @@ def create_offer_revision(
         )
     revision_offer = VendorOffer(
         package_id=offer.package_id,
+        parent_offer_id=offer.id,
         vendor_name=offer.vendor_name,
         vendor_key=vendor_key,
         technical_revision=revision,
