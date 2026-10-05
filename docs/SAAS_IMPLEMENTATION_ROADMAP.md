@@ -64,6 +64,8 @@ Historical information remains decision support, not an automatic procurement in
 
 ## P4 - Lifecycle intelligence
 
+**Status: In progress.** P4.1 canonical lifecycle events and P4.2 installed asset/product records are implemented and merged. The next increment should add lifecycle intelligence read models and asset-level history/summary over these canonical records.
+
 Deliverables:
 
 - installation/commissioning records;
@@ -89,4 +91,4 @@ Deliverables:
 
 ## Immediate build priority
 
-P0/P1/P2 are implemented and P3 now has its first usable historical-memory slice. The next revenue-oriented priority is to deepen P3 with explicit product identity and aggregated historical intelligence before moving to lifecycle intelligence or broad category expansion.
+P0/P1/P2 are implemented and P3 now has its first usable historical-memory slice. The next revenue-oriented priority is to deepen P4 with asset-level lifecycle intelligence, failure/maintenance history, warranty tracking, spare/replacement history, and lifecycle cost inputs over the canonical event and asset records.
