@@ -368,3 +368,34 @@ def test_internal_reconciliation_rolls_active_expired_subscriptions(monkeypatch)
     assert data["processed"] == 1
     assert data["rolled_over"] == 1
     assert data["unchanged"] == 0
+
+
+def test_usage_reconciliation_reports_unknown_and_negative_usage_anomalies() -> None:
+    from freellmpool.api.db import SessionLocal, UsageRecord
+
+    organization = client.post("/organizations", json={"name": "Anomaly Org"}).json()
+    db = SessionLocal()
+    try:
+        db.add_all(
+            [
+                UsageRecord(
+                    organization_id=organization["id"],
+                    metric="unknown_metric",
+                    quantity=3,
+                ),
+                UsageRecord(
+                    organization_id=organization["id"],
+                    metric="vendor_offers",
+                    quantity=-2,
+                ),
+            ]
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get(f"/organizations/{organization['id']}/usage/reconciliation")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["unknown_metrics"] == ["unknown_metric"]
+    assert data["negative_usage_metrics"] == ["vendor_offers"]
