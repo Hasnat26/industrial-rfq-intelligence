@@ -154,3 +154,52 @@ def test_billing_webhook_receipts_are_tenant_visible(monkeypatch) -> None:
     assert listed.status_code == 200
     assert listed.json()[0]["external_event_id"] == "evt_visible"
     assert "payload" not in listed.json()[0]
+
+
+def test_billing_webhook_updates_subscription_state(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", "test-secret")
+    organization = client.post("/organizations", json={"name": "Billing State Org"}).json()
+    subscription = client.get(f"/organizations/{organization['id']}/subscription")
+    assert subscription.status_code == 200
+
+    payload = {
+        "id": "evt_subscription_past_due",
+        "type": "subscription.past_due",
+        "organization_id": organization["id"],
+        "customer_id": "cus_456",
+        "subscription_id": "sub_456",
+        "current_period_start": "2026-10-01T00:00:00+00:00",
+        "current_period_end": "2026-11-01T00:00:00+00:00",
+    }
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json=payload,
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "PROCESSED"
+
+    updated = client.get(f"/organizations/{organization['id']}/subscription")
+    assert updated.status_code == 200
+    data = updated.json()
+    assert data["status"] == "PAST_DUE"
+    assert data["external_customer_id"] == "cus_456"
+    assert data["external_subscription_id"] == "sub_456"
+
+
+def test_unknown_billing_event_is_receipted_without_changing_status(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", "test-secret")
+    organization = client.post("/organizations", json={"name": "Unknown Billing Event Org"}).json()
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json={
+            "id": "evt_unknown",
+            "type": "invoice.payment_succeeded",
+            "organization_id": organization["id"],
+        },
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "PROCESSED"
+    subscription = client.get(f"/organizations/{organization['id']}/subscription").json()
+    assert subscription["status"] == "ACTIVE"
