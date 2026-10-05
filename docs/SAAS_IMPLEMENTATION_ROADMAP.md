@@ -64,7 +64,7 @@ Historical information remains decision support, not an automatic procurement in
 
 ## P4 - Lifecycle intelligence
 
-**Status: In progress.** P4.1 canonical lifecycle events and P4.2 installed asset/product records are implemented and merged. The next increment should add lifecycle intelligence read models and asset-level history/summary over these canonical records.
+**Status: In progress.** P4.1 canonical lifecycle events, P4.2 installed asset/product records, lifecycle intelligence read models, and P4.3 lifecycle cost inputs are implemented and merged. Lifecycle cost records are linked to installed assets and optional lifecycle events, with tenant-isolated retrieval and organization-level aggregation by asset and currency.
 
 Deliverables:
 
@@ -74,6 +74,8 @@ Deliverables:
 - spare-part history;
 - replacement history;
 - lifecycle cost inputs.
+
+P4.3 now provides a canonical cost ledger for purchase, maintenance, spare-part, failure, warranty, and other lifecycle cost inputs. Costs remain separate from event descriptions while optionally linking to a canonical lifecycle event for traceability.
 
 ## P5 - Commercial SaaS hardening
 
