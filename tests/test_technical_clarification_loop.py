@@ -102,6 +102,15 @@ def test_create_clarification_is_audited_and_sets_vendor_status() -> None:
     assert offers.status_code == 200
     assert offers.json()[0]["technical_status"] == "CLARIFICATION_REQUIRED"
 
+    clarifications = client.get(f"/offers/{offer['id']}/clarifications")
+    assert clarifications.status_code == 200
+    persisted = clarifications.json()
+    assert len(persisted) == 2
+    assert all(item["rfq_revision_id"] is None for item in persisted)
+    assert all(item["requirement_id"] is None for item in persisted)
+    assert all(item["gap_type"] is None for item in persisted)
+    assert all("evaluation_evidence" in item for item in persisted)
+
     audit = client.get(f"/packages/{package['id']}/audit")
     assert audit.status_code == 200
     events = [item["event_type"] for item in audit.json()]

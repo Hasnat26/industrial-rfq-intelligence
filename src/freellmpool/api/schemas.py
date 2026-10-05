@@ -341,6 +341,12 @@ class TechnicalClarificationCreate(BaseModel):
 class TechnicalClarificationRead(TechnicalClarificationCreate):
     id: int
     offer_id: int
+    rfq_revision_id: int | None = None
+    requirement_id: int | None = None
+    gap_type: str | None = None
+    evaluated_offered: str | None = None
+    evaluation_status: str | None = None
+    evaluation_evidence: str | None = None
     resolution: str | None = None
 
     model_config = {"from_attributes": True}
