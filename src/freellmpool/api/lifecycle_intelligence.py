@@ -60,7 +60,7 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
     events = []
     if package_ids:
         events = list(db.scalars(select(LifecycleEvent).where(LifecycleEvent.package_id.in_(package_ids))).all())
-    by_asset: dict[str, list[LifecycleEvent]] = {}
+    by_asset: dict[str, list[LifecycleEvent]] = {}\n    costs = []\n    if package_ids:\n        costs = list(db.scalars(select(LifecycleCostRecord).where(LifecycleCostRecord.package_id.in_(package_ids))).all())\n    costs_by_asset: dict[str, dict[str, float]] = {}\n    for cost in costs:\n        costs_by_asset.setdefault(cost.asset_id, {})[cost.currency] = costs_by_asset.setdefault(cost.asset_id, {}).get(cost.currency, 0.0) + cost.amount
     for event in events:
         by_asset.setdefault(event.asset_id, []).append(event)
     summaries = []
@@ -84,7 +84,7 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
                 spare_part_count=counts.get("SPARE_PART", 0),
                 replacement_count=counts.get("REPLACEMENT", 0),
                 first_event_date=asset_events[0].event_date if asset_events else None,
-                latest_event_date=asset_events[-1].event_date if asset_events else None,
+                latest_event_date=asset_events[-1].event_date if asset_events else None,\n                lifecycle_costs_by_currency=dict(sorted(costs_by_asset.get(asset.asset_id, {}).items())),\n                warranty_start=asset.warranty_start,\n                warranty_end=asset.warranty_end,
             )
         )
     return LifecycleIntelligenceResponse(
