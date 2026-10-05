@@ -414,12 +414,14 @@ def test_rfq_revision_is_blocked_after_technical_lock() -> None:
     ).status_code == 200
     assert client.post(f"/packages/{package['id']}/technical-lock").status_code == 200
 
-    # The old offer belongs to R1 and must not reappear in R2 commercial comparison.
-    # This endpoint is gated by commercial-open, so the assertion is exercised after the R2 cycle is opened.
+    # Technical lock keeps the current RFQ baseline at R1; the revision request below must be rejected.
+    # Therefore the accepted R1 offer is still the valid commercial candidate at this point.
     assert client.post(f"/packages/{package['id']}/commercial-open").status_code == 200
     commercial = client.get(f"/packages/{package['id']}/commercial-comparison")
     assert commercial.status_code == 200
-    assert commercial.json()["rows"] == []
+    rows = commercial.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["offer_id"] == offer["id"]
 
     response = client.post(
         f"/packages/{package['id']}/rfq-revisions",
