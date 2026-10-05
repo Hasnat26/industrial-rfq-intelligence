@@ -23,6 +23,9 @@ def _database_url() -> str:
     return os.getenv("INDUSTRIAL_RFQ_DATABASE_URL", "sqlite:///./industrial_rfq.db")
 
 
+SESSION_TTL_HOURS = 24
+
+
 DATABASE_URL = _database_url()
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
@@ -40,6 +43,61 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(200), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     projects: Mapped[list[Project]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    memberships: Mapped[list[OrganizationMembership]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
+
+
+class User(Base):
+    """A registered account. Passwords are stored only as salted hashes."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(512))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    memberships: Mapped[list[OrganizationMembership]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[list[AuthSession]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class OrganizationMembership(Base):
+    """The tenant boundary: which user belongs to which organization, and in what role."""
+
+    __tablename__ = "organization_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "user_id",
+            name="uq_organization_memberships_org_user",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    role: Mapped[str] = mapped_column(String(30), default="MEMBER")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    organization: Mapped[Organization] = relationship(back_populates="memberships")
+    user: Mapped[User] = relationship(back_populates="memberships")
+
+
+class AuthSession(Base):
+    """Opaque bearer tokens; only the SHA-256 digest of a token is persisted."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    user: Mapped[User] = relationship(back_populates="sessions")
 
 
 class Project(Base):
@@ -137,8 +195,25 @@ class VendorOffer(Base):
     )
 
 
+def _auto_create_allowed() -> bool:
+    """Development SQLite databases self-bootstrap; production opt-in only."""
+    flag = os.getenv("INDUSTRIAL_RFQ_AUTO_CREATE_TABLES")
+    if flag == "1":
+        return True
+    if flag == "0":
+        return False
+    return DATABASE_URL.startswith("sqlite")
+
+
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    """Create any missing tables without dropping or altering existing ones.
+
+    Schema changes must be delivered through Alembic migrations
+    (`alembic upgrade head`). Application startup never recreates or drops
+    tables on non-SQLite databases unless INDUSTRIAL_RFQ_AUTO_CREATE_TABLES=1.
+    """
+    if _auto_create_allowed():
+        Base.metadata.create_all(bind=engine, checkfirst=True)
 
 
 def get_db() -> Generator[object, None, None]:

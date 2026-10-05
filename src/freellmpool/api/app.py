@@ -6,16 +6,20 @@ import tempfile
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from freellmpool.api.auth import authenticate, get_current_user, is_member, issue_session
 from freellmpool.api.db import (
     Organization,
+    OrganizationMembership,
     ProcurementPackage,
     Project,
     Requirement,
     TechnicalClarification,
     TechnicalDeviation,
+    User,
     VendorClaim,
     VendorDocument,
     VendorDocumentPage,
@@ -28,13 +32,16 @@ from freellmpool.api.schemas import (
     ClaimRead,
     ComparisonResponse,
     ComparisonRow,
+    CurrentUserRead,
     EvidenceResponse,
     EvidenceRow,
     IssueResolution,
+    LoginRequest,
     OfferCreate,
     OfferRead,
     OfferRevisionCreate,
     OrganizationCreate,
+    OrganizationMembershipRead,
     OrganizationRead,
     PackageCreate,
     PackageRead,
@@ -47,8 +54,12 @@ from freellmpool.api.schemas import (
     TechnicalDeviationCreate,
     TechnicalDeviationRead,
     TechnicalStatusUpdate,
+    TokenResponse,
+    UserRead,
+    UserRegister,
     VendorDocumentRead,
 )
+from freellmpool.api.security import hash_password
 from freellmpool.industrial import (
     ClaimStatus,
     DocumentPage,
@@ -158,12 +169,82 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "industrial-rfq-intelligence"}
 
 
+@app.post("/auth/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+def register_user(
+    payload: UserRegister, db: Session = Depends(get_db)  # noqa: B008
+) -> User:
+    email = payload.email.strip().casefold()
+    if "@" not in email or email.startswith("@") or email.endswith("@") or " " in email:
+        raise HTTPException(status_code=422, detail="a valid email address is required")
+    existing: User | None = db.scalar(select(User).where(User.email == email))
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="email is already registered")
+    user = User(email=email, password_hash=hash_password(payload.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/auth/login", response_model=TokenResponse)
+def login(
+    payload: LoginRequest, db: Session = Depends(get_db)  # noqa: B008
+) -> TokenResponse:
+    user = authenticate(db, payload.email, payload.password)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    _session, token = issue_session(db, user)
+    db.commit()
+    return TokenResponse(access_token=token, user=UserRead.model_validate(user))
+
+
+@app.get("/auth/me", response_model=CurrentUserRead)
+def current_user(
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CurrentUserRead:
+    rows = db.execute(
+        select(Organization, OrganizationMembership.role)
+        .join(
+            OrganizationMembership,
+            Organization.id == OrganizationMembership.organization_id,
+        )
+        .where(OrganizationMembership.user_id == user.id)
+    ).all()
+    return CurrentUserRead(
+        id=user.id,
+        email=user.email,
+        organizations=[
+            OrganizationMembershipRead(
+                organization_id=organization.id,
+                name=organization.name,
+                role=role,
+            )
+            for organization, role in rows
+        ],
+    )
+
+
 @app.post("/organizations", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
 def create_organization(
-    payload: OrganizationCreate, db: Session = Depends(get_db)  # noqa: B008
+    payload: OrganizationCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> Organization:
     organization = Organization(name=payload.name.strip())
     db.add(organization)
+    db.flush()
+    db.add(
+        OrganizationMembership(
+            organization_id=organization.id,
+            user_id=user.id,
+            role="OWNER",
+        )
+    )
     db.commit()
     db.refresh(organization)
     return organization
@@ -171,9 +252,13 @@ def create_organization(
 
 @app.post("/projects", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 def create_project(
-    payload: ProjectCreate, db: Session = Depends(get_db)  # noqa: B008
+    payload: ProjectCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> Project:
-    if db.get(Organization, payload.organization_id) is None:
+    # The client may suggest an organization, but membership is always
+    # verified server-side against the authenticated user.
+    if not is_member(db, user.id, payload.organization_id):
         raise HTTPException(status_code=404, detail="organization not found")
     project = Project(
         organization_id=payload.organization_id,
@@ -188,11 +273,14 @@ def create_project(
 
 @app.post("/packages", response_model=PackageRead, status_code=status.HTTP_201_CREATED)
 def create_package(
-    payload: PackageCreate, db: Session = Depends(get_db)  # noqa: B008
+    payload: PackageCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> ProcurementPackage:
     if payload.mode not in {"STANDARD", "PROJECT_EPC"}:
         raise HTTPException(status_code=422, detail="mode must be STANDARD or PROJECT_EPC")
-    if db.get(Project, payload.project_id) is None:
+    project = db.get(Project, payload.project_id)
+    if project is None or not is_member(db, user.id, project.organization_id):
         raise HTTPException(status_code=404, detail="project not found")
     package = ProcurementPackage(
         project_id=payload.project_id,
@@ -218,10 +306,12 @@ def create_package(
 
 @app.get("/packages/{package_id}/rfq", response_model=RfqResponse)
 def generate_rfq(
-    package_id: int, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> RfqResponse:
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     requirements = [
         RequirementCreate(
@@ -252,10 +342,13 @@ def generate_rfq(
 
 @app.post("/packages/{package_id}/offers", response_model=OfferRead, status_code=status.HTTP_201_CREATED)
 def add_offer(
-    package_id: int, payload: OfferCreate, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    payload: OfferCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> VendorOffer:
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     _require_technical_stage_open(package)
     vendor_name = payload.vendor_name.strip()
@@ -295,11 +388,13 @@ def add_offer(
 
 @app.get("/packages/{package_id}/offers", response_model=list[OfferRead])
 def list_package_offers(
-    package_id: int, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> list[OfferRead]:
     """List the auditable offer/revision history for a package."""
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     reveal_commercial = package.commercial_evaluation_open or package.mode != "PROJECT_EPC"
     return [
@@ -327,11 +422,12 @@ def list_package_offers(
 def create_offer_revision(
     offer_id: int,
     payload: OfferRevisionCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> VendorOffer:
     """Create the next technical revision without mutating earlier ones."""
     offer = db.get(VendorOffer, offer_id)
-    if offer is None:
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     revision = payload.technical_revision.strip()
@@ -365,10 +461,13 @@ def create_offer_revision(
 
 @app.post("/offers/{offer_id}/claims", response_model=ClaimRead, status_code=status.HTTP_201_CREATED)
 def add_claim(
-    offer_id: int, payload: ClaimCreate, db: Session = Depends(get_db)  # noqa: B008
+    offer_id: int,
+    payload: ClaimCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> VendorClaim:
     offer = db.get(VendorOffer, offer_id)
-    if offer is None:
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     claim_status = payload.claim_status.strip().upper()
@@ -426,10 +525,11 @@ def add_claim(
 def add_deviation(
     offer_id: int,
     payload: TechnicalDeviationCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> TechnicalDeviation:
     offer = db.get(VendorOffer, offer_id)
-    if offer is None:
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     severity = payload.severity.strip().upper()
@@ -466,10 +566,11 @@ def add_deviation(
 def add_clarification(
     offer_id: int,
     payload: TechnicalClarificationCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> TechnicalClarification:
     offer = db.get(VendorOffer, offer_id)
-    if offer is None:
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     clarification_status = payload.status.strip().upper()
@@ -500,10 +601,14 @@ def add_clarification(
 def resolve_deviation(
     deviation_id: int,
     payload: IssueResolution,
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> TechnicalDeviation:
     deviation = db.get(TechnicalDeviation, deviation_id)
-    if deviation is None:
+    if (
+        deviation is None
+        or not is_member(db, user.id, deviation.offer.package.project.organization_id)
+    ):
         raise HTTPException(status_code=404, detail="deviation not found")
     if deviation.status == "RESOLVED":
         raise HTTPException(status_code=409, detail="deviation is already resolved")
@@ -523,10 +628,16 @@ def resolve_deviation(
 def close_clarification(
     clarification_id: int,
     payload: IssueResolution,
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> TechnicalClarification:
     clarification = db.get(TechnicalClarification, clarification_id)
-    if clarification is None:
+    if (
+        clarification is None
+        or not is_member(
+            db, user.id, clarification.offer.package.project.organization_id
+        )
+    ):
         raise HTTPException(status_code=404, detail="clarification not found")
     if clarification.status == "CLOSED":
         raise HTTPException(status_code=409, detail="clarification is already closed")
@@ -547,11 +658,12 @@ def close_clarification(
 async def upload_offer_document(
     offer_id: int,
     file: UploadFile = File(...),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> VendorDocument:
     """Ingest an untrusted vendor document as extracted, provenance-tagged text."""
     offer = db.get(VendorOffer, offer_id)
-    if offer is None:
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     filename = _safe_filename(file.filename)
@@ -603,10 +715,15 @@ async def upload_offer_document(
 
 @app.get("/documents/{document_id}", response_model=VendorDocumentRead)
 def read_document(
-    document_id: int, db: Session = Depends(get_db)  # noqa: B008
+    document_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> VendorDocument:
     document = db.get(VendorDocument, document_id)
-    if document is None:
+    if (
+        document is None
+        or not is_member(db, user.id, document.offer.package.project.organization_id)
+    ):
         raise HTTPException(status_code=404, detail="document not found")
     return document
 
@@ -615,10 +732,11 @@ def read_document(
 def update_technical_status(
     offer_id: int,
     payload: TechnicalStatusUpdate,
+    user: User = Depends(get_current_user),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> VendorOffer:
     offer = db.get(VendorOffer, offer_id)
-    if offer is None:
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     if offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
@@ -639,10 +757,12 @@ def update_technical_status(
 
 @app.post("/packages/{package_id}/technical-lock", response_model=PackageRead)
 def lock_technical_bid(
-    package_id: int, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> ProcurementPackage:
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     if not package.offers:
         raise HTTPException(status_code=409, detail="at least one vendor offer is required")
@@ -672,10 +792,12 @@ def lock_technical_bid(
 
 @app.post("/packages/{package_id}/commercial-open", response_model=PackageRead)
 def open_commercial_evaluation(
-    package_id: int, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> ProcurementPackage:
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     if package.mode == "PROJECT_EPC" and not package.technical_bid_locked:
         raise HTTPException(
@@ -695,10 +817,12 @@ def open_commercial_evaluation(
 
 @app.get("/packages/{package_id}/comparison", response_model=ComparisonResponse)
 def compare_package(
-    package_id: int, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> ComparisonResponse:
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
 
     requirements = [
@@ -737,11 +861,13 @@ def compare_package(
 
 @app.get("/packages/{package_id}/evidence", response_model=EvidenceResponse)
 def package_evidence(
-    package_id: int, db: Session = Depends(get_db)  # noqa: B008
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> EvidenceResponse:
     """Return the engine's evidence register with vendor/revision provenance."""
     package = db.get(ProcurementPackage, package_id)
-    if package is None:
+    if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
