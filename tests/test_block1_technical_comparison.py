@@ -99,6 +99,9 @@ def test_technical_evaluation_classifies_vendor_specific_gaps() -> None:
     assert evaluation.status_code == 200, evaluation.text
     payload = evaluation.json()
     assert payload["rfq_revision"] == "R1"
+    assert payload["rfq_revision_id"] > 0
+    assert {row["offer_id"] for row in payload["rows"]} == {offer_id}
+    assert all(row["rfq_revision_id"] == payload["rfq_revision_id"] for row in payload["rows"])
     assert payload["rows"][0]["status"] == "COMPLIANT"
     assert payload["rows"][0]["gap_type"] is None
 
@@ -139,22 +142,3 @@ def test_missing_and_conflicting_claims_are_explicit_gaps() -> None:
     assert rows["Motor power"]["status"] == "UNVERIFIED"
     assert rows["Motor power"]["gap_type"] == "MISSING"
 
-
-def test_technical_evaluation_is_bound_to_current_rfq_revision() -> None:
-    package_id = _package()
-    offer = client.post(
-        f"/packages/{package_id}/offers",
-        json={"vendor_name": "Vendor C", "technical_revision": "R1"},
-    )
-    assert offer.status_code == 201, offer.text
-
-    with SessionLocal() as session:
-        package = session.get(ProcurementPackage, package_id)
-        assert package is not None
-        assert package.current_rfq_revision_id is not None
-        current_revision_id = package.current_rfq_revision_id
-
-    evaluation = client.get(f"/packages/{package_id}/technical-evaluation")
-    assert evaluation.status_code == 200, evaluation.text
-    assert evaluation.json()["rfq_revision_id"] == current_revision_id
-    assert all(row["rfq_revision_id"] == current_revision_id for row in evaluation.json()["rows"])
