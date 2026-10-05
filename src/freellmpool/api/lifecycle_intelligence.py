@@ -50,6 +50,9 @@ class LifecycleAssetSummary(BaseModel):
     mean_failure_to_maintenance_days: float | None
     warranty_status: str
     warranty_days_remaining: int | None
+    replacement_intervals_days: list[float]
+    mean_replacement_interval_days: float | None
+    spare_part_event_count: int
 
 
 class LifecycleIntelligenceResponse(BaseModel):
@@ -92,6 +95,11 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
         asset_events = sorted(by_asset.get(asset.asset_id, []), key=lambda item: (item.event_date, item.id))
         counts = Counter(event.event_type for event in asset_events)
         failure_dates = [event.event_date for event in asset_events if event.event_type == "FAILURE"]
+        replacement_dates = [event.event_date for event in asset_events if event.event_type == "REPLACEMENT"]
+        replacement_intervals = [
+            (current - previous).total_seconds() / 86400
+            for previous, current in zip(replacement_dates, replacement_dates[1:])
+        ]
         failure_intervals = [
             (current - previous).total_seconds() / 86400
             for previous, current in zip(failure_dates, failure_dates[1:])
@@ -148,6 +156,9 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
                 mean_failure_to_maintenance_days=(sum(failure_to_maintenance) / len(failure_to_maintenance)) if failure_to_maintenance else None,
                 warranty_status=warranty_status,
                 warranty_days_remaining=warranty_days_remaining,
+                replacement_intervals_days=replacement_intervals,
+                mean_replacement_interval_days=(sum(replacement_intervals) / len(replacement_intervals)) if replacement_intervals else None,
+                spare_part_event_count=counts.get("SPARE_PART", 0),
             )
         )
     return LifecycleIntelligenceResponse(
