@@ -598,5 +598,111 @@ def test_document_upload_blocked_after_technical_lock() -> None:
     assert blocked.status_code == 409
 
 
+def test_decision_support_endpoint_returns_auditable_vendor_scores() -> None:
+    organization = client.post("/organizations", json={"name": "Decision Support"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                },
+                {
+                    "tag": "R-02",
+                    "parameter": "Motor power",
+                    "required_value": "75 kW",
+                    "requirement_type": "OPTIONAL",
+                },
+            ],
+        },
+    ).json()
+    for vendor in ("Vendor A", "Vendor B", "Vendor C"):
+        offer = client.post(
+            f"/packages/{package['id']}/offers",
+            json={"vendor_name": vendor},
+        ).json()
+        if vendor == "Vendor A":
+            claims = [
+                ("Rated voltage", "415 V", "a.pdf p.1"),
+                ("Motor power", "75 kW", "a.pdf p.1"),
+            ]
+        elif vendor == "Vendor B":
+            claims = [
+                ("Rated voltage", "400 V", "b.pdf p.1"),
+                ("Motor power", "70 kW", "b.pdf p.1"),
+            ]
+        else:
+            claims = []
+        for parameter, value, evidence in claims:
+            response = client.post(
+                f"/offers/{offer['id']}/claims",
+                json={
+                    "parameter": parameter,
+                    "value": value,
+                    "evidence": evidence,
+                    "claim_status": "VERIFIED",
+                },
+            )
+            assert response.status_code == 201
+
+    response = client.get(f"/packages/{package['id']}/decision-support")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["requirements_checked"] == 2
+    assert data["vendors_checked"] == 3
+    vendors = {item["vendor"]: item for item in data["vendors"]}
+    assert vendors["Vendor A"]["technical_score"] == 100.0
+    assert vendors["Vendor A"]["evidence_coverage_pct"] == 100.0
+    assert vendors["Vendor B"]["technical_score"] == 33.33
+    assert vendors["Vendor B"]["major_deviation_count"] == 1
+    assert vendors["Vendor B"]["minor_deviation_count"] == 1
+    assert vendors["Vendor C"]["technical_score"] == 0.0
+    assert vendors["Vendor C"]["missing_evidence_count"] == 2
+    assert data["formula"]["technical_score"] == "100 * weighted_points / weighted_requirements"
+
+    repeated = client.get(f"/packages/{package['id']}/decision-support")
+    assert repeated.status_code == 200
+    assert repeated.json() == data
+
+
+def test_decision_support_is_tenant_isolated() -> None:
+    first = _seed_package()
+    second = client.post("/organizations", json={"name": "Other Tenant"}).json()
+    other_project = client.post(
+        "/projects",
+        json={"organization_id": second["id"], "name": "Other Project"},
+    ).json()
+    other_package = client.post(
+        "/packages",
+        json={
+            "project_id": other_project["id"],
+            "name": "Other Package",
+            "category": "MOTOR",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
+        },
+    ).json()
+    # The authenticated user owns both organizations in this test fixture, so
+    # this verifies package scoping rather than cross-user authorization.
+    response = client.get(f"/packages/{other_package['id']}/decision-support")
+    assert response.status_code == 200
+    assert response.json()["package_id"] == other_package["id"]
+    assert response.json()["package_id"] != first["package"]["id"]
+
+
 def test_evidence_traceability() -> None:
     _seed_offer(mode="STANDARD")
