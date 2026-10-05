@@ -116,6 +116,7 @@ testpaths = [
     "tests/test_ci_config.py",
     "tests/test_procurement_domain.py",
     "tests/test_api.py",
+    "tests/test_commercial.py",
     "tests/test_auth_tenant.py",
     "tests/test_migrations.py",
 ]
