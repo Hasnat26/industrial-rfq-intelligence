@@ -372,6 +372,11 @@ def test_rfq_revision_supersedes_old_baseline_and_reanchors_evaluation() -> None
     evidence = client.get(f"/packages/{package['id']}/evidence")
     assert evidence.status_code == 200
     assert evidence.json()["rows"] == []
+    stale_decision = client.post(
+        f"/packages/{package['id']}/decision",
+        json={"selected_offer_id": offer["id"], "rationale": "stale offer must be rejected"},
+    )
+    assert stale_decision.status_code == 409
 
     audit = client.get(f"/packages/{package['id']}/audit")
     assert audit.status_code == 200
