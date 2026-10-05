@@ -255,7 +255,7 @@ def test_usage_reconciliation_detects_existing_overage_without_mutating_state() 
 
 
 def test_subscription_rollover_advances_expired_period(monkeypatch) -> None:
-    from datetime import UTC, datetime, timedelta
+    from datetime import UTC, datetime
     from freellmpool.api.db import SessionLocal, OrganizationSubscription
 
     organization = client.post("/organizations", json={"name": "Rollover Org"}).json()
