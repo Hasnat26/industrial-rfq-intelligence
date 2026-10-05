@@ -69,3 +69,32 @@ def test_usage_limit_is_enforced() -> None:
     )
     assert response.status_code == 429
     assert response.json()["detail"] == "vendor_offers plan limit exceeded"
+
+
+def test_subscription_lifecycle_can_bind_provider_reference() -> None:
+    organization = client.post("/organizations", json={"name": "Billing Org"}).json()
+    response = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json={
+            "plan_key": "PRO",
+            "status": "ACTIVE",
+            "billing_provider": "STRIPE",
+            "external_customer_id": "cus_test_123",
+            "external_subscription_id": "sub_test_123",
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["plan_key"] == "PRO"
+    assert data["billing_provider"] == "STRIPE"
+    assert data["external_customer_id"] == "cus_test_123"
+    assert data["external_subscription_id"] == "sub_test_123"
+
+
+def test_invalid_subscription_plan_is_rejected() -> None:
+    organization = client.post("/organizations", json={"name": "Invalid Plan Org"}).json()
+    response = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json={"plan_key": "UNKNOWN", "status": "ACTIVE"},
+    )
+    assert response.status_code == 422
