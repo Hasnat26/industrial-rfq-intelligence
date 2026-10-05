@@ -184,7 +184,13 @@ def record_usage(
     enforce_limit(db, organization_id, payload.metric, payload.quantity)
     db.add(UsageRecord(organization_id=organization_id, **payload.model_dump()))
     db.commit()
-    record = db.scalar(select(UsageRecord).where(UsageRecord.organization_id == organization_id).order_by(UsageRecord.id.desc()))
+    record = db.scalar(
+        select(UsageRecord)
+        .where(UsageRecord.organization_id == organization_id)
+        .order_by(UsageRecord.id.desc())
+    )
+    if record is None:
+        raise RuntimeError("usage record was not persisted")
     return record
 
 
