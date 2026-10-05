@@ -3,7 +3,14 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from freellmpool.api.app import app
-from freellmpool.api.db import Base, ProcurementPackage, RfqRevision, SessionLocal, VendorOffer, engine  # noqa: I001
+from freellmpool.api.db import (  # noqa: I001
+    Base,
+    ProcurementPackage,
+    RfqRevision,
+    SessionLocal,
+    VendorOffer,
+    engine,
+)
 
 
 client = TestClient(app)
