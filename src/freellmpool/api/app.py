@@ -95,6 +95,7 @@ from freellmpool.industrial import (
     DocumentPage,
     EvidenceProvenance,
     VendorValue,
+    build_commercial_risk_review,
     build_evidence_register,
     build_matrix,
     build_report,
