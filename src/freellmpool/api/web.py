@@ -124,7 +124,10 @@ const tokenKey="rfq_token";
 let token=sessionStorage.getItem(tokenKey), currentPackage=null, offers=[], workflow=null, commercial=null, decision=null, audit=[];
 
 function headers(json=true){const h={};if(token)h.Authorization="Bearer "+token;if(json)h["Content-Type"]="application/json";return h}
-async function api(path,opt={}){opt.headers={...headers(opt.body!==undefined),...(opt.headers||{})};const r=await fetch(path,opt);if(!r.ok){let d="Request failed";try{d=(await r.json()).detail||d}catch{};throw Error(d)}return r}
+async function api(path,opt={}){
+  const isForm=typeof FormData!=="undefined" && opt.body instanceof FormData;
+  opt.headers={...headers(opt.body!==undefined&&!isForm),...(opt.headers||{})};
+  const r=await fetch(path,opt);if(!r.ok){let d="Request failed";try{d=(await r.json()).detail||d}catch{};throw Error(d)}return r}
 function toast(msg,bad=false){$("toast").innerHTML='<div class="card '+(bad?'error':'')+'">'+esc(msg)+'</div>';setTimeout(()=>$("toast").innerHTML="",3500)}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function badge(v){let c=v==="COMPLIANT"||v==="VERIFIED"||v==="ACCEPTED"?"ok":v==="UNVERIFIED"||v==="CLARIFICATION_REQUIRED"?"warn":v==="REJECTED"||v==="CONTRADICTED"||v==="DEVIATION"?"bad":"blue";return '<span class="badge '+c+'">'+esc(v)+'</span>'}
