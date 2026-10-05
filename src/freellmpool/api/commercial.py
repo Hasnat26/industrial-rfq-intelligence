@@ -17,6 +17,7 @@ from freellmpool.api.schemas import (
     UsageRecordRead,
     UsageSummaryResponse,
     SubscriptionLifecycleUpdate,
+    UsageReconciliationResponse,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -189,4 +190,45 @@ def usage_summary(
         period_end=subscription.current_period_end,
         usage=usage,
         limits=PLANS[subscription.plan_key]["limits"],
+    )
+
+
+@router.get(
+    "/organizations/{organization_id}/usage/reconciliation",
+    response_model=UsageReconciliationResponse,
+)
+def usage_reconciliation(
+    organization_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> UsageReconciliationResponse:
+    _member(db, user, organization_id)
+    subscription = _subscription(db, organization_id)
+    now = datetime.now(UTC)
+    rows = db.scalars(
+        select(UsageRecord).where(
+            UsageRecord.organization_id == organization_id,
+            UsageRecord.recorded_at >= subscription.current_period_start,
+            UsageRecord.recorded_at < subscription.current_period_end,
+        )
+    ).all()
+    usage: dict[str, float] = {}
+    for row in rows:
+        usage[row.metric] = usage.get(row.metric, 0.0) + row.quantity
+    limits = PLANS[subscription.plan_key]["limits"]
+    exceeded = [
+        metric for metric, limit in limits.items()
+        if limit >= 0 and usage.get(metric, 0.0) > limit
+    ]
+    return UsageReconciliationResponse(
+        organization_id=organization_id,
+        subscription_status=subscription.status,
+        plan_key=subscription.plan_key,
+        period_start=subscription.current_period_start,
+        period_end=subscription.current_period_end,
+        usage=usage,
+        limits=limits,
+        exceeded_metrics=exceeded,
+        inactive=subscription.status != "ACTIVE",
+        period_expired=subscription.current_period_end <= now,
     )
