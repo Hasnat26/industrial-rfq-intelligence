@@ -79,7 +79,7 @@ P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, fai
 
 ## P5 - Commercial SaaS hardening
 
-**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation, P5.2 server-side plan-limit enforcement, P5.3 provider-neutral subscription lifecycle integration, P5.4 billing webhook receipt/idempotency foundation, P5.5 canonical billing-event subscription synchronization, and P5.6 commercial usage reconciliation are implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Actual payment execution remains provider-neutral and requires external billing-provider credentials/configuration; webhook receipts are now authenticated and idempotently persisted.
+**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation, P5.2 server-side plan-limit enforcement, P5.3 provider-neutral subscription lifecycle integration, P5.4 billing webhook receipt/idempotency foundation, P5.5 canonical billing-event subscription synchronization, P5.6 commercial usage reconciliation, and P5.7 deterministic subscription period rollover are implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Actual payment execution remains provider-neutral and requires external billing-provider credentials/configuration; webhook receipts are now authenticated and idempotently persisted.
 
 Deliverables:
 
@@ -95,4 +95,4 @@ Deliverables:
 
 ## Immediate build priority
 
-P0/P1/P2 are implemented, P3 has its first usable historical-memory slice, and P4 now has the core lifecycle event, asset, cost, reliability, warranty, spare, and replacement intelligence layers. P5 has started with commercial entitlement and usage metering; the next revenue-oriented priority is billing/payment integration, subscription lifecycle management, payment-provider execution, full webhook event coverage, observability, automated reconciliation, and production-grade entitlement controls.
+P0/P1/P2 are implemented, P3 has its first usable historical-memory slice, and P4 now has the core lifecycle event, asset, cost, reliability, warranty, spare, and replacement intelligence layers. P5 has started with commercial entitlement and usage metering; the next revenue-oriented priority is billing/payment integration, subscription lifecycle management, payment-provider execution, full webhook event coverage, observability, automated reconciliation, production scheduling, and production-grade entitlement controls.
