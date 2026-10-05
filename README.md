@@ -26,7 +26,7 @@ The deterministic layer now supports numeric equality plus `>=`, `<=`, `>`, `<`,
 - Basic engineering-unit and parameter normalization
 - Commercial-data structuring
 - Evidence registers and claim-status tracking
-- PDF/TXT/Markdown document ingestion with source/page provenance
+- Universal document normalization through MarkItDown with source/page provenance
 - Python CLI and reusable library architecture
 - Automated testing and CI/CD-oriented project structure
 - Engineering/EPC decision-support thinking
@@ -123,13 +123,16 @@ The extraction layer is constrained to explicitly stated engineering facts and e
 
 ## Document ingestion
 
-PDF, TXT, and Markdown documents can be converted into page-aware text:
+The canonical document-normalization layer uses Microsoft's MIT-licensed MarkItDown package to convert supported source documents into Markdown before engineering extraction. PDF pages are normalized independently so the resulting Markdown retains explicit page markers; TXT/Markdown, Word, PowerPoint, Excel, and image inputs can enter through the same normalization boundary.
 
-~~~bash
-industrial-rfq-intelligence industrial-document specification.pdf
+~~~python
+from freellmpool.document_normalizer import normalize_document
+
+normalized = normalize_document("specification.pdf")
+print(normalized.markdown)
 ~~~
 
-PDF extraction preserves source/page provenance. Scanned/image-only PDF pages can be processed through the optional OCR path, which preserves the original PDF page number. Install `pip install 'industrial-rfq-intelligence[ocr]'` and a Tesseract OCR executable, then use `extract_document_pages_with_ocr()` from the Python API. Native PDF text is retained when a page already contains sufficient machine-readable text; OCR is used only for sparse pages.
+The RFQ document-to-LLM ingestion path uses this Markdown normalization layer by default. The legacy page extractor remains available as a deterministic fallback. The separate Tesseract OCR path is retained for deployments that explicitly require local OCR; it is not the canonical parser.
 
 ## Engineering report
 
