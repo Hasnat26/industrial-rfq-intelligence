@@ -79,7 +79,7 @@ P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, fai
 
 ## P5 - Commercial SaaS hardening
 
-**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation is implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Billing/payment execution is intentionally deferred to the billing integration increment.
+**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation and P5.2 server-side plan-limit enforcement are implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Billing/payment execution is intentionally deferred to the billing integration increment.
 
 Deliverables:
 
@@ -95,4 +95,4 @@ Deliverables:
 
 ## Immediate build priority
 
-P0/P1/P2 are implemented, P3 has its first usable historical-memory slice, and P4 now has the core lifecycle event, asset, cost, reliability, warranty, spare, and replacement intelligence layers. P5 has started with commercial entitlement and usage metering; the next revenue-oriented priority is billing/payment integration and enforcement of plan limits.
+P0/P1/P2 are implemented, P3 has its first usable historical-memory slice, and P4 now has the core lifecycle event, asset, cost, reliability, warranty, spare, and replacement intelligence layers. P5 has started with commercial entitlement and usage metering; the next revenue-oriented priority is billing/payment integration, subscription lifecycle management, and production-grade entitlement controls.
