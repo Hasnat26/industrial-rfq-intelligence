@@ -13,16 +13,28 @@ from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscrip
 from freellmpool.api.schemas import CommercialReconciliationResponse
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize SQLite-naive timestamps and aware timestamps to UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def rollover_if_expired(subscription: OrganizationSubscription, now: datetime) -> bool:
-    if subscription.current_period_end > now:
+    now_utc = _as_utc(now)
+    period_start = _as_utc(subscription.current_period_start)
+    period_end = _as_utc(subscription.current_period_end)
+    if period_end > now_utc:
         return False
-    duration = subscription.current_period_end - subscription.current_period_start
+    duration = period_end - period_start
     if duration.total_seconds() <= 0:
         duration = timedelta(days=30)
-    while subscription.current_period_end <= now:
-        subscription.current_period_start = subscription.current_period_end
-        subscription.current_period_end = subscription.current_period_end + duration
-    subscription.updated_at = now
+    while period_end <= now_utc:
+        period_start = period_end
+        period_end = period_end + duration
+    subscription.current_period_start = period_start
+    subscription.current_period_end = period_end
+    subscription.updated_at = now_utc
     return True
 
 
