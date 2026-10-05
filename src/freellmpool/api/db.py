@@ -127,6 +127,21 @@ class ProcurementPackage(Base):
     offers: Mapped[list[VendorOffer]] = relationship(back_populates="package", cascade="all, delete-orphan")
 
 
+class PackageEvaluationSettings(Base):
+    """Customer-controlled technical/commercial weighting for one RFQ package."""
+
+    __tablename__ = "package_evaluation_settings"
+    __table_args__ = (UniqueConstraint("package_id", name="uq_package_evaluation_settings_package"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    technical_weight: Mapped[float] = mapped_column(Float, default=70.0)
+    commercial_weight: Mapped[float] = mapped_column(Float, default=30.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    package: Mapped[ProcurementPackage] = relationship()
+
+
 class Requirement(Base):
     __tablename__ = "requirements"
 
