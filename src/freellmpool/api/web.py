@@ -112,6 +112,25 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;borde
 </div>
 <div class="actions"><button onclick="addOffer()">Add offer</button></div>
 </div>
+<div id="clarificationCard" class="card hidden">
+<h2>Technical clarification & vendor resubmission</h2>
+<p class="small muted">Use this before technical lock. The system identifies missing/unclear requirements or deviations for one vendor, creates an auditable clarification request, and prepares a vendor email. After the vendor responds, upload the revised technical offer as the next revision.</p>
+<div class="grid">
+<div><label>Vendor offer</label><select id="clarificationOffer"></select></div>
+<div><label>Resubmission revision</label><input id="resubmissionRevision" value="R2"></div>
+<div><label>Revised technical offer</label><input id="resubmissionFile" type="file" accept=".pdf,.txt,.md"></div>
+</div>
+<div class="actions">
+<button onclick="prepareClarification()">Prepare clarification</button>
+<button class="secondary" onclick="createClarification()">Create request & audit</button>
+<button class="secondary" onclick="copyClarificationEmail()">Copy email draft</button>
+<button class="secondary" onclick="uploadTechnicalResubmission()">Upload revised technical offer</button>
+</div>
+<div id="clarificationStatus" class="small muted"></div>
+<div id="clarificationGaps" style="margin-top:12px"></div>
+<label>Email subject</label><input id="clarificationSubject" readonly>
+<label>Email draft</label><textarea id="clarificationBody" readonly></textarea>
+</div>
 <div id="claimCard" class="card hidden">
 <h2>Add verified technical claim</h2>
 <div class="grid">
@@ -131,7 +150,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;borde
 <script>
 const $=id=>document.getElementById(id);
 const tokenKey="rfq_token";
-let token=sessionStorage.getItem(tokenKey), currentPackage=null, offers=[], workflow=null, commercial=null, decision=null, engineeringSummary=null, integratedEvaluation=null, weighting=null, audit=[];
+let token=sessionStorage.getItem(tokenKey), currentPackage=null, offers=[], workflow=null, commercial=null, decision=null, engineeringSummary=null, integratedEvaluation=null, weighting=null, audit=[], clarificationPackage=null;
 
 function headers(json=true){const h={};if(token)h.Authorization="Bearer "+token;if(json)h["Content-Type"]="application/json";return h}
 async function api(path,opt={}){
@@ -151,8 +170,8 @@ async function loadProjects(){const oid=$("org").value;if(!oid)return;try{const 
 async function createProject(){const oid=Number($("org").value);if(!oid)return;const name=prompt("Project name");if(!name)return;const code=prompt("Project code (optional)")||null;try{await api("/projects",{method:"POST",body:JSON.stringify({organization_id:oid,name,code})});await loadProjects();toast("Project created")}catch(e){toast(e.message,true)}}
 async function loadPackages(){const pid=$("project").value;if(!pid)return;try{const r=await api("/packages?project_id="+pid);const xs=await r.json();$("package").innerHTML=xs.map(x=>'<option value="'+x.id+'">'+esc(x.name)+" — "+esc(x.category)+'</option>').join("");if(xs.length)await loadReview();else clearReview()}catch(e){toast(e.message,true)}}
 async function createPackage(){const pid=Number($("project").value);if(!pid)return toast("Create a project first",true);const name=prompt("Package name");if(!name)return;const category=(prompt("Category: MOTOR, VFD, PLC, INSTRUMENTATION, VALVE or SWITCHGEAR","MOTOR")||"MOTOR").toUpperCase();const mode=(prompt("Mode: STANDARD or PROJECT_EPC","PROJECT_EPC")||"PROJECT_EPC").toUpperCase();const raw=prompt('Requirements JSON, e.g. [{"tag":"R-01","parameter":"Rated voltage","required_value":"415 V"}]','[{"tag":"R-01","parameter":"Rated voltage","required_value":"415 V"}]');let requirements=[];try{requirements=JSON.parse(raw||"[]")}catch{return toast("Invalid requirements JSON",true)}try{await api("/packages",{method:"POST",body:JSON.stringify({project_id:pid,name,category,mode,requirements})});await loadPackages();toast("Package created")}catch(e){toast(e.message,true)}}
-function clearReview(){workflow=null;commercial=null;decision=null;engineeringSummary=null;integratedEvaluation=null;weighting=null;audit=[];$("epcCard").classList.add("hidden");$("review").innerHTML='<h2>Review</h2><p class="muted">Select a procurement package.</p>';$("actions").classList.add("hidden");$("weightingCard").classList.add("hidden");$("offerCard").classList.add("hidden");$("batchCard").classList.add("hidden");$("claimCard").classList.add("hidden");$("gate").textContent="Select a procurement package."}
-async function loadReview(){const id=$("package").value;if(!id)return clearReview();try{const [p,c,e,o,w,a,s,i,z]=await Promise.all([api("/packages/"+id+"/rfq"),api("/packages/"+id+"/comparison"),api("/packages/"+id+"/evidence"),api("/packages/"+id+"/offers"),api("/packages/"+id+"/workflow"),api("/packages/"+id+"/audit"),api("/packages/"+id+"/engineering-decision-summary"),api("/packages/"+id+"/integrated-evaluation"),api("/packages/"+id+"/evaluation-weighting")]);const rfq=await p.json(),cmp=await c.json(),ev=await e.json();offers=await o.json();workflow=await w.json();audit=await a.json();engineeringSummary=await s.json();integratedEvaluation=await i.json();weighting=await z.json();commercial=null;decision=null;if(cmp.commercial_open){try{commercial=await (await api("/packages/"+id+"/commercial-comparison")).json()}catch{}}try{decision=await (await api("/packages/"+id+"/decision")).json()}catch{}currentPackage={rfq,cmp,ev};renderReview();renderWeighting();renderOffers();renderEpc();$("actions").classList.remove("hidden");$("weightingCard").classList.remove("hidden");$("offerCard").classList.remove("hidden");$("batchCard").classList.remove("hidden");$("claimCard").classList.remove("hidden");$("epcCard").classList.remove("hidden");$("lockBtn").disabled=cmp.technical_locked;$("openBtn").disabled=!cmp.technical_locked||cmp.commercial_open;$("gate").innerHTML=(cmp.technical_locked?"Technical bid locked":"Technical bid open")+" · "+(cmp.commercial_open?"Commercial evaluation open":"Commercial evaluation locked");}catch(e){toast(e.message,true)}}
+function clearReview(){workflow=null;commercial=null;decision=null;engineeringSummary=null;integratedEvaluation=null;weighting=null;audit=[];$("epcCard").classList.add("hidden");$("review").innerHTML='<h2>Review</h2><p class="muted">Select a procurement package.</p>';$("actions").classList.add("hidden");$("weightingCard").classList.add("hidden");$("offerCard").classList.add("hidden");$("batchCard").classList.add("hidden");$("claimCard").classList.add("hidden");$("clarificationCard").classList.add("hidden");clarificationPackage=null;$("gate").textContent="Select a procurement package."}
+async function loadReview(){const id=$("package").value;if(!id)return clearReview();try{const [p,c,e,o,w,a,s,i,z]=await Promise.all([api("/packages/"+id+"/rfq"),api("/packages/"+id+"/comparison"),api("/packages/"+id+"/evidence"),api("/packages/"+id+"/offers"),api("/packages/"+id+"/workflow"),api("/packages/"+id+"/audit"),api("/packages/"+id+"/engineering-decision-summary"),api("/packages/"+id+"/integrated-evaluation"),api("/packages/"+id+"/evaluation-weighting")]);const rfq=await p.json(),cmp=await c.json(),ev=await e.json();offers=await o.json();workflow=await w.json();audit=await a.json();engineeringSummary=await s.json();integratedEvaluation=await i.json();weighting=await z.json();commercial=null;decision=null;if(cmp.commercial_open){try{commercial=await (await api("/packages/"+id+"/commercial-comparison")).json()}catch{}}try{decision=await (await api("/packages/"+id+"/decision")).json()}catch{}currentPackage={rfq,cmp,ev};renderReview();renderWeighting();renderOffers();renderEpc();$("actions").classList.remove("hidden");$("weightingCard").classList.remove("hidden");$("offerCard").classList.remove("hidden");$("batchCard").classList.remove("hidden");$("claimCard").classList.remove("hidden");$("clarificationCard").classList.remove("hidden");$("epcCard").classList.remove("hidden");$("lockBtn").disabled=cmp.technical_locked;$("openBtn").disabled=!cmp.technical_locked||cmp.commercial_open;$("gate").innerHTML=(cmp.technical_locked?"Technical bid locked":"Technical bid open")+" · "+(cmp.commercial_open?"Commercial evaluation open":"Commercial evaluation locked");}catch(e){toast(e.message,true)}}
 function renderWeighting(){
   if(!weighting)return;
   $("technicalWeight").value=weighting.technical_weight;
@@ -180,6 +199,67 @@ function renderIntegratedEvaluation(){if(!integratedEvaluation)return "";const x
 function renderReview(){const {rfq,cmp,ev}=currentPackage;const rows=cmp.rows;const counts={COMPLIANT:0,DEVIATION:0,UNVERIFIED:0};rows.forEach(x=>counts[x.status]=(counts[x.status]||0)+1);let summaryHtml="";if(engineeringSummary){summaryHtml='<h3>Engineering decision summary</h3><div class="notice"><b>'+badge(engineeringSummary.status)+'</b><ul>'+engineeringSummary.decision_basis.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div><div style="overflow:auto"><table><thead><tr><th>Vendor</th><th>Disposition</th><th>Score</th><th>Evidence</th><th>Compliant</th><th>Deviation</th><th>Major</th><th>Conflict</th><th>Missing</th></tr></thead><tbody>'+engineeringSummary.vendor_profiles.map(x=>'<tr><td>'+esc(x.vendor)+'</td><td>'+badge(x.disposition)+'</td><td>'+x.technical_score.toFixed(2)+'</td><td>'+x.evidence_coverage_pct.toFixed(2)+'%</td><td>'+x.compliant_count+'</td><td>'+x.deviation_count+'</td><td>'+x.major_deviation_count+'</td><td>'+x.conflict_count+'</td><td>'+x.missing_evidence_count+'</td></tr>').join("")+'</tbody></table></div>'+(engineeringSummary.review_actions.length?'<p class="small"><b>Required review:</b> '+engineeringSummary.review_actions.map(x=>esc(x)).join(" · ")+'</p>':'');}$("review").innerHTML='<h2>'+esc(rfq.title)+'</h2><p class="muted">'+esc(rfq.category)+' · '+esc(rfq.mode)+' · Package '+rfq.package_id+'</p><div class="grid"><div class="card"><b>Requirements</b><div>'+rfq.requirements.length+'</div></div><div class="card"><b>Compliant</b><div>'+counts.COMPLIANT+'</div></div><div class="card"><b>Deviations</b><div>'+counts.DEVIATION+'</div></div><div class="card"><b>Evidence rows</b><div>'+ev.rows.length+'</div></div></div>'+summaryHtml+renderIntegratedEvaluation()+'<h3>Technical compliance matrix</h3><div style="overflow:auto"><table><thead><tr><th>Vendor</th><th>Parameter</th><th>Required</th><th>Offered</th><th>Status</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.vendor)+'</td><td>'+esc(x.parameter)+'</td><td>'+esc(x.required)+'</td><td>'+esc(x.offered||"—")+'</td><td>'+badge(x.status)+'</td></tr>').join("")+'</tbody></table></div><h3 style="margin-top:20px">Evidence register</h3><div style="overflow:auto"><table><thead><tr><th>Vendor</th><th>Field</th><th>Value</th><th>Status</th><th>Source</th></tr></thead><tbody>'+ev.rows.map(x=>'<tr><td>'+esc(x.vendor)+'</td><td>'+esc(x.field)+'</td><td>'+esc(x.value)+'</td><td>'+badge(x.claim_status)+'</td><td>'+esc(x.source||"—")+(x.page?" p."+x.page:"")+'</td></tr>').join("")+'</tbody></table></div>'}
 
 function renderOffers(){$("claimOffer").innerHTML=offers.map(x=>'<option value="'+x.id+'">'+esc(x.vendor_name)+' · '+esc(x.technical_revision)+'</option>').join("")}
+function renderClarificationPackage(){
+  const x=clarificationPackage;
+  if(!x)return;
+  $("clarificationSubject").value=x.subject||"";
+  $("clarificationBody").value=x.body||"";
+  $("clarificationGaps").innerHTML=x.gaps.length
+    ? '<h3>Items to clarify</h3><div style="overflow:auto"><table><thead><tr><th>Parameter</th><th>Required</th><th>Vendor offer</th><th>Status</th><th>Required action</th></tr></thead><tbody>'+
+      x.gaps.map(g=>'<tr><td>'+esc(g.parameter)+'</td><td>'+esc(g.required)+'</td><td>'+esc(g.offered||"Not stated / no verifiable evidence")+'</td><td>'+badge(g.status)+'</td><td>'+esc(g.request)+'</td></tr>').join("")+
+      '</tbody></table></div>'
+    : '<div class="notice">No technical clarification is required for this offer.</div>';
+}
+async function prepareClarification(){
+  const id=$("clarificationOffer").value;
+  if(!id)return toast("Select a vendor offer first",true);
+  try{
+    clarificationPackage=await (await api("/offers/"+id+"/technical-clarification-package")).json();
+    renderClarificationPackage();
+    $("clarificationStatus").textContent="Preview generated from the current technical comparison. No clarification record has been created yet.";
+  }catch(e){clarificationPackage=null;$("clarificationStatus").textContent="";$("clarificationGaps").innerHTML="";toast(e.message,true)}
+}
+async function createClarification(){
+  const id=$("clarificationOffer").value;
+  if(!id)return toast("Select a vendor offer first",true);
+  try{
+    clarificationPackage=await (await api("/offers/"+id+"/technical-clarification-request",{method:"POST"})).json();
+    renderClarificationPackage();
+    $("clarificationStatus").textContent="Clarification request created and linked to the vendor offer. Technical status is now CLARIFICATION_REQUIRED.";
+    await loadReview();
+    toast("Technical clarification request created");
+  }catch(e){toast(e.message,true)}
+}
+async function copyClarificationEmail(){
+  if(!clarificationPackage)await prepareClarification();
+  if(!clarificationPackage)return;
+  const text="Subject: "+clarificationPackage.subject+"\\n\\n"+clarificationPackage.body;
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("Email draft copied to clipboard");
+  }catch{
+    $("clarificationBody").focus();
+    $("clarificationBody").select();
+    toast("Clipboard access was unavailable; email body is selected for copying",true);
+  }
+}
+async function uploadTechnicalResubmission(){
+  const id=$("clarificationOffer").value, file=$("resubmissionFile").files[0];
+  const revision=$("resubmissionRevision").value.trim();
+  if(!id)return toast("Select a vendor offer first",true);
+  if(!file)return toast("Select the revised technical offer file",true);
+  if(!revision)return toast("Enter the new technical revision",true);
+  const form=new FormData();
+  form.append("technical_revision",revision);
+  form.append("file",file);
+  try{
+    await api("/offers/"+id+"/technical-resubmission",{method:"POST",body:form});
+    $("resubmissionFile").value="";
+    await loadReview();
+    toast("Revised technical offer uploaded and analyzed");
+  }catch(e){toast(e.message,true)}
+}
+
 async function uploadBatch(){
   const id=$("package").value, files=[...$("batchFiles").files];
   const vendors=$("batchVendors").value.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
