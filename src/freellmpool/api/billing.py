@@ -12,9 +12,13 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.db import User, get_db
-from sqlalchemy import select
-
+from freellmpool.api.db import (
+    BillingWebhookEvent,
+    OrganizationSubscription,
+    SessionLocal,
+    User,
+    get_db,
+)
 from freellmpool.api.schemas import BillingWebhookEventRead
 
 from freellmpool.api.db import BillingWebhookEvent, OrganizationSubscription, SessionLocal
