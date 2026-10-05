@@ -1395,6 +1395,43 @@ def resolve_deviation(
 
 
 @app.post(
+    "/clarifications/{clarification_id}/answer",
+    response_model=TechnicalClarificationRead,
+)
+def answer_clarification(
+    clarification_id: int,
+    payload: TechnicalClarificationCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TechnicalClarification:
+    clarification = db.get(TechnicalClarification, clarification_id)
+    if (
+        clarification is None
+        or not is_member(
+            db, user.id, clarification.offer.package.project.organization_id
+        )
+    ):
+        raise HTTPException(status_code=404, detail="clarification not found")
+    if clarification.offer.package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
+    if clarification.status == "CLOSED":
+        raise HTTPException(status_code=409, detail="clarification is already closed")
+    if clarification.status != "OPEN":
+        raise HTTPException(
+            status_code=409,
+            detail="clarification must be OPEN before it can be answered",
+        )
+    response = (payload.response or "").strip()
+    if not response:
+        raise HTTPException(status_code=422, detail="response must not be empty")
+    clarification.response = response
+    clarification.status = "ANSWERED"
+    db.commit()
+    db.refresh(clarification)
+    return clarification
+
+
+@app.post(
     "/clarifications/{clarification_id}/close",
     response_model=TechnicalClarificationRead,
 )
