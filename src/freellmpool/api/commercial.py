@@ -229,6 +229,8 @@ def usage_reconciliation(
         metric for metric, limit in limits.items()
         if limit >= 0 and usage.get(metric, 0.0) > limit
     ]
+    unknown_metrics = sorted(set(usage) - set(limits))
+    negative_usage_metrics = sorted(metric for metric, quantity in usage.items() if quantity < 0)
     return UsageReconciliationResponse(
         organization_id=organization_id,
         subscription_status=subscription.status,
@@ -240,6 +242,8 @@ def usage_reconciliation(
         exceeded_metrics=exceeded,
         inactive=subscription.status != "ACTIVE",
         period_expired=subscription.current_period_end <= now,
+        unknown_metrics=unknown_metrics,
+        negative_usage_metrics=negative_usage_metrics,
     )
 
 
