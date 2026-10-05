@@ -18,6 +18,7 @@ from freellmpool.api.schemas import (
     UsageSummaryResponse,
     SubscriptionLifecycleUpdate,
     UsageReconciliationResponse,
+    SubscriptionRolloverResponse,
 )
 
 router = APIRouter(tags=["commercial"])
@@ -231,4 +232,48 @@ def usage_reconciliation(
         exceeded_metrics=exceeded,
         inactive=subscription.status != "ACTIVE",
         period_expired=subscription.current_period_end <= now,
+    )
+
+
+def _rollover_if_expired(db: Session, subscription: OrganizationSubscription, now: datetime) -> bool:
+    if subscription.current_period_end > now:
+        return False
+    period_start = subscription.current_period_start
+    period_end = subscription.current_period_end
+    duration = period_end - period_start
+    if duration.total_seconds() <= 0:
+        duration = timedelta(days=30)
+    while subscription.current_period_end <= now:
+        subscription.current_period_start = subscription.current_period_end
+        subscription.current_period_end = subscription.current_period_end + duration
+    subscription.updated_at = now
+    return True
+
+
+@router.post(
+    "/organizations/{organization_id}/subscription/rollover",
+    response_model=SubscriptionRolloverResponse,
+)
+def rollover_subscription(
+    organization_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> SubscriptionRolloverResponse:
+    _member(db, user, organization_id)
+    subscription = _subscription(db, organization_id)
+    previous_start = subscription.current_period_start
+    previous_end = subscription.current_period_end
+    rolled_over = _rollover_if_expired(db, subscription, datetime.now(UTC))
+    if rolled_over:
+        db.commit()
+        db.refresh(subscription)
+    return SubscriptionRolloverResponse(
+        organization_id=organization_id,
+        rolled_over=rolled_over,
+        previous_period_start=previous_start,
+        previous_period_end=previous_end,
+        current_period_start=subscription.current_period_start,
+        current_period_end=subscription.current_period_end,
+        status=subscription.status,
+        plan_key=subscription.plan_key,
     )
