@@ -467,3 +467,42 @@ def test_procurement_offer_mutations_are_audited() -> None:
         or item["offer_id"] in {offer["id"], revision_offer["id"]}
         for item in events
     )
+
+def test_batch_quotation_ingestion_is_audited() -> None:
+    organization = client.post("/organizations", json={"name": "Batch Audit Org"}).json()
+    project = client.post(
+        "/projects", json={"organization_id": organization["id"], "name": "Project"}
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Batch Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+
+    response = client.post(
+        f"/packages/{package['id']}/quotations/batch",
+        data={
+            "entries": '[{"vendor_name":"Vendor A","technical_revision":"R1"},'
+            '{"vendor_name":"Vendor B","technical_revision":"R1"}]'
+        },
+        files=[
+            ("files", ("a.txt", b"Vendor A offer", "text/plain")),
+            ("files", ("b.txt", b"Vendor B offer", "text/plain")),
+        ],
+    )
+    assert response.status_code == 201, response.text
+
+    events = client.get(f"/packages/{package['id']}/audit").json()
+    batch_events = [item for item in events if item["event_type"] == "QUOTATION_BATCH_INGESTED"]
+    assert len(batch_events) == 1
+    assert batch_events[0]["package_id"] == package["id"]
+    assert batch_events[0]["offer_id"] is None
+    assert batch_events[0]["to_status"] == "2"
+    assert "Vendor A revision R1" in batch_events[0]["note"]
+    assert "Vendor B revision R1" in batch_events[0]["note"]
