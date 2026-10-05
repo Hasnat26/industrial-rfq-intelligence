@@ -117,6 +117,9 @@ class ProcurementPackage(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    current_rfq_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(250))
     category: Mapped[str] = mapped_column(String(100), index=True)
     mode: Mapped[str] = mapped_column(String(30))
@@ -124,6 +127,11 @@ class ProcurementPackage(Base):
     commercial_evaluation_open: Mapped[bool] = mapped_column(Boolean, default=False)
     project: Mapped[Project] = relationship(back_populates="packages")
     requirements: Mapped[list[Requirement]] = relationship(back_populates="package", cascade="all, delete-orphan")
+    rfq_revisions: Mapped[list[RfqRevision]] = relationship(
+        back_populates="package",
+        foreign_keys="RfqRevision.package_id",
+        cascade="all, delete-orphan",
+    )
     offers: Mapped[list[VendorOffer]] = relationship(back_populates="package", cascade="all, delete-orphan")
 
 
@@ -142,17 +150,61 @@ class PackageEvaluationSettings(Base):
     package: Mapped[ProcurementPackage] = relationship()
 
 
+class RfqRevision(Base):
+    """Immutable customer RFQ baseline revision for technical evaluation."""
+
+    __tablename__ = "rfq_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "package_id",
+            "revision",
+            name="uq_rfq_revisions_package_revision",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    revision: Mapped[str] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(30), default="CURRENT")
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    supersedes_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+    )
+
+    package: Mapped[ProcurementPackage] = relationship(
+        back_populates="rfq_revisions",
+        foreign_keys=[package_id],
+    )
+    supersedes_revision: Mapped[RfqRevision | None] = relationship(
+        remote_side="RfqRevision.id",
+        foreign_keys=[supersedes_revision_id],
+    )
+    requirements: Mapped[list[Requirement]] = relationship(
+        back_populates="rfq_revision",
+        cascade="all, delete-orphan",
+    )
+    offers: Mapped[list[VendorOffer]] = relationship(back_populates="rfq_revision")
+
+
 class Requirement(Base):
     __tablename__ = "requirements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    rfq_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+    )
     tag: Mapped[str] = mapped_column(String(100))
     parameter: Mapped[str] = mapped_column(String(200))
     required_value: Mapped[str] = mapped_column(String(250))
     requirement_type: Mapped[str] = mapped_column(String(30), default="MANDATORY")
     acceptance_rule: Mapped[str | None] = mapped_column(String(500), nullable=True)
     package: Mapped[ProcurementPackage] = relationship(back_populates="requirements")
+    rfq_revision: Mapped[RfqRevision | None] = relationship(back_populates="requirements")
 
 
 class VendorClaim(Base):
@@ -188,6 +240,9 @@ class VendorOffer(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    rfq_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+    )
     parent_offer_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_offers.id"), nullable=True, index=True)
     vendor_name: Mapped[str] = mapped_column(String(200))
     manufacturer: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
@@ -203,6 +258,7 @@ class VendorOffer(Base):
     warranty: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     package: Mapped[ProcurementPackage] = relationship(back_populates="offers")
+    rfq_revision: Mapped[RfqRevision | None] = relationship(back_populates="offers")
     parent_offer: Mapped[VendorOffer | None] = relationship(
         remote_side="VendorOffer.id", back_populates="revisions"
     )

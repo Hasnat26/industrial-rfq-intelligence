@@ -20,6 +20,7 @@ EXPECTED_TABLES = {
     "organization_memberships",
     "projects",
     "procurement_packages",
+    "rfq_revisions",
     "requirements",
     "vendor_offers",
     "technical_clarifications",
