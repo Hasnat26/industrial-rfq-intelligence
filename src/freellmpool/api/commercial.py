@@ -39,6 +39,30 @@ PLANS = {
 }
 
 
+
+def _usage_total(db: Session, organization_id: int, metric: str, subscription: OrganizationSubscription) -> float:
+    rows = db.scalars(
+        select(UsageRecord).where(
+            UsageRecord.organization_id == organization_id,
+            UsageRecord.metric == metric,
+            UsageRecord.recorded_at >= subscription.current_period_start,
+            UsageRecord.recorded_at < subscription.current_period_end,
+        )
+    ).all()
+    return sum(row.quantity for row in rows)
+
+
+def enforce_limit(db: Session, organization_id: int, metric: str, quantity: float = 1.0) -> None:
+    subscription = _subscription(db, organization_id)
+    if subscription.status != "ACTIVE":
+        raise HTTPException(status_code=402, detail="subscription is not active")
+    limit = PLANS[subscription.plan_key]["limits"].get(metric)
+    if limit is None or limit < 0:
+        return
+    if _usage_total(db, organization_id, metric, subscription) + quantity > limit:
+        raise HTTPException(status_code=429, detail=f"{metric} plan limit exceeded")
+
+
 def _member(db: Session, user: User, organization_id: int) -> None:
     if not is_member(db, user.id, organization_id):
         raise HTTPException(status_code=404, detail="organization not found")
@@ -96,6 +120,7 @@ def record_usage(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> UsageRecord:
     _member(db, user, organization_id)
+    enforce_limit(db, organization_id, payload.metric, payload.quantity)
     db.add(UsageRecord(organization_id=organization_id, **payload.model_dump()))
     db.commit()
     record = db.scalar(select(UsageRecord).where(UsageRecord.organization_id == organization_id).order_by(UsageRecord.id.desc()))
