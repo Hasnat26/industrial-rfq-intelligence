@@ -353,7 +353,7 @@ def test_rfq_revision_supersedes_old_baseline_and_reanchors_evaluation() -> None
     )
     assert stale_clarification.status_code == 409
     stale_revision = client.post(
-        f"/offers/{offer['id']}/technical-revision",
+        f"/offers/{offer['id']}/revisions",
         json={"technical_revision": "R2", "source_text": "stale resubmission"},
     )
     assert stale_revision.status_code == 409
