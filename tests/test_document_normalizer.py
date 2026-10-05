@@ -28,23 +28,52 @@ def test_markitdown_normalizes_pdf_with_page_provenance(tmp_path: Path) -> None:
     with source.open("wb") as handle:
         writer.write(handle)
 
-    result = normalize_document(source)
+    result = normalize_document(source, ocr_fallback=False)
 
     assert result.page_count == 2
     assert result.source == str(source)
     assert result.markdown == ""
 
 
-def test_markitdown_supports_image_inputs_without_changing_provenance(tmp_path: Path) -> None:
+def test_scanned_pdf_uses_ocr_fallback_with_page_provenance(tmp_path: Path, monkeypatch) -> None:
+    from pypdf import PdfWriter
+
+    source = tmp_path / "scanned.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    with source.open("wb") as handle:
+        writer.write(handle)
+
+    monkeypatch.setattr(
+        "freellmpool.document_normalizer._ocr_pdf_page",
+        lambda document, page_number, *, language: "Rated voltage: 415 V",
+    )
+
+    result = normalize_document(source)
+
+    assert result.page_count == 1
+    assert "## Page 1" in result.markdown
+    assert "Rated voltage: 415 V" in result.markdown
+
+
+def test_image_input_uses_ocr_fallback_when_markitdown_is_sparse(
+    tmp_path: Path, monkeypatch
+) -> None:
     from PIL import Image
 
     source = tmp_path / "plate.png"
     Image.new("RGB", (20, 20), "white").save(source)
 
+    monkeypatch.setattr(
+        "freellmpool.document_normalizer._ocr_image",
+        lambda image, *, language: "Motor power: 75 kW",
+    )
+
     result = normalize_document(source)
 
     assert result.source == str(source)
     assert result.page_count == 1
+    assert "Motor power: 75 kW" in result.markdown
 
 
 def test_markitdown_is_canonical_for_local_rfq_llm_ingestion(tmp_path: Path) -> None:
