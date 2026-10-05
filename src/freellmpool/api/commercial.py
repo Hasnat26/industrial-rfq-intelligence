@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
-from freellmpool.api.reconciliation import run_commercial_reconciliation
+from freellmpool.api.reconciliation import rollover_if_expired, run_commercial_reconciliation
 from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscription, UsageRecord, User, get_db
 from freellmpool.api.schemas import (
     OrganizationSubscriptionRead,
@@ -84,7 +84,7 @@ def _subscription(db: Session, organization_id: int) -> OrganizationSubscription
         )
     )
     if subscription is not None:
-        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and _rollover_if_expired(db, subscription, datetime.now(UTC)):
+        if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"} and rollover_if_expired(subscription, datetime.now(UTC)):
             db.commit()
             db.refresh(subscription)
         return subscription
@@ -248,21 +248,6 @@ def usage_reconciliation(
         unknown_metrics=unknown_metrics,
         negative_usage_metrics=negative_usage_metrics,
     )
-
-
-def _rollover_if_expired(db: Session, subscription: OrganizationSubscription, now: datetime) -> bool:
-    if subscription.current_period_end > now:
-        return False
-    period_start = subscription.current_period_start
-    period_end = subscription.current_period_end
-    duration = period_end - period_start
-    if duration.total_seconds() <= 0:
-        duration = timedelta(days=30)
-    while subscription.current_period_end <= now:
-        subscription.current_period_start = subscription.current_period_end
-        subscription.current_period_end = subscription.current_period_end + duration
-    subscription.updated_at = now
-    return True
 
 
 @router.post(
