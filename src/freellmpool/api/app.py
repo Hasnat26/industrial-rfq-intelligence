@@ -138,6 +138,13 @@ def _claim_status(value: str) -> ClaimStatus:
     return CLAIM_STATUSES.get(value, "UNVERIFIED")
 
 
+def _require_current_rfq_offer(package: ProcurementPackage, offer: VendorOffer) -> None:
+    if package.current_rfq_revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    if offer.rfq_revision_id != package.current_rfq_revision_id:
+        raise HTTPException(status_code=409, detail="offer belongs to a superseded RFQ revision")
+
+
 def _require_technical_stage_open(package: ProcurementPackage) -> None:
     """Reject writes that would mutate a frozen technical evaluation stage."""
     if package.technical_bid_locked:
@@ -1446,6 +1453,7 @@ def add_clarification(
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
+    _require_current_rfq_offer(offer.package, offer)
     clarification_status = payload.status.strip().upper()
     if clarification_status not in {"OPEN", "ANSWERED"}:
         raise HTTPException(
@@ -1457,6 +1465,9 @@ def add_clarification(
         )
     if offer.package.current_rfq_revision_id is None:
         raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+
+    if clarification_status == "ANSWERED" and not (payload.response or "").strip():
+        raise HTTPException(status_code=422, detail="response must not be empty")
     clarification = TechnicalClarification(
         offer_id=offer_id,
         rfq_revision_id=offer.package.current_rfq_revision_id,
