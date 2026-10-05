@@ -89,6 +89,7 @@ from freellmpool.industrial import (
     build_matrix,
     build_report,
     document_text,
+    extract_claim_candidates,
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
@@ -150,6 +151,36 @@ def _safe_filename(raw: str | None) -> str:
     if len(name) > 255:
         raise HTTPException(status_code=422, detail="filename must be at most 255 characters")
     return name
+
+
+def _auto_create_document_claims(
+    db: Session,
+    offer: VendorOffer,
+    document: VendorDocument,
+    pages: list[DocumentPage],
+) -> int:
+    """Create deterministic, provenance-backed claims from explicit quotation fields."""
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in offer.package.requirements
+    ]
+    candidates = extract_claim_candidates(pages, requirements)
+    for candidate in candidates:
+        db.add(
+            VendorClaim(
+                offer_id=offer.id,
+                parameter=candidate.parameter,
+                value=candidate.value,
+                evidence=candidate.evidence,
+                claim_status="VERIFIED",
+                source_document_id=document.id,
+                source_page=candidate.page,
+                source_section=candidate.section,
+                source_table=candidate.table,
+                source_cell=candidate.cell,
+            )
+        )
+    return len(candidates)
 
 
 def _extract_upload_pages(path: Path, filename: str) -> list[DocumentPage]:
@@ -771,6 +802,11 @@ async def batch_ingest_quotations(
         offers.append(offer)
         documents.append(document)
         db.add(offer)
+    db.flush()
+    for offer, document, prepared_item in zip(
+        offers, documents, prepared, strict=True
+    ):
+        _auto_create_document_claims(db, offer, document, prepared_item[3])
     try:
         db.commit()
     except IntegrityError as exc:
@@ -1086,6 +1122,8 @@ async def upload_offer_document(
         VendorDocumentPage(page_number=page.page, text=page.text) for page in pages
     ]
     db.add(document)
+    db.flush()
+    _auto_create_document_claims(db, offer, document, pages)
     db.commit()
     db.refresh(document)
     return document
