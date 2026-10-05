@@ -117,7 +117,7 @@ async def receive_billing_webhook(
     try:
         existing = db.scalar(
             select(BillingWebhookEvent).where(
-                BillingWebhookEvent.provider == provider,
+                BillingWebhookEvent.provider == provider.upper(),
                 BillingWebhookEvent.external_event_id == external_event_id,
             )
         )
