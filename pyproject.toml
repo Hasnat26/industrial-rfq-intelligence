@@ -50,7 +50,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "uvicorn>=0.30",
     "python-multipart>=0.0.20",
-    "markitdown==0.1.8",
+    "markitdown[pdf,docx,pptx,xlsx]==0.1.8",
 ]
 
 [project.urls]
