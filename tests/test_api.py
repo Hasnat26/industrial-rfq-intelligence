@@ -84,9 +84,6 @@ def test_project_epc_gate() -> None:
         },
     )
     assert claim.status_code == 201
-    evidence = client.get(f"/packages/{package['id']}/evidence")
-    assert evidence.status_code == 200
-    assert evidence.json()["rows"] == []
     comparison = client.get(f"/packages/{package['id']}/comparison")
     assert comparison.status_code == 200
     assert comparison.json()["rows"][0]["status"] == "COMPLIANT"
@@ -257,6 +254,9 @@ def test_batch_quotation_missing_or_ambiguous_field_remains_unverified() -> None
         )],
     )
     assert response.status_code == 201, response.text
+    evidence = client.get(f"/packages/{package['id']}/evidence")
+    assert evidence.status_code == 200
+    assert evidence.json()["rows"] == []
     comparison = client.get(f"/packages/{package['id']}/comparison")
     assert comparison.status_code == 200
     assert comparison.json()["rows"][0]["status"] == "UNVERIFIED"
