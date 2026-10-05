@@ -223,7 +223,7 @@ def test_technical_lock_requires_current_rfq_offer() -> None:
             ],
         },
     ).json()
-    offer = client.post(
+    client.post(
         f"/packages/{package['id']}/offers",
         json={"vendor_name": "Vendor A", "technical_revision": "R1"},
     ).json()
@@ -261,7 +261,7 @@ def test_workflow_counts_only_current_rfq_offers() -> None:
             ],
         },
     ).json()
-    offer = client.post(
+    client.post(
         f"/packages/{package['id']}/offers",
         json={"vendor_name": "Vendor A", "technical_revision": "R1"},
     ).json()
