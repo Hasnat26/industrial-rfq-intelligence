@@ -1422,7 +1422,7 @@ def answer_clarification(
             status_code=409,
             detail="clarification must be OPEN before it can be answered",
         )
-    response = (payload.response or "").strip()
+    response = payload.response.strip()
     if not response:
         raise HTTPException(status_code=422, detail="response must not be empty")
     clarification.response = response
