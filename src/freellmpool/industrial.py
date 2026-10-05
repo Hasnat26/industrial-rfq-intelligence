@@ -572,6 +572,7 @@ def _has_conflicting_values(items: Sequence[VendorValue]) -> bool:
 def build_matrix(
     requirements: Sequence[Requirement] | None = None,
     vendor_data: Sequence[VendorValue] | None = None,
+    vendors: Sequence[str] | None = None,
 ) -> list[dict[str, str]]:
     """Build a deterministic vendor-major requirement compliance matrix.
 
@@ -580,10 +581,12 @@ def build_matrix(
     """
     reqs = _normalise_requirements(requirements)
     values = _normalise_vendor_data(vendor_data)
-    vendors = tuple(dict.fromkeys(item.vendor for item in values))
+    vendor_names = [item.vendor for item in values]
+    vendor_names.extend(vendor for vendor in (vendors or ()) if vendor.strip())
+    vendor_universe = tuple(dict.fromkeys(vendor_names))
     rows: list[dict[str, str]] = []
 
-    for vendor in vendors:
+    for vendor in vendor_universe:
         for req in reqs:
             matches = _matching_vendor_values(values, vendor, req.parameter)
             item = matches[0] if matches else None
