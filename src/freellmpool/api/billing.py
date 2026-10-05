@@ -45,7 +45,7 @@ def _subscription_from_event(db: Session, payload: dict[str, object], provider: 
 
     subscription = db.scalar(
         select(OrganizationSubscription).where(
-            OrganizationSubscription.organization_id == organization_id
+            OrganizationSubscription.organization_id == normalized_organization_id
         )
     )
     if subscription is None:
