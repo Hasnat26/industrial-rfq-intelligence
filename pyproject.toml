@@ -50,6 +50,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "uvicorn>=0.30",
     "python-multipart>=0.0.20",
+    "markitdown==0.1.8",
 ]
 
 [project.urls]
@@ -58,6 +59,9 @@ Repository = "https://github.com/Hasnat26/industrial-rfq-intelligence"
 Issues = "https://github.com/Hasnat26/industrial-rfq-intelligence/issues"
 
 [project.optional-dependencies]
+documents = [
+    "markitdown==0.1.8",
+]
 ocr = [
     "Pillow>=10.0",
     "PyMuPDF>=1.24",
