@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import TypedDict
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
@@ -17,7 +18,10 @@ from freellmpool.api.db import (
     User,
     get_db,
 )
-from freellmpool.api.reconciliation import rollover_if_expired, run_commercial_reconciliation
+from freellmpool.api.reconciliation import (
+    rollover_if_expired,
+    run_commercial_reconciliation,
+)
 from freellmpool.api.schemas import (
     CommercialReconciliationHealthResponse,
     CommercialReconciliationResponse,
@@ -31,6 +35,7 @@ from freellmpool.api.schemas import (
     UsageRecordRead,
     UsageSummaryResponse,
 )
+
 
 class PlanConfig(TypedDict):
     name: str
@@ -276,7 +281,7 @@ def rollover_subscription(
     previous_end = subscription.current_period_end
     rolled_over = False
     if subscription.status in {"ACTIVE", "TRIALING", "PAST_DUE"}:
-        rolled_over = rollover_if_expired(db, subscription, datetime.now(UTC))
+        rolled_over = rollover_if_expired(subscription, datetime.now(UTC))
     if rolled_over:
         db.commit()
         db.refresh(subscription)
