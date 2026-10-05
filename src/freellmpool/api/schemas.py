@@ -503,3 +503,179 @@ class LifecycleEventCreate(BaseModel):
     description: str = Field(min_length=1, max_length=10000)
     evidence: str | None = Field(default=None, max_length=10000)
     offer_id: int | None = Field(default=None, ge=1)
+
+
+class LifecycleEventRead(LifecycleEventCreate):
+    id: int
+    package_id: int
+    created_by_user_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AssetProductCreate(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=200)
+    offer_id: int | None = Field(default=None, ge=1)
+    manufacturer: str | None = Field(default=None, max_length=200)
+    model: str | None = Field(default=None, max_length=200)
+    part_number: str | None = Field(default=None, max_length=200)
+    serial_number: str | None = Field(default=None, max_length=200)
+    installation_date: datetime | None = None
+    commissioning_date: datetime | None = None
+    warranty_start: datetime | None = None
+    warranty_end: datetime | None = None
+    status: str = Field(default="ACTIVE", min_length=1, max_length=30)
+
+
+class AssetProductRead(AssetProductCreate):
+    id: int
+    package_id: int
+
+    model_config = {"from_attributes": True}
+
+
+class LifecycleCostCreate(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=200)
+    event_id: int | None = Field(default=None, ge=1)
+    cost_type: str = Field(min_length=1, max_length=30)
+    amount: float = Field(ge=0)
+    currency: str = Field(default="USD", min_length=1, max_length=10)
+    cost_date: datetime
+    description: str = Field(min_length=1, max_length=10000)
+    evidence: str | None = Field(default=None, max_length=10000)
+
+
+class LifecycleCostRead(LifecycleCostCreate):
+    id: int
+    package_id: int
+    created_by_user_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SubscriptionLifecycleUpdate(BaseModel):
+    plan_key: str = Field(min_length=1, max_length=30)
+    status: str = Field(default="ACTIVE", min_length=1, max_length=30)
+    billing_provider: str | None = Field(default=None, max_length=30)
+    external_customer_id: str | None = Field(default=None, max_length=200)
+    external_subscription_id: str | None = Field(default=None, max_length=200)
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
+
+
+class SubscriptionPlanRead(BaseModel):
+    key: str
+    name: str
+    monthly_price_usd: float
+    limits: dict[str, int]
+
+
+class OrganizationSubscriptionRead(BaseModel):
+    id: int
+    organization_id: int
+    plan_key: str
+    status: str
+    billing_provider: str | None
+    external_customer_id: str | None
+    external_subscription_id: str | None
+    current_period_start: datetime
+    current_period_end: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UsageRecordCreate(BaseModel):
+    metric: str = Field(min_length=1, max_length=50)
+    quantity: float = Field(gt=0)
+    source_type: str | None = Field(default=None, max_length=50)
+    source_id: int | None = Field(default=None, ge=1)
+
+
+class UsageRecordRead(UsageRecordCreate):
+    id: int
+    organization_id: int
+    recorded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UsageSummaryResponse(BaseModel):
+    organization_id: int
+    plan_key: str
+    period_start: datetime
+    period_end: datetime
+    usage: dict[str, float]
+    limits: dict[str, int]
+
+
+class BillingWebhookEventRead(BaseModel):
+    id: int
+    organization_id: int | None
+    provider: str
+    external_event_id: str
+    event_type: str
+    payload_hash: str
+    status: str
+    received_at: datetime
+    processed_at: datetime | None
+    error: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class UsageReconciliationResponse(BaseModel):
+    organization_id: int
+    subscription_status: str
+    plan_key: str
+    period_start: datetime
+    period_end: datetime
+    usage: dict[str, float]
+    limits: dict[str, int]
+    exceeded_metrics: list[str]
+    inactive: bool
+    period_expired: bool
+    unknown_metrics: list[str] = []
+    negative_usage_metrics: list[str] = []
+
+
+class SubscriptionRolloverResponse(BaseModel):
+    organization_id: int
+    rolled_over: bool
+    previous_period_start: datetime
+    previous_period_end: datetime
+    current_period_start: datetime
+    current_period_end: datetime
+    status: str
+    plan_key: str
+
+
+class CommercialReconciliationResponse(BaseModel):
+    processed: int
+    rolled_over: int
+    unchanged: int
+
+
+class CommercialReconciliationRunRead(BaseModel):
+    id: int
+    processed: int
+    rolled_over: int
+    unchanged: int
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    error: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class CommercialReconciliationHealthResponse(BaseModel):
+    status: str
+    last_run_status: str | None
+    last_run_completed_at: datetime | None
+    last_run_processed: int | None
+    last_run_rolled_over: int | None
+    last_run_error: str | None
