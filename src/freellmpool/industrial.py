@@ -946,9 +946,13 @@ def extract_rfq_documents_with_llm(
     pool: object,
     rfq_document: str | Path,
     quotation_documents: Sequence[dict[str, str | Path]],
+    *,
+    use_ocr: bool = False,
+    ocr_language: str = "eng",
 ) -> tuple[list[Requirement], list[VendorValue], list[CommercialValue]]:
     """Extract an RFQ and vendor quotations directly from local documents."""
-    rfq_pages = extract_document_pages(rfq_document)
+    page_extractor = extract_document_pages_with_ocr if use_ocr else extract_document_pages
+    rfq_pages = page_extractor(rfq_document, language=ocr_language) if use_ocr else page_extractor(rfq_document)
     rfq_text = document_text(rfq_pages)
     quotations: list[dict[str, str]] = []
     for index, item in enumerate(quotation_documents):
@@ -956,7 +960,7 @@ def extract_rfq_documents_with_llm(
         path = item.get("path")
         if not vendor or path is None:
             raise ValueError(f"quotation_documents[{index}] requires vendor and path")
-        pages = extract_document_pages(path)
+        pages = page_extractor(path, language=ocr_language) if use_ocr else page_extractor(path)
         text = document_text(pages)
         if not text.strip():
             raise ValueError(f"quotation document is empty: {path}")
