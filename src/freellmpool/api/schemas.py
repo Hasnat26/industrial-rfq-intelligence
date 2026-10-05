@@ -339,6 +339,10 @@ class TechnicalClarificationCreate(BaseModel):
     status: str = Field(default="OPEN", min_length=1, max_length=30)
 
 
+class TechnicalClarificationAnswer(BaseModel):
+    response: str = Field(min_length=1)
+
+
 class TechnicalClarificationRead(TechnicalClarificationCreate):
     id: int
     offer_id: int
