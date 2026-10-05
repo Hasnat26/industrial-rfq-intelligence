@@ -452,3 +452,20 @@ def test_reconciliation_health_reports_latest_completed_run(monkeypatch) -> None
     assert data["status"] == "HEALTHY"
     assert data["last_run_status"] == "COMPLETED"
     assert data["last_run_completed_at"] is not None
+
+
+def test_scheduler_safe_reconciliation_runner_records_completion() -> None:
+    from freellmpool.api.db import SessionLocal, CommercialReconciliationRun
+    from freellmpool.api.reconciliation import run_commercial_reconciliation
+
+    client.post("/organizations", json={"name": "Scheduler Runner Org"})
+    db = SessionLocal()
+    try:
+        result = run_commercial_reconciliation(db)
+        assert result.processed == 1
+        run = db.query(CommercialReconciliationRun).order_by(CommercialReconciliationRun.id.desc()).first()
+        assert run is not None
+        assert run.status == "COMPLETED"
+        assert run.completed_at is not None
+    finally:
+        db.close()
