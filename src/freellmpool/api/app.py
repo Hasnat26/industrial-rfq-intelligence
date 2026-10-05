@@ -2242,13 +2242,20 @@ def package_engineering_decision_summary(
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
 
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    active_offers = _active_vendor_offers(package)
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
+        for item in revision.requirements
     ]
     requirement_types = {
         item.tag: item.requirement_type
-        for item in package.requirements
+        for item in revision.requirements
     }
     vendor_values = [
         VendorValue(
@@ -2258,18 +2265,18 @@ def package_engineering_decision_summary(
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in package.offers
+        for offer in active_offers
         for claim in offer.claims
     ]
     result = build_decision_support(
         requirements,
         vendor_values,
-        vendors=[offer.vendor_name for offer in package.offers],
+        vendors=[offer.vendor_name for offer in active_offers],
         requirement_types=requirement_types,
     )
     summary = (
         build_engineering_decision_summary(result["vendors"])
-        if package.offers
+        if active_offers
         else {
             "status": "INSUFFICIENT_VENDOR_DATA",
             "decision_basis": ["No vendor offers are available for engineering review."],
@@ -2299,13 +2306,20 @@ def package_evidence(
     package = db.get(ProcurementPackage, package_id)
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
+    revision_id = package.current_rfq_revision_id
+    if revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    revision = db.get(RfqRevision, revision_id)
+    if revision is None or revision.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    active_offers = _active_vendor_offers(package)
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
+        for item in revision.requirements
     ]
     claims: list[tuple[VendorOffer, VendorClaim]] = []
     vendor_values: list[VendorValue] = []
-    for offer in package.offers:
+    for offer in active_offers:
         for claim in offer.claims:
             claims.append((offer, claim))
             provenance = (
