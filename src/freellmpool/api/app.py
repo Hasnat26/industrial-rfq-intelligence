@@ -33,6 +33,9 @@ from freellmpool.api.db import (
 from freellmpool.api.schemas import (
     ClaimCreate,
     ClaimRead,
+    CommercialComparisonResponse,
+    CommercialComparisonRow,
+    CommercialStatusUpdate,
     ComparisonResponse,
     ComparisonRow,
     CurrentUserRead,
@@ -1106,6 +1109,77 @@ def open_commercial_evaluation(
     db.commit()
     db.refresh(package)
     return package
+
+
+@app.post("/offers/{offer_id}/commercial-status", response_model=OfferRead)
+def update_commercial_status(
+    offer_id: int,
+    payload: CommercialStatusUpdate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> VendorOffer:
+    """Advance commercial evaluation only after the package commercial gate opens."""
+    offer = db.get(VendorOffer, offer_id)
+    if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
+        raise HTTPException(status_code=404, detail="offer not found")
+    package = offer.package
+    if not package.commercial_evaluation_open:
+        raise HTTPException(status_code=409, detail="commercial evaluation is not open")
+    if offer.commercial_status == "LOCKED":
+        raise HTTPException(status_code=409, detail="commercial evaluation is locked for this offer")
+    requested = payload.status.strip().upper()
+    if requested not in {"OPEN", "IN_REVIEW", "COMPLETED"}:
+        raise HTTPException(status_code=422, detail="invalid commercial status")
+    if offer.technical_status not in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
+        raise HTTPException(status_code=409, detail="only technically accepted offers can be commercially evaluated")
+    allowed_next = {
+        "OPEN": {"OPEN", "IN_REVIEW"},
+        "IN_REVIEW": {"IN_REVIEW", "COMPLETED"},
+        "COMPLETED": {"COMPLETED"},
+    }
+    if requested not in allowed_next[offer.commercial_status]:
+        raise HTTPException(
+            status_code=409,
+            detail=f"invalid commercial status transition from {offer.commercial_status} to {requested}",
+        )
+    offer.commercial_status = requested
+    db.commit()
+    db.refresh(offer)
+    return offer
+
+
+@app.get("/packages/{package_id}/commercial-comparison", response_model=CommercialComparisonResponse)
+def commercial_comparison(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CommercialComparisonResponse:
+    """Return the commercial view after the EPC commercial gate is opened."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    if not package.commercial_evaluation_open:
+        raise HTTPException(status_code=409, detail="commercial evaluation is not open")
+    rows = [
+        CommercialComparisonRow(
+            offer_id=offer.id,
+            vendor=offer.vendor_name,
+            technical_revision=offer.technical_revision,
+            technical_status=offer.technical_status,
+            commercial_status=offer.commercial_status,
+            price=offer.price,
+            currency=offer.currency,
+            lead_time=offer.lead_time,
+            warranty=offer.warranty,
+        )
+        for offer in sorted(package.offers, key=lambda item: item.id)
+        if offer.commercial_status != "LOCKED"
+    ]
+    return CommercialComparisonResponse(
+        package_id=package.id,
+        commercial_open=package.commercial_evaluation_open,
+        rows=rows,
+    )
 
 
 @app.get("/packages/{package_id}/comparison", response_model=ComparisonResponse)
