@@ -1764,6 +1764,7 @@ def update_technical_status(
     offer = db.get(VendorOffer, offer_id)
     if offer is None or not is_member(db, user.id, offer.package.project.organization_id):
         raise HTTPException(status_code=404, detail="offer not found")
+    _require_current_rfq_offer(offer.package, offer)
     if offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
     if offer.package.commercial_evaluation_open:
@@ -1836,7 +1837,7 @@ def open_commercial_evaluation(
         )
     package.commercial_evaluation_open = True
     _audit(db, package, user, "COMMERCIAL_EVALUATION_OPENED", to_status="OPEN")
-    for offer in package.offers:
+    for offer in _active_vendor_offers(package):
         if offer.technical_status in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
             offer.commercial_status = "OPEN"
         else:
@@ -1860,6 +1861,7 @@ def update_commercial_status(
     package = offer.package
     if not package.commercial_evaluation_open:
         raise HTTPException(status_code=409, detail="commercial evaluation is not open")
+    _require_current_rfq_offer(package, offer)
     if offer.commercial_status == "LOCKED":
         raise HTTPException(status_code=409, detail="commercial evaluation is locked for this offer")
     requested = payload.status.strip().upper()
