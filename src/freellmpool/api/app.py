@@ -1806,6 +1806,8 @@ def package_workflow(
     package = db.get(ProcurementPackage, package_id)
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
+    if package.technical_bid_locked:
+        raise HTTPException(status_code=409, detail="technical bid is already locked")
     active_offers = _active_vendor_offers(package)
     status_counts: dict[str, int] = {}
     for offer in active_offers:
@@ -1927,6 +1929,8 @@ def open_commercial_evaluation(
     package = db.get(ProcurementPackage, package_id)
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
+    if package.commercial_evaluation_open:
+        raise HTTPException(status_code=409, detail="commercial evaluation is already open")
     if package.mode == "PROJECT_EPC" and not package.technical_bid_locked:
         raise HTTPException(
             status_code=409,
