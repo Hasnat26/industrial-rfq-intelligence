@@ -12,7 +12,6 @@ from freellmpool.api.db import (
     engine,
 )
 
-
 client = TestClient(app)
 
 
