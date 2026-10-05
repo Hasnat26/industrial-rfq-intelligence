@@ -916,3 +916,34 @@ def test_evaluation_weighting_is_tenant_isolated() -> None:
 
     response = client.get(f"/packages/{package['id']}/evaluation-weighting")
     assert response.status_code == 404
+
+
+def test_technical_status_rejects_backward_transition() -> None:
+    seeded = _seed_offer()
+    offer_id = seeded["offer"]["id"]
+
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert accepted.status_code == 200
+
+    backward = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "PENDING"},
+    )
+    assert backward.status_code == 409
+    assert "invalid technical status transition" in backward.json()["detail"]
+
+
+def test_technical_status_allows_normal_progression() -> None:
+    seeded = _seed_offer()
+    offer_id = seeded["offer"]["id"]
+
+    for status_value in ("IN_REVIEW", "CLARIFICATION_REQUIRED", "ACCEPTED"):
+        response = client.post(
+            f"/offers/{offer_id}/technical-status",
+            json={"status": status_value},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["technical_status"] == status_value
