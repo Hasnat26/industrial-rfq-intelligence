@@ -67,7 +67,6 @@ from freellmpool.api.schemas import (
     VendorDocumentRead,
 )
 from freellmpool.api.security import hash_password
-from freellmpool.industrial_report import render_engineering_report
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -81,6 +80,7 @@ from freellmpool.industrial import (
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.industrial_report import render_engineering_report
 from freellmpool.product_categories import get_product_category, list_product_categories
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
