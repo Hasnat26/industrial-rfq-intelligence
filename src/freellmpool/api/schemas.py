@@ -74,6 +74,9 @@ class RequirementCreate(BaseModel):
 
 class OfferCreate(BaseModel):
     vendor_name: str = Field(min_length=1, max_length=200)
+    manufacturer: str | None = Field(default=None, max_length=200)
+    model: str | None = Field(default=None, max_length=200)
+    part_number: str | None = Field(default=None, max_length=200)
     technical_revision: str = Field(default="R1", min_length=1, max_length=50)
     price: str | None = None
     currency: str | None = None
@@ -149,6 +152,9 @@ class OfferRead(BaseModel):
     package_id: int
     parent_offer_id: int | None
     vendor_name: str
+    manufacturer: str | None
+    model: str | None
+    part_number: str | None
     technical_revision: str
     technical_status: str
     commercial_status: str
