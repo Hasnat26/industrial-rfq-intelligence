@@ -399,3 +399,27 @@ def test_usage_reconciliation_reports_unknown_and_negative_usage_anomalies() -> 
     data = response.json()
     assert data["unknown_metrics"] == ["unknown_metric"]
     assert data["negative_usage_metrics"] == ["vendor_offers"]
+
+
+def test_internal_reconciliation_creates_audit_run(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    organization = client.post("/organizations", json={"name": "Audit Run Org"}).json()
+    response = client.post(
+        "/commercial/internal/reconcile",
+        headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["processed"] == 1
+    runs = client.get(
+        "/commercial/internal/reconcile/runs",
+        headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
+    )
+    assert runs.status_code == 200
+    run = runs.json()[0]
+    assert run["status"] == "COMPLETED"
+    assert run["processed"] == 1
+    assert run["rolled_over"] == 0
+    assert run["unchanged"] == 1
+    assert run["completed_at"] is not None
+    assert run["error"] is None

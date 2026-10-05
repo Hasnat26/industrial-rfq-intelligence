@@ -307,6 +307,19 @@ class BillingWebhookEvent(Base):
 
 
 
+class CommercialReconciliationRun(Base):
+    __tablename__ = "commercial_reconciliation_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    processed: Mapped[int] = mapped_column(Integer, default=0)
+    rolled_over: Mapped[int] = mapped_column(Integer, default=0)
+    unchanged: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(30), default="COMPLETED")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class LifecycleEvent(Base):
     """Canonical post-procurement event linked to a package and optional offer."""
 
