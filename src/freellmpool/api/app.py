@@ -47,6 +47,8 @@ from freellmpool.api.schemas import (
     OrganizationRead,
     PackageCreate,
     PackageRead,
+    ProductCategoryParameterRead,
+    ProductCategoryRead,
     ProjectCreate,
     ProjectRead,
     QuotationBatchEntry,
@@ -75,6 +77,7 @@ from freellmpool.industrial import (
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.product_categories import get_product_category, list_product_categories
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 DOCUMENT_CHUNK_BYTES = 1024 * 1024
@@ -166,6 +169,57 @@ app = FastAPI(title="Industrial RFQ Intelligence API", version="0.2.0")
 @app.on_event("startup")
 def startup() -> None:
     init_db()
+
+
+@app.get("/product-categories", response_model=list[ProductCategoryRead])
+def list_categories(
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> list[ProductCategoryRead]:
+    """Return the configured product-category templates available to the tenant."""
+    del user
+    return [
+        ProductCategoryRead(
+            key=category.key,
+            name=category.name,
+            description=category.description,
+            parameters=[
+                ProductCategoryParameterRead(
+                    key=parameter.key,
+                    label=parameter.label,
+                    mandatory=parameter.mandatory,
+                    unit=parameter.unit,
+                )
+                for parameter in category.parameters
+            ],
+        )
+        for category in list_product_categories()
+    ]
+
+
+@app.get("/product-categories/{category_key}", response_model=ProductCategoryRead)
+def get_category(
+    category_key: str,
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> ProductCategoryRead:
+    """Return one product-category template by key."""
+    del user
+    category = get_product_category(category_key)
+    if category is None:
+        raise HTTPException(status_code=404, detail="product category not found")
+    return ProductCategoryRead(
+        key=category.key,
+        name=category.name,
+        description=category.description,
+        parameters=[
+            ProductCategoryParameterRead(
+                key=parameter.key,
+                label=parameter.label,
+                mandatory=parameter.mandatory,
+                unit=parameter.unit,
+            )
+            for parameter in category.parameters
+        ],
+    )
 
 
 @app.get("/health")

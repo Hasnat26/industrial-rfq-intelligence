@@ -261,3 +261,17 @@ class QuotationBatchResponse(BaseModel):
     package_id: int
     offers: list[OfferRead]
     document_ids: list[int]
+
+
+class ProductCategoryParameterRead(BaseModel):
+    key: str
+    label: str
+    mandatory: bool
+    unit: str | None
+
+
+class ProductCategoryRead(BaseModel):
+    key: str
+    name: str
+    description: str
+    parameters: list[ProductCategoryParameterRead]

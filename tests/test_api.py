@@ -938,3 +938,35 @@ def test_batch_quotation_ingestion_cross_tenant_is_rejected() -> None:
         json={"email": "engineer@example.com", "password": "correct-horse-battery"},
     )
     client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+
+def test_product_category_catalog_requires_authentication() -> None:
+    client.headers.pop("Authorization", None)
+    response = client.get("/product-categories")
+    assert response.status_code == 401
+
+
+def test_product_category_catalog_returns_configured_categories() -> None:
+    response = client.get("/product-categories")
+    assert response.status_code == 200
+    payload = response.json()
+    keys = {item["key"] for item in payload}
+    assert {"MOTOR", "VFD", "PLC", "INSTRUMENTATION", "VALVE", "SWITCHGEAR"} <= keys
+    motor = next(item for item in payload if item["key"] == "MOTOR")
+    assert motor["parameters"][0] == {
+        "key": "rated_power",
+        "label": "Rated power",
+        "mandatory": True,
+        "unit": "kW",
+    }
+
+
+def test_product_category_lookup_is_case_insensitive() -> None:
+    response = client.get("/product-categories/motor")
+    assert response.status_code == 200
+    assert response.json()["key"] == "MOTOR"
+
+
+def test_product_category_lookup_returns_404_for_unknown_category() -> None:
+    response = client.get("/product-categories/does-not-exist")
+    assert response.status_code == 404
