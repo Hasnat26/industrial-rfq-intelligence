@@ -460,7 +460,6 @@ def test_reconciliation_health_reports_latest_completed_run(monkeypatch) -> None
 
 def test_scheduler_safe_reconciliation_runner_records_completion() -> None:
     from freellmpool.api.db import CommercialReconciliationRun, SessionLocal
-
     from freellmpool.api.reconciliation import run_commercial_reconciliation
 
     client.post("/organizations", json={"name": "Scheduler Runner Org"})
