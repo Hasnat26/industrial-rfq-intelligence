@@ -56,6 +56,9 @@ def _seed_memory() -> tuple[dict, dict, dict]:
         f"/packages/{package['id']}/offers",
         json={
             "vendor_name": "Vendor Memory",
+            "manufacturer": "ABB",
+            "model": "M3BP 160",
+            "part_number": "3GBA162410",
             "price": "12500",
             "currency": "USD",
             "lead_time": "10 weeks",
@@ -110,6 +113,9 @@ def test_procurement_memory_retrieves_vendor_product_decision_commercial_and_evi
     assert entry["package_id"] == package["id"]
     assert entry["category"] == "MOTOR"
     assert entry["vendor_name"] == "Vendor Memory"
+    assert entry["manufacturer"] == "ABB"
+    assert entry["model"] == "M3BP 160"
+    assert entry["part_number"] == "3GBA162410"
     assert entry["price"] == "12500"
     assert entry["lead_time"] == "10 weeks"
     assert entry["warranty"] == "24 months"
@@ -160,3 +166,22 @@ def test_procurement_memory_is_tenant_isolated() -> None:
         headers={"Authorization": f"Bearer {login.json()['access_token']}"},
     )
     assert package_response.status_code == 404
+
+
+def test_product_memory_aggregates_explicit_identity_and_commercial_history() -> None:
+    organization, _project, _package = _seed_memory()
+    response = client.get(f"/organizations/{organization['id']}/procurement-memory/products")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_products"] == 1
+    product = payload["products"][0]
+    assert product["manufacturer"] == "ABB"
+    assert product["model"] == "M3BP 160"
+    assert product["part_number"] == "3GBA162410"
+    assert product["offer_count"] == 1
+    assert product["vendor_count"] == 1
+    assert product["selected_count"] == 1
+    assert product["observed_prices"] == ["12500"]
+    assert product["observed_currencies"] == ["USD"]
+    assert product["observed_lead_times"] == ["10 weeks"]
+    assert product["observed_warranties"] == ["24 months"]
