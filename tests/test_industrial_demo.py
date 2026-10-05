@@ -981,8 +981,9 @@ def test_document_ocr_non_pdf_uses_existing_ingestion(tmp_path) -> None:
 def test_document_ocr_fails_with_actionable_error_when_optional_dependencies_are_missing(
     tmp_path, monkeypatch
 ) -> None:
-    from freellmpool.industrial import extract_document_pages_with_ocr
     from pypdf import PdfWriter
+
+    from freellmpool.industrial import extract_document_pages_with_ocr
 
     path = tmp_path / "scanned.pdf"
     writer = PdfWriter()
