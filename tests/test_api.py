@@ -1051,3 +1051,25 @@ def test_terminal_technical_status_cannot_regress_to_clarification() -> None:
     clarification = client.post(f"/offers/{offer_id}/technical-clarification-request")
     assert clarification.status_code == 409
     assert "current technical status" in clarification.json()["detail"]
+
+
+def test_duplicate_user_registration_is_conflict() -> None:
+    first = client.post(
+        "/auth/register",
+        json={"email": "duplicate@example.com", "password": "first-password"},
+    )
+    assert first.status_code == 201
+    duplicate = client.post(
+        "/auth/register",
+        json={"email": "duplicate@example.com", "password": "second-password"},
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "email is already registered"
+
+
+def test_duplicate_organization_name_is_conflict() -> None:
+    first = client.post("/organizations", json={"name": "Unique Organization"})
+    assert first.status_code == 201
+    duplicate = client.post("/organizations", json={"name": "Unique Organization"})
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "organization name is already registered"
