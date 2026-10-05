@@ -42,6 +42,7 @@ from freellmpool.api.schemas import (
     CommercialComparisonRow,
     CommercialStatusUpdate,
     ComparisonResponse,
+    DecisionSupportResponse,
     ComparisonRow,
     CurrentUserRead,
     DecisionCreate,
@@ -93,6 +94,7 @@ from freellmpool.industrial import (
     extract_document_pages,
 )
 from freellmpool.industrial import Requirement as EngineRequirement
+from freellmpool.decision_support import build_decision_support
 from freellmpool.industrial_report import render_engineering_report
 from freellmpool.product_categories import get_product_category, list_product_categories
 
@@ -1418,6 +1420,51 @@ def compare_package(
         technical_locked=package.technical_bid_locked,
         commercial_open=package.commercial_evaluation_open,
         rows=rows,
+    )
+
+
+@app.get("/packages/{package_id}/decision-support", response_model=DecisionSupportResponse)
+def package_decision_support(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DecisionSupportResponse:
+    """Return deterministic, auditable technical decision support."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+    ]
+    requirement_types = {
+        item.tag: item.requirement_type
+        for item in package.requirements
+    }
+    vendor_values = [
+        VendorValue(
+            offer.vendor_name,
+            claim.parameter,
+            claim.value,
+            claim.evidence,
+            _claim_status(claim.claim_status),
+        )
+        for offer in package.offers
+        for claim in offer.claims
+    ]
+    result = build_decision_support(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+        requirement_types=requirement_types,
+    )
+    return DecisionSupportResponse(
+        package_id=package.id,
+        requirements_checked=len(requirements),
+        vendors_checked=len(package.offers),
+        vendors=result["vendors"],
+        rows=result["rows"],
+        formula=result["formula"],
     )
 
 
