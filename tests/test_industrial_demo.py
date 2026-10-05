@@ -964,3 +964,38 @@ def test_reviewer_workflow_fails_closed_on_missing_input_and_invalid_transition(
         assert "invalid reviewer transition" in str(exc)
     else:
         raise AssertionError("invalid workflow transition was accepted")
+
+
+def test_document_ocr_non_pdf_uses_existing_ingestion(tmp_path) -> None:
+    from freellmpool.industrial import extract_document_pages_with_ocr
+
+    path = tmp_path / "quote.txt"
+    path.write_text("Rated voltage: 415 V", encoding="utf-8")
+
+    pages = extract_document_pages_with_ocr(path)
+    assert len(pages) == 1
+    assert pages[0].page == 1
+    assert pages[0].text == "Rated voltage: 415 V"
+
+
+def test_document_ocr_fails_with_actionable_error_when_optional_dependencies_are_missing(
+    tmp_path, monkeypatch
+) -> None:
+    from pypdf import PdfWriter
+    from freellmpool.industrial import extract_document_pages_with_ocr
+
+    path = tmp_path / "scanned.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    with path.open("wb") as handle:
+        writer.write(handle)
+
+    monkeypatch.setitem(__import__("sys").modules, "fitz", None)
+    monkeypatch.setitem(__import__("sys").modules, "pytesseract", None)
+    monkeypatch.setitem(__import__("sys").modules, "PIL", None)
+    try:
+        extract_document_pages_with_ocr(path)
+    except ValueError as exc:
+        assert "pip install 'industrial-rfq-intelligence[ocr]'" in str(exc)
+    else:
+        raise AssertionError("OCR unexpectedly ran without optional dependencies")
