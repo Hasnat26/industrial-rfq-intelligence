@@ -289,6 +289,9 @@ class QuotationBatchEntry(BaseModel):
     """One vendor quotation inside a batch ingestion request."""
 
     vendor_name: str = Field(min_length=1, max_length=200)
+    manufacturer: str | None = Field(default=None, max_length=200)
+    model: str | None = Field(default=None, max_length=200)
+    part_number: str | None = Field(default=None, max_length=200)
     technical_revision: str = Field(default="R1", min_length=1, max_length=50)
     price: str | None = None
     currency: str | None = None
