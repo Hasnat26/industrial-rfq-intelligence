@@ -51,6 +51,8 @@ from freellmpool.api.schemas import (
     DecisionSupportVendorRead,
     EngineeringDecisionSummaryRead,
     EngineeringVendorProfileRead,
+    IntegratedEvaluationResponse,
+    IntegratedVendorEvaluationRead,
     EvidenceResponse,
     EvidenceRow,
     IssueResolution,
@@ -86,6 +88,7 @@ from freellmpool.api.security import hash_password
 from freellmpool.api.web import web_app
 from freellmpool.decision_support import build_decision_support
 from freellmpool.engineering_decision import build_engineering_decision_summary
+from freellmpool.integrated_evaluation import build_integrated_evaluation
 from freellmpool.industrial import (
     ClaimStatus,
     CommercialValue,
@@ -1473,6 +1476,67 @@ def package_decision_support(
     )
 
 
+@app.get("/packages/{package_id}/integrated-evaluation", response_model=IntegratedEvaluationResponse)
+def package_integrated_evaluation(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> IntegratedEvaluationResponse:
+    """Return deterministic technical-commercial evaluation for human review."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+    ]
+    requirement_types = {item.tag: item.requirement_type for item in package.requirements}
+    vendor_values = [
+        VendorValue(
+            offer.vendor_name,
+            claim.parameter,
+            claim.value,
+            claim.evidence,
+            _claim_status(claim.claim_status),
+        )
+        for offer in package.offers
+        for claim in offer.claims
+    ]
+    technical = build_decision_support(
+        requirements,
+        vendor_values,
+        vendors=[offer.vendor_name for offer in package.offers],
+        requirement_types=requirement_types,
+    )
+    commercial_values = [
+        CommercialValue(
+            offer.vendor_name,
+            offer.price or "",
+            offer.currency or "",
+            offer.lead_time or "",
+            offer.warranty or "",
+            "",
+            "",
+            "UNVERIFIED",
+        )
+        for offer in package.offers
+    ]
+    commercial_rows = build_commercial_risk_review(commercial_values)
+    evaluation = build_integrated_evaluation(technical["vendors"], commercial_rows)
+    return IntegratedEvaluationResponse(
+        package_id=package.id,
+        status=evaluation["status"],
+        formula=evaluation["formula"],
+        decision_note=evaluation["decision_note"],
+        vendor_profiles=[
+            IntegratedVendorEvaluationRead.model_validate(item)
+            for item in evaluation["vendor_profiles"]
+        ],
+        review_actions=evaluation["review_actions"],
+    )
+
+
 @app.get("/packages/{package_id}/engineering-decision-summary", response_model=EngineeringDecisionSummaryRead)
 def package_engineering_decision_summary(
     package_id: int,
@@ -1663,6 +1727,24 @@ def package_report(
         requirement_types={item.tag: item.requirement_type for item in package.requirements},
     )
     report["decision_support"] = decision_support
+    commercial_values = [
+        CommercialValue(
+            offer.vendor_name,
+            offer.price or "",
+            offer.currency or "",
+            offer.lead_time or "",
+            offer.warranty or "",
+            "",
+            "",
+            "UNVERIFIED",
+        )
+        for offer in package.offers
+    ]
+    commercial_rows = build_commercial_risk_review(commercial_values)
+    report["integrated_evaluation"] = build_integrated_evaluation(
+        decision_support["vendors"],
+        commercial_rows,
+    )
     report["engineering_decision_summary"] = (
         build_engineering_decision_summary(decision_support["vendors"])
         if package.offers
