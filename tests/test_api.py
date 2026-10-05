@@ -1006,3 +1006,16 @@ def test_workflow_gate_transitions_cannot_repeat_after_lock_and_open() -> None:
     assert opened.status_code == 200
     repeated_open = client.post(f"/packages/{package_id}/commercial-open")
     assert repeated_open.status_code == 409
+
+
+def test_terminal_technical_status_cannot_regress_to_clarification() -> None:
+    seeded = _seed_offer()
+    offer_id = seeded["offer"]["id"]
+    accepted = client.post(
+        f"/offers/{offer_id}/technical-status",
+        json={"status": "ACCEPTED"},
+    )
+    assert accepted.status_code == 200
+    clarification = client.post(f"/offers/{offer_id}/technical-clarification-request")
+    assert clarification.status_code == 409
+    assert "current technical status" in clarification.json()["detail"]
