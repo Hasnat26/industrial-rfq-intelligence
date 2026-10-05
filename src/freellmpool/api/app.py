@@ -1538,6 +1538,7 @@ def answer_clarification(
         raise HTTPException(status_code=404, detail="clarification not found")
     if clarification.offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
+    _require_current_rfq_offer(clarification.offer.package, clarification.offer)
     if clarification.status == "CLOSED":
         raise HTTPException(status_code=409, detail="clarification is already closed")
     if clarification.status != "OPEN":
@@ -1593,6 +1594,7 @@ def close_clarification(
         )
     if clarification.offer.package.technical_bid_locked:
         raise HTTPException(status_code=409, detail="technical bid is already locked")
+    _require_current_rfq_offer(clarification.offer.package, clarification.offer)
     previous_status = clarification.status
     clarification.status = "CLOSED"
     clarification.resolution = payload.note.strip()
