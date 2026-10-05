@@ -241,3 +241,23 @@ class EvidenceRow(BaseModel):
 class EvidenceResponse(BaseModel):
     package_id: int
     rows: list[EvidenceRow]
+
+
+class QuotationBatchEntry(BaseModel):
+    """One vendor quotation inside a batch ingestion request."""
+
+    vendor_name: str = Field(min_length=1, max_length=200)
+    technical_revision: str = Field(default="R1", min_length=1, max_length=50)
+    price: str | None = None
+    currency: str | None = None
+    lead_time: str | None = None
+    warranty: str | None = None
+    source_text: str | None = None
+
+
+class QuotationBatchResponse(BaseModel):
+    """Atomically ingested quotations and their extracted documents."""
+
+    package_id: int
+    offers: list[OfferRead]
+    document_ids: list[int]

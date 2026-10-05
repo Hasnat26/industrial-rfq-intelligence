@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -47,6 +49,8 @@ from freellmpool.api.schemas import (
     PackageRead,
     ProjectCreate,
     ProjectRead,
+    QuotationBatchEntry,
+    QuotationBatchResponse,
     RequirementCreate,
     RfqResponse,
     TechnicalClarificationCreate,
@@ -412,6 +416,139 @@ def list_package_offers(
         )
         for offer in sorted(package.offers, key=lambda item: item.id)
     ]
+
+
+@app.post(
+    "/packages/{package_id}/quotations/batch",
+    response_model=QuotationBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def batch_ingest_quotations(
+    package_id: int,
+    entries: str = Form(...),  # noqa: B008
+    files: list[UploadFile] = File(...),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> QuotationBatchResponse:
+    """Ingest several vendor quotations and their documents in one atomic batch.
+
+    Every entry is validated (tenancy, workflow stage, duplicate vendors,
+    file type and size) before any row is written: a batch either lands
+    completely or not at all.
+    """
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    _require_technical_stage_open(package)
+    try:
+        parsed_entries = json.loads(entries)
+        batch: list[QuotationBatchEntry] = [
+            QuotationBatchEntry.model_validate(item) for item in parsed_entries
+        ]
+    except (json.JSONDecodeError, ValidationError, TypeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="entries must be a JSON array of quotation objects",
+        ) from exc
+    if not batch or len(batch) != len(files):
+        raise HTTPException(
+            status_code=422,
+            detail="entries and files must be non-empty and match one-to-one",
+        )
+    # Duplicate detection spans the batch and the existing offers, and runs
+    # before any write so a conflicting batch persists nothing.
+    seen: set[tuple[str, str]] = set()
+    for entry in batch:
+        vendor_name = entry.vendor_name.strip()
+        revision = entry.technical_revision.strip()
+        if not vendor_name or not revision:
+            raise HTTPException(
+                status_code=422, detail="vendor_name and technical_revision must not be blank"
+            )
+        key = (_vendor_key(vendor_name), revision)
+        if key in seen or _find_duplicate_offer(package, key[0], key[1]) is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"an offer for {vendor_name} revision {revision} "
+                    "already exists for this package"
+                ),
+            )
+        seen.add(key)
+    # Validate and extract every file before touching the database.
+    prepared: list[tuple[QuotationBatchEntry, str, str | None, list[DocumentPage]]] = []
+    for entry, file in zip(batch, files, strict=True):
+        filename = _safe_filename(file.filename)
+        suffix = Path(filename).suffix.casefold()
+        if suffix not in SUPPORTED_DOCUMENT_SUFFIXES:
+            raise HTTPException(
+                status_code=415,
+                detail="unsupported document type; expected .pdf, .txt, or .md",
+            )
+        content_type = (file.content_type or "").strip()[:120] or None
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+                temporary_path = Path(temporary.name)
+                total = 0
+                while True:
+                    chunk = await file.read(DOCUMENT_CHUNK_BYTES)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > MAX_DOCUMENT_BYTES:
+                        raise HTTPException(
+                            status_code=413,
+                            detail="document exceeds the maximum upload size of 10 MB",
+                        )
+                    temporary.write(chunk)
+            pages = _extract_upload_pages(temporary_path, filename)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+        prepared.append((entry, filename, content_type, pages))
+    # Persist all offers and documents in a single transaction.
+    offers: list[VendorOffer] = []
+    documents: list[VendorDocument] = []
+    for entry, filename, content_type, pages in prepared:
+        offer = VendorOffer(
+            package_id=package_id,
+            vendor_name=entry.vendor_name.strip(),
+            vendor_key=_vendor_key(entry.vendor_name),
+            technical_revision=entry.technical_revision.strip(),
+            price=entry.price,
+            currency=entry.currency,
+            lead_time=entry.lead_time,
+            warranty=entry.warranty,
+            source_text=entry.source_text,
+        )
+        document = VendorDocument(
+            offer=offer,
+            filename=filename,
+            content_type=content_type,
+            document_type="VENDOR_OFFER",
+            page_count=len(pages),
+            extracted_text=document_text(pages),
+            pages=[VendorDocumentPage(page_number=page.page, text=page.text) for page in pages],
+        )
+        offers.append(offer)
+        documents.append(document)
+        db.add(offer)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="an offer for this vendor and revision already exists",
+        ) from exc
+    for offer in offers:
+        db.refresh(offer)
+    return QuotationBatchResponse(
+        package_id=package.id,
+        offers=[OfferRead.model_validate(offer) for offer in offers],
+        document_ids=[document.id for document in documents],
+    )
 
 
 @app.post(
