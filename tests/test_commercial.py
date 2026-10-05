@@ -256,8 +256,8 @@ def test_usage_reconciliation_detects_existing_overage_without_mutating_state() 
 
 def test_subscription_rollover_advances_expired_period(monkeypatch) -> None:
     from datetime import UTC, datetime
-    from freellmpool.api.db import OrganizationSubscription, SessionLocal
 
+    from freellmpool.api.db import OrganizationSubscription, SessionLocal
 
     organization = client.post("/organizations", json={"name": "Rollover Org"}).json()
     db = SessionLocal()
@@ -291,6 +291,7 @@ def test_subscription_rollover_is_idempotent_when_period_current() -> None:
 
 def test_get_subscription_automatically_rolls_active_expired_period() -> None:
     from datetime import UTC, datetime
+
     from freellmpool.api.db import SessionLocal, OrganizationSubscription
 
     organization = client.post("/organizations", json={"name": "Automatic Rollover Org"}).json()
@@ -314,6 +315,7 @@ def test_get_subscription_automatically_rolls_active_expired_period() -> None:
 
 def test_canceled_subscription_does_not_roll_forward() -> None:
     from datetime import UTC, datetime
+
     from freellmpool.api.db import SessionLocal, OrganizationSubscription
 
     organization = client.post("/organizations", json={"name": "Canceled Period Org"}).json()
@@ -345,6 +347,7 @@ def test_internal_reconciliation_requires_secret(monkeypatch) -> None:
 
 def test_internal_reconciliation_rolls_active_expired_subscriptions(monkeypatch) -> None:
     from datetime import UTC, datetime
+
     from freellmpool.api.db import SessionLocal, OrganizationSubscription
 
     monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
@@ -457,6 +460,7 @@ def test_reconciliation_health_reports_latest_completed_run(monkeypatch) -> None
 
 def test_scheduler_safe_reconciliation_runner_records_completion() -> None:
     from freellmpool.api.db import CommercialReconciliationRun, SessionLocal
+
     from freellmpool.api.reconciliation import run_commercial_reconciliation
 
     client.post("/organizations", json={"name": "Scheduler Runner Org"})
