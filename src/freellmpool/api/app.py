@@ -1091,7 +1091,9 @@ def update_technical_status(
     status_value = payload.status.strip().upper()
     if status_value not in allowed:
         raise HTTPException(status_code=422, detail="invalid technical status")
+    old_status = offer.technical_status
     offer.technical_status = status_value
+    _audit(db, offer.package, user, "TECHNICAL_STATUS_CHANGED", offer, old_status, status_value)
     db.commit()
     db.refresh(offer)
     return offer
@@ -1127,6 +1129,7 @@ def lock_technical_bid(
             detail=f"technical evaluation incomplete for: {', '.join(blocking)}",
         )
     package.technical_bid_locked = True
+    _audit(db, package, user, "TECHNICAL_BID_LOCKED", to_status="LOCKED")
     db.commit()
     db.refresh(package)
     return package
@@ -1147,6 +1150,7 @@ def open_commercial_evaluation(
             detail="technical bid must be locked before commercial evaluation",
         )
     package.commercial_evaluation_open = True
+    _audit(db, package, user, "COMMERCIAL_EVALUATION_OPENED", to_status="OPEN")
     for offer in package.offers:
         if offer.technical_status in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
             offer.commercial_status = "OPEN"
@@ -1188,7 +1192,9 @@ def update_commercial_status(
             status_code=409,
             detail=f"invalid commercial status transition from {offer.commercial_status} to {requested}",
         )
+    old_status = offer.commercial_status
     offer.commercial_status = requested
+    _audit(db, package, user, "COMMERCIAL_STATUS_CHANGED", offer, old_status, requested)
     db.commit()
     db.refresh(offer)
     return offer
