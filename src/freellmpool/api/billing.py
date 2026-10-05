@@ -17,9 +17,60 @@ from sqlalchemy import select
 
 from freellmpool.api.schemas import BillingWebhookEventRead
 
-from freellmpool.api.db import BillingWebhookEvent, SessionLocal
+from freellmpool.api.db import BillingWebhookEvent, OrganizationSubscription, SessionLocal
 
 router = APIRouter(tags=["billing"])
+
+_STATUS_MAP = {
+    "subscription.active": "ACTIVE",
+    "subscription.updated": "ACTIVE",
+    "subscription.trialing": "TRIALING",
+    "subscription.past_due": "PAST_DUE",
+    "subscription.canceled": "CANCELED",
+    "subscription.cancelled": "CANCELED",
+}
+
+
+def _subscription_from_event(db: Session, payload: dict[str, object], provider: str) -> OrganizationSubscription | None:
+    organization_id = payload.get("organization_id")
+    if organization_id is None:
+        return None
+    try:
+        organization_id = int(organization_id)
+    except (TypeError, ValueError):
+        return None
+
+    subscription = db.scalar(
+        select(OrganizationSubscription).where(
+            OrganizationSubscription.organization_id == organization_id
+        )
+    )
+    if subscription is None:
+        return None
+
+    subscription.billing_provider = provider.upper()
+    external_customer_id = payload.get("customer_id")
+    external_subscription_id = payload.get("subscription_id")
+    if external_customer_id is not None:
+        subscription.external_customer_id = str(external_customer_id)
+    if external_subscription_id is not None:
+        subscription.external_subscription_id = str(external_subscription_id)
+
+    mapped_status = _STATUS_MAP.get(str(payload.get("type", "")).strip().lower())
+    if mapped_status:
+        subscription.status = mapped_status
+
+    period_start = payload.get("current_period_start")
+    period_end = payload.get("current_period_end")
+    for value, attribute in ((period_start, "current_period_start"), (period_end, "current_period_end")):
+        if value is not None:
+            try:
+                setattr(subscription, attribute, datetime.fromisoformat(str(value)))
+            except ValueError:
+                pass
+    subscription.updated_at = datetime.now(UTC)
+    return subscription
+
 
 
 def _webhook_secret() -> str:
@@ -80,6 +131,10 @@ async def receive_billing_webhook(
             received_at=datetime.now(UTC),
         )
         db.add(event)
+        db.flush()
+        _subscription_from_event(db, payload, provider)
+        event.status = "PROCESSED"
+        event.processed_at = datetime.now(UTC)
         db.commit()
         db.refresh(event)
         return {"status": event.status, "event_id": event.id, "duplicate": False}
