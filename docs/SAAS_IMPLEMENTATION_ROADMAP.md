@@ -64,7 +64,7 @@ Historical information remains decision support, not an automatic procurement in
 
 ## P4 - Lifecycle intelligence
 
-**Status: In progress.** P4.1 canonical lifecycle events, P4.2 installed asset/product records, P4.3 lifecycle cost inputs, P4.4 asset-level lifecycle economics, and P4.5 reliability indicators and P4.6 warranty exposure indicators are implemented and merged. Lifecycle intelligence now exposes event history, failure/maintenance patterns, warranty dates, lifecycle cost totals, and transparent reliability intervals.
+**Status: In progress.** P4.1 canonical lifecycle events, P4.2 installed asset/product records, P4.3 lifecycle cost inputs, P4.4 asset-level lifecycle economics, and P4.5 reliability indicators, P4.6 warranty exposure indicators, and P4.7 spare/replacement lifecycle metrics are implemented and merged. Lifecycle intelligence now exposes event history, failure/maintenance patterns, warranty dates, lifecycle cost totals, and transparent reliability intervals.
 
 Deliverables:
 
@@ -75,7 +75,7 @@ Deliverables:
 - replacement history;
 - lifecycle cost inputs.
 
-P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, failure, warranty, and other lifecycle cost inputs. P4.4 rolls those costs into asset-level lifecycle intelligence alongside warranty dates and event history. P4.5 adds failure-to-failure intervals and failure-to-next-maintenance intervals, with mean values derived only from canonical dated lifecycle events. P4.6 adds deterministic warranty status and remaining warranty days from canonical asset warranty dates. Costs remain separate from event descriptions while optionally linking to a canonical lifecycle event for traceability.
+P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, failure, warranty, and other lifecycle cost inputs. P4.4 rolls those costs into asset-level lifecycle intelligence alongside warranty dates and event history. P4.5 adds failure-to-failure intervals and failure-to-next-maintenance intervals, with mean values derived only from canonical dated lifecycle events. P4.6 adds deterministic warranty status and remaining warranty days from canonical asset warranty dates. P4.7 adds spare-part event counts and replacement intervals derived from canonical lifecycle history. Costs remain separate from event descriptions while optionally linking to a canonical lifecycle event for traceability.
 
 ## P5 - Commercial SaaS hardening
 
@@ -93,4 +93,4 @@ Deliverables:
 
 ## Immediate build priority
 
-P0/P1/P2 are implemented and P3 now has its first usable historical-memory slice. The next revenue-oriented priority is to deepen P4 with asset-level lifecycle intelligence, failure/maintenance history, warranty tracking, spare/replacement history, and lifecycle cost inputs over the canonical event and asset records.
+P0/P1/P2 are implemented, P3 has its first usable historical-memory slice, and P4 now has the core lifecycle event, asset, cost, reliability, warranty, spare, and replacement intelligence layers. The next revenue-oriented priority is P4 close-out validation followed by P5 commercial SaaS hardening.
