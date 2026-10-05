@@ -11,6 +11,7 @@ client = TestClient(app)
 def setup_function() -> None:
     with engine.begin() as connection:
         connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.exec_driver_sql("DROP TABLE IF EXISTS rfq_revisions")
         Base.metadata.drop_all(bind=connection)
         Base.metadata.create_all(bind=connection)
     client.headers.pop("Authorization", None)
