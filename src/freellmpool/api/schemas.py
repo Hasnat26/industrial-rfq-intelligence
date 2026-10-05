@@ -185,6 +185,7 @@ class TechnicalEvaluationRow(BaseModel):
     offer_id: int
     technical_revision: str
     rfq_revision_id: int
+    requirement_id: int
     rfq_revision: str
     requirement: str
     vendor: str
