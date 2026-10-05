@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import io
 
-from fastapi.testclient import TestClient
 from pypdf import PdfWriter
+from fastapi.testclient import TestClient
 
 from freellmpool.api import app
 from freellmpool.api.db import Base, engine
