@@ -1704,8 +1704,8 @@ def test_cli_commercial_reconcile_requires_scheduler_secret(monkeypatch, capsys)
 
 
 def test_cli_commercial_reconcile_runs_without_http(monkeypatch, capsys) -> None:
-    from types import SimpleNamespace
     from freellmpool.cli import main
+    from types import SimpleNamespace
 
     monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "scheduler-secret")
     fake_result = SimpleNamespace(processed=3, rolled_over=1, unchanged=2)
