@@ -1352,8 +1352,11 @@ def add_clarification(
                 "use the close endpoint to record closure"
             ),
         )
+    if offer.package.current_rfq_revision_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
     clarification = TechnicalClarification(
         offer_id=offer_id,
+        rfq_revision_id=offer.package.current_rfq_revision_id,
         question=payload.question.strip(),
         response=payload.response,
         status=clarification_status,
