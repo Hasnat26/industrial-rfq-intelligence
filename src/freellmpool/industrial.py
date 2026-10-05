@@ -269,6 +269,55 @@ def extract_document_pages(path: str | Path) -> list[DocumentPage]:
     raise ValueError("unsupported document type; expected .txt, .md, or .pdf")
 
 
+def extract_document_pages_with_ocr(
+    path: str | Path,
+    *,
+    language: str = "eng",
+    min_text_chars: int = 20,
+) -> list[DocumentPage]:
+    """Extract PDF text and OCR pages that contain little or no machine text.
+
+    OCR is optional so the deterministic core remains dependency-light. Install
+    the package 'ocr' extra and the Tesseract executable to enable scanned-PDF OCR.
+    Pages retain the same source/page provenance as native PDF extraction.
+    """
+    document = Path(path)
+    pages = extract_document_pages(document)
+    if document.suffix.casefold() != ".pdf":
+        return pages
+    if min_text_chars < 0:
+        raise ValueError("min_text_chars must be non-negative")
+    try:
+        import fitz
+        import pytesseract
+        from PIL import Image
+    except ImportError as exc:
+        raise ValueError(
+            "PDF OCR requires the 'ocr' optional dependencies; install with: "
+            "pip install 'industrial-rfq-intelligence[ocr]'"
+        ) from exc
+    try:
+        pdf = fitz.open(str(document))
+    except Exception as exc:
+        raise ValueError(f"cannot open PDF for OCR: {document}") from exc
+    ocr_pages: list[DocumentPage] = []
+    try:
+        for index, page in enumerate(pdf, start=1):
+            native_text = pages[index - 1].text if index <= len(pages) else ""
+            if len(native_text.strip()) >= min_text_chars:
+                ocr_pages.append(DocumentPage(str(document), index, native_text))
+                continue
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+            image = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
+            try:
+                text = pytesseract.image_to_string(image, lang=language)
+            except Exception as exc:
+                raise ValueError(f"OCR failed on {document}, page {index}: {exc}") from exc
+            ocr_pages.append(DocumentPage(str(document), index, text))
+    finally:
+        pdf.close()
+    return ocr_pages
+
 def document_text(pages: Sequence[DocumentPage]) -> str:
     """Build LLM-ready text with explicit source/page markers."""
     return "\n\n".join(
@@ -877,6 +926,7 @@ __all__ = [
     "CommercialValue",
     "DocumentPage",
     "extract_document_pages",
+    "extract_document_pages_with_ocr",
     "document_text",
     "build_matrix",
     "build_evidence_register",
