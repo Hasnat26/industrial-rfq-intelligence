@@ -1064,3 +1064,62 @@ def test_web_workspace_lists_are_tenant_isolated() -> None:
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert isolated.status_code == 404
+
+
+def test_epc_workflow_visibility_exposes_issue_queues_and_gate_state() -> None:
+    seeded = _seed_offer(mode="PROJECT_EPC")
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+
+    deviation = client.post(
+        f"/offers/{offer_id}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MAJOR",
+            "description": "Vendor proposes 400 V design.",
+        },
+    )
+    assert deviation.status_code == 201
+    clarification = client.post(
+        f"/offers/{offer_id}/clarifications",
+        json={"question": "Confirm final voltage basis."},
+    )
+    assert clarification.status_code == 201
+
+    deviations = client.get(f"/offers/{offer_id}/deviations")
+    assert deviations.status_code == 200
+    assert deviations.json()[0]["status"] == "OPEN"
+    clarifications = client.get(f"/offers/{offer_id}/clarifications")
+    assert clarifications.status_code == 200
+    assert clarifications.json()[0]["status"] == "OPEN"
+
+    workflow = client.get(f"/packages/{package_id}/workflow")
+    assert workflow.status_code == 200
+    payload = workflow.json()
+    assert payload["offer_count"] == 1
+    assert payload["technical_status_counts"] == {"PENDING": 1}
+    assert payload["open_deviation_count"] == 1
+    assert payload["open_clarification_count"] == 1
+    assert payload["technical_bid_locked"] is False
+    assert payload["commercial_evaluation_open"] is False
+
+
+def test_epc_workflow_visibility_is_tenant_isolated() -> None:
+    seeded = _seed_offer(mode="PROJECT_EPC")
+    package_id = seeded["package"]["id"]
+    outsider = client.post(
+        "/auth/register",
+        json={"email": "workflow-outsider@example.com", "password": "correct-horse-battery"},
+    )
+    assert outsider.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": "workflow-outsider@example.com", "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    response = client.get(
+        f"/packages/{package_id}/workflow",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    assert response.status_code == 404
+
