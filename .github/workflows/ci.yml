@@ -29,7 +29,9 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Type check Industrial RFQ modules
-        run: mypy --follow-imports=skip src/freellmpool/industrial.py src/freellmpool/industrial_report.py
+        run: |
+          mypy --follow-imports=skip src/freellmpool/industrial.py src/freellmpool/industrial_report.py
+          mypy src/freellmpool/api src/freellmpool/procurement_domain.py
       - name: Industrial CLI smoke
         run: |
           industrial-rfq-intelligence --version
@@ -40,7 +42,7 @@ jobs:
       - name: Industrial RFQ tests
         run: |
           pytest
-          pytest tests/test_industrial_demo.py tests/test_industrial_report.py --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
+          pytest tests/test_industrial_demo.py tests/test_industrial_report.py tests/test_api.py --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
       - name: Build and wheel smoke
         run: |
           python -m build
@@ -59,4 +61,4 @@ jobs:
           test "$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
           test "$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
           unzip -l dist/*.whl | grep -q 'freellmpool/industrial.py'
-          tar -tzf dist/*.tar.gz | grep -q 'industrial-rfq-intelligence-0.1.0/pyproject.toml'
+          tar -tzf dist/*.tar.gz | grep -q 'industrial_rfq_intelligence-0.1.0/pyproject.toml'

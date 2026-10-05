@@ -45,6 +45,10 @@ classifiers = [
 dependencies = [
     "httpx>=0.27",
     "pypdf>=5.0",
+    "fastapi>=0.115",
+    "sqlalchemy>=2.0",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.20",
 ]
 
 [project.urls]
@@ -72,6 +76,7 @@ security = [
 industrial-rfq-intelligence = "freellmpool.cli:main"
 freellmpool = "freellmpool.cli:main"
 ffp = "freellmpool.cli:main"
+industrial-rfq-api = "freellmpool.api.app:run"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freellmpool"]
@@ -107,6 +112,9 @@ testpaths = [
     "tests/test_industrial_report.py",
     "tests/test_security_config.py",
     "tests/test_release_config.py",
+    "tests/test_ci_config.py",
+    "tests/test_procurement_domain.py",
+    "tests/test_api.py",
 ]
 addopts = "-q"
 pythonpath = [".", "src"]
