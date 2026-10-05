@@ -2,6 +2,7 @@
 
 from .app import app
 from .assets import router as assets_router
+from .commercial import router as commercial_router
 from .lifecycle import router as lifecycle_router
 from .lifecycle_costs import router as lifecycle_cost_router
 from .lifecycle_intelligence import router as lifecycle_intelligence_router
