@@ -120,6 +120,28 @@ class OfferRevisionCreate(BaseModel):
     source_text: str | None = None
 
 
+class CommercialStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=30)
+
+
+class CommercialComparisonRow(BaseModel):
+    offer_id: int
+    vendor: str
+    technical_revision: str
+    technical_status: str
+    commercial_status: str
+    price: str | None
+    currency: str | None
+    lead_time: str | None
+    warranty: str | None
+
+
+class CommercialComparisonResponse(BaseModel):
+    package_id: int
+    commercial_open: bool
+    rows: list[CommercialComparisonRow]
+
+
 class OfferRead(BaseModel):
     id: int
     package_id: int
