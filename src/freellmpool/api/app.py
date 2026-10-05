@@ -78,6 +78,8 @@ from freellmpool.api.schemas import (
     QuotationBatchResponse,
     RequirementCreate,
     RfqResponse,
+    RfqRevisionCreate,
+    RfqRevisionRead,
     TechnicalClarificationAnswer,
     TechnicalClarificationCreate,
     TechnicalClarificationGapRead,
@@ -670,6 +672,96 @@ def create_package(
     db.commit()
     db.refresh(package)
     return package
+
+
+@app.post(
+    "/packages/{package_id}/rfq-revisions",
+    response_model=RfqRevisionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_rfq_revision(
+    package_id: int,
+    payload: RfqRevisionCreate,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> RfqRevision:
+    """Create an immutable customer RFQ revision before technical lock."""
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    _require_technical_stage_open(package)
+    current_id = package.current_rfq_revision_id
+    if current_id is None:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not initialized")
+    current = db.get(RfqRevision, current_id)
+    if current is None or current.package_id != package.id:
+        raise HTTPException(status_code=409, detail="current RFQ revision is not available")
+    requirements = payload.requirements
+    tags: set[str] = set()
+    for item in requirements:
+        tag = item.tag.strip()
+        parameter = item.parameter.strip()
+        required_value = item.required_value.strip()
+        if not tag or not parameter or not required_value:
+            raise HTTPException(status_code=422, detail="RFQ requirement fields must not be blank")
+        normalized_tag = tag.casefold()
+        if normalized_tag in tags:
+            raise HTTPException(status_code=422, detail="RFQ requirement tags must be unique")
+        tags.add(normalized_tag)
+    try:
+        revision_number = int(current.revision.removeprefix("R")) + 1
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail="current RFQ revision has an invalid sequence") from exc
+    revision_name = f"R{revision_number}"
+    current.status = "SUPERSEDED"
+    revision = RfqRevision(
+        package_id=package.id,
+        revision=revision_name,
+        status="CURRENT",
+        reason=payload.reason.strip(),
+        created_by_user_id=user.id,
+        supersedes_revision_id=current.id,
+    )
+    db.add(revision)
+    db.flush()
+    for item in requirements:
+        revision.requirements.append(
+            Requirement(
+                package_id=package.id,
+                rfq_revision_id=revision.id,
+                tag=item.tag.strip(),
+                parameter=item.parameter.strip(),
+                required_value=item.required_value.strip(),
+                requirement_type=item.requirement_type.strip().upper(),
+                acceptance_rule=item.acceptance_rule.strip() if item.acceptance_rule else None,
+            )
+        )
+    package.current_rfq_revision_id = revision.id
+    for offer in _active_vendor_offers(package):
+        old_status = offer.technical_status
+        offer.technical_status = "SUPERSEDED"
+        _audit(
+            db,
+            package,
+            user,
+            "RFQ_REVISION_SUPERSEDED_OFFER",
+            offer,
+            from_status=old_status,
+            to_status="SUPERSEDED",
+            note=f"Superseded by RFQ {revision_name}",
+        )
+    _audit(
+        db,
+        package,
+        user,
+        "RFQ_REVISION_CREATED",
+        from_status=current.revision,
+        to_status=revision_name,
+        note=payload.reason.strip(),
+    )
+    db.commit()
+    db.refresh(revision)
+    return revision
 
 
 @app.get("/packages/{package_id}/rfq", response_model=RfqResponse)
