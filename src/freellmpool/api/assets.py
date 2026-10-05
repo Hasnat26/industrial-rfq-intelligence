@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from freellmpool.api.auth import get_current_user, is_member
@@ -46,7 +47,11 @@ def create_asset(
         raise HTTPException(status_code=409, detail="asset already exists for package")
     asset = AssetProduct(package_id=package.id, **payload.model_dump(exclude={"asset_id"}), asset_id=payload.asset_id.strip())
     db.add(asset)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="asset already exists for package") from exc
     db.refresh(asset)
     return asset
 
