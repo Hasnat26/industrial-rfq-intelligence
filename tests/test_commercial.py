@@ -98,3 +98,39 @@ def test_invalid_subscription_plan_is_rejected() -> None:
         json={"plan_key": "UNKNOWN", "status": "ACTIVE"},
     )
     assert response.status_code == 422
+
+
+def test_billing_webhook_requires_secret(monkeypatch) -> None:
+    monkeypatch.delenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", raising=False)
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json={"id": "evt_missing_secret", "type": "customer.subscription.updated"},
+    )
+    assert response.status_code == 503
+
+
+def test_billing_webhook_is_idempotent(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", "test-secret")
+    payload = {
+        "id": "evt_123",
+        "type": "customer.subscription.updated",
+        "organization_id": 1,
+    }
+    headers = {"X-Billing-Webhook-Secret": "test-secret"}
+    first = client.post("/billing/webhooks/stripe", json=payload, headers=headers)
+    second = client.post("/billing/webhooks/stripe", json=payload, headers=headers)
+    assert first.status_code == 202
+    assert second.status_code == 202
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is True
+    assert first.json()["event_id"] == second.json()["event_id"]
+
+
+def test_billing_webhook_rejects_invalid_secret(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", "test-secret")
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json={"id": "evt_bad_secret", "type": "customer.subscription.updated"},
+        headers={"X-Billing-Webhook-Secret": "wrong"},
+    )
+    assert response.status_code == 401

@@ -419,3 +419,50 @@ class SubscriptionLifecycleUpdate(BaseModel):
     external_subscription_id: str | None = Field(default=None, max_length=200)
     current_period_start: datetime | None = None
     current_period_end: datetime | None = None
+
+
+class SubscriptionPlanRead(BaseModel):
+    key: str
+    name: str
+    monthly_price_usd: float
+    limits: dict[str, int]
+
+
+class OrganizationSubscriptionRead(BaseModel):
+    id: int
+    organization_id: int
+    plan_key: str
+    status: str
+    billing_provider: str | None
+    external_customer_id: str | None
+    external_subscription_id: str | None
+    current_period_start: datetime
+    current_period_end: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UsageRecordCreate(BaseModel):
+    metric: str = Field(min_length=1, max_length=50)
+    quantity: float = Field(gt=0)
+    source_type: str | None = Field(default=None, max_length=50)
+    source_id: int | None = Field(default=None, ge=1)
+
+
+class UsageRecordRead(UsageRecordCreate):
+    id: int
+    organization_id: int
+    recorded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UsageSummaryResponse(BaseModel):
+    organization_id: int
+    plan_key: str
+    period_start: datetime
+    period_end: datetime
+    usage: dict[str, float]
+    limits: dict[str, int]
