@@ -187,3 +187,28 @@ def test_resubmission_is_rejected_after_technical_lock() -> None:
         files={"file": ("VendorA_R2.txt", b"Rated voltage: 415 V\nMotor power: 75 kW\n", "text/plain")},
     )
     assert response.status_code == 409
+
+
+def test_manual_clarification_create_persists_current_rfq_traceability() -> None:
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    response = client.post(
+        f"/offers/{offer['id']}/clarifications",
+        json={
+            "question": "Confirm final voltage basis.",
+            "response": "415 V",
+            "status": "ANSWERED",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["rfq_revision_id"] == 1
+    assert data["requirement_id"] is None
+    assert data["gap_type"] is None
+    assert data["evaluated_offered"] is None
+    assert data["evaluation_status"] is None
+    assert data["evaluation_evidence"] is None
