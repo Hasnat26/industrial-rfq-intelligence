@@ -194,6 +194,7 @@ def _auto_create_document_claims(
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
         for item in offer.package.requirements
+        if item.rfq_revision_id == offer.rfq_revision_id
     ]
     candidates = extract_claim_candidates(pages, requirements)
     for candidate in candidates:
@@ -229,6 +230,7 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
     requirements = [
         EngineRequirement(item.tag, item.parameter, item.required_value)
         for item in package.requirements
+        if item.rfq_revision_id == package.current_rfq_revision_id
     ]
     grouped: dict[str, list[VendorOffer]] = {}
     for offer in package.offers:
@@ -800,6 +802,7 @@ def generate_rfq(
             acceptance_rule=item.acceptance_rule,
         )
         for item in package.requirements
+        if item.rfq_revision_id == package.current_rfq_revision_id
     ]
     instructions = [
         "Return a line-by-line technical offer against each requirement.",
