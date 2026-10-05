@@ -3,15 +3,15 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from freellmpool.api.app import app
-import freellmpool.api.db as db
+from freellmpool.api.db import Base, ProcurementPackage, RfqRevision, SessionLocal, VendorOffer, engine  # noqa: I001
 
 
 client = TestClient(app)
 
 
 def setup_function() -> None:
-    db.Base.metadata.drop_all(bind=db.engine)
-    db.Base.metadata.create_all(bind=db.engine)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     client.headers.pop("Authorization", None)
     registered = client.post(
         "/auth/register",
@@ -62,14 +62,14 @@ def test_new_package_creates_r1_and_binds_requirements_and_offer() -> None:
     assert offer.status_code == 201, offer.text
     offer_id = offer.json()["id"]
 
-    session = db.SessionLocal()
+    session = SessionLocal()
     try:
-        revision = session.query(db.RfqRevision).filter_by(package_id=package_id).one()
-        persisted_offer = session.get(db.VendorOffer, offer_id)
+        revision = session.query(RfqRevision).filter_by(package_id=package_id).one()
+        persisted_offer = session.get(VendorOffer, offer_id)
         assert revision.revision == "R1"
         assert revision.status == "CURRENT"
         assert revision.reason == "Initial RFQ baseline"
-        package_row = session.get(db.ProcurementPackage, package_id)
+        package_row = session.get(ProcurementPackage, package_id)
         assert package_row is not None
         assert package_row.current_rfq_revision_id == revision.id
         assert persisted_offer is not None
@@ -111,10 +111,10 @@ def test_vendor_offer_revision_stays_on_current_rfq_baseline() -> None:
     )
     assert revision.status_code == 201, revision.text
 
-    session = db.SessionLocal()
+    session = SessionLocal()
     try:
-        r1 = session.get(db.VendorOffer, offer["id"])
-        r2 = session.get(db.VendorOffer, revision.json()["id"])
+        r1 = session.get(VendorOffer, offer["id"])
+        r2 = session.get(VendorOffer, revision.json()["id"])
         assert r1.rfq_revision_id is not None
         assert r2.rfq_revision_id == r1.rfq_revision_id
     finally:
