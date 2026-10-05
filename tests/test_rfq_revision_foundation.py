@@ -338,3 +338,68 @@ def test_cross_tenant_user_cannot_access_package_or_offer_workflow() -> None:
         json={"status": "ACCEPTED"},
     )
     assert technical.status_code == 404
+
+def test_superseded_offer_cannot_mutate_claim_deviation_or_clarification_workflow() -> None:
+    organization = client.post("/organizations", json={"name": "RFQ Stale Mutation Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+
+    revision = client.post(
+        f"/packages/{package['id']}/rfq-revisions",
+        json={
+            "reason": "Customer revised the voltage requirement.",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+            ],
+        },
+    )
+    assert revision.status_code == 201, revision.text
+
+    claim = client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "Legacy R1 evidence",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert claim.status_code == 409
+    assert "superseded RFQ revision" in claim.json()["detail"]
+
+    deviation = client.post(
+        f"/offers/{offer['id']}/deviations",
+        json={
+            "parameter": "Rated voltage",
+            "severity": "MAJOR",
+            "description": "Legacy R1 deviation",
+            "status": "OPEN",
+        },
+    )
+    assert deviation.status_code == 409
+    assert "superseded RFQ revision" in deviation.json()["detail"]
+
+    preview = client.get(f"/offers/{offer['id']}/technical-clarification-package")
+    assert preview.status_code == 409
+    assert "superseded RFQ revision" in preview.json()["detail"]
+
+    request = client.post(f"/offers/{offer['id']}/technical-clarification-request")
+    assert request.status_code == 409
+    assert "superseded RFQ revision" in request.json()["detail"]
