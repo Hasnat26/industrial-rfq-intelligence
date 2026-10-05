@@ -141,6 +141,128 @@ def test_customer_web_app_exposes_batch_quotation_intake() -> None:
     assert "FormData" in response.text
 
 
+def test_batch_quotation_auto_extracts_claims_with_provenance() -> None:
+    organization = client.post("/organizations", json={"name": "Auto Extract"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Motor Review"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "75 kW"},
+            ],
+        },
+    ).json()
+    response = client.post(
+        f"/packages/{package['id']}/quotations/batch",
+        data={"entries": json.dumps([{"vendor_name": "Vendor Alpha"}])},
+        files=[(
+            "files",
+            (
+                "alpha.txt",
+                b"# Technical Data\nRated Voltage: 415 V\nMotor Power | 75 kW\nUnrelated: ignore",
+                "text/plain",
+            ),
+        )],
+    )
+    assert response.status_code == 201, response.text
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    rows = comparison.json()["rows"]
+    assert [row["status"] for row in rows] == ["COMPLIANT", "COMPLIANT"]
+
+    evidence = client.get(f"/packages/{package['id']}/evidence")
+    assert evidence.status_code == 200
+    rows = evidence.json()["rows"]
+    assert len(rows) == 2
+    assert {row["claim_status"] for row in rows} == {"VERIFIED"}
+    assert {row["source_page"] if "source_page" in row else row["page"] for row in rows} == {1}
+    assert {row["source_document_filename"] for row in rows} == {"alpha.txt"}
+    assert all("page 1:" in row["evidence"] for row in rows)
+
+
+def test_batch_quotation_conflicting_explicit_claims_fail_closed() -> None:
+    organization = client.post("/organizations", json={"name": "Conflict Check"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Motor Review"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    ).json()
+    response = client.post(
+        f"/packages/{package['id']}/quotations/batch",
+        data={"entries": json.dumps([{"vendor_name": "Vendor Conflict"}])},
+        files=[(
+            "files",
+            (
+                "conflict.txt",
+                b"Rated voltage: 415 V\nRated voltage: 400 V",
+                "text/plain",
+            ),
+        )],
+    )
+    assert response.status_code == 201, response.text
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    assert comparison.json()["rows"][0]["status"] == "UNVERIFIED"
+    evidence = client.get(f"/packages/{package['id']}/evidence")
+    assert evidence.status_code == 200
+    assert len(evidence.json()["rows"]) == 2
+
+
+def test_batch_quotation_missing_or_ambiguous_field_remains_unverified() -> None:
+    organization = client.post("/organizations", json={"name": "Ambiguous Check"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Motor Review"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+            ],
+        },
+    ).json()
+    response = client.post(
+        f"/packages/{package['id']}/quotations/batch",
+        data={"entries": json.dumps([{"vendor_name": "Vendor Ambiguous"}])},
+        files=[(
+            "files",
+            (
+                "ambiguous.txt",
+                b"The proposed motor shall operate at 415 V nominal voltage.",
+                "text/plain",
+            ),
+        )],
+    )
+    assert response.status_code == 201, response.text
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    assert comparison.json()["rows"][0]["status"] == "UNVERIFIED"
+    evidence = client.get(f"/packages/{package['id']}/evidence")
+    assert evidence.status_code == 200
+    assert evidence.json()["rows"] == []
+
+
 def test_health() -> None:
     response = client.get("/health")
     assert response.status_code == 200
@@ -1319,4 +1441,3 @@ def test_final_decision_requires_completed_commercial_evaluation() -> None:
     fetched = client.get(f"/packages/{package_id}/decision")
     assert fetched.status_code == 200
     assert fetched.json()["rationale"].startswith("Technically accepted")
-
