@@ -17,6 +17,7 @@ from freellmpool.api.auth import authenticate, get_current_user, is_member, issu
 from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
+    ProcurementAuditEvent,
     ProcurementPackage,
     Project,
     Requirement,
@@ -31,6 +32,7 @@ from freellmpool.api.db import (
     init_db,
 )
 from freellmpool.api.schemas import (
+    AuditEventRead,
     ClaimCreate,
     ClaimRead,
     CommercialComparisonResponse,
@@ -270,6 +272,48 @@ def list_packages(
         .order_by(ProcurementPackage.id)
     ).all()
     return [PackageRead.model_validate(row) for row in rows]
+
+
+
+def _audit(
+    db: Session,
+    package: ProcurementPackage,
+    user: User,
+    event_type: str,
+    offer: VendorOffer | None = None,
+    from_status: str | None = None,
+    to_status: str | None = None,
+    note: str | None = None,
+) -> None:
+    db.add(
+        ProcurementAuditEvent(
+            package_id=package.id,
+            offer_id=offer.id if offer is not None else None,
+            actor_user_id=user.id,
+            event_type=event_type,
+            from_status=from_status,
+            to_status=to_status,
+            note=note,
+        )
+    )
+
+
+@app.get("/packages/{package_id}/audit", response_model=list[AuditEventRead])
+def package_audit(
+    package_id: int,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[ProcurementAuditEvent]:
+    package = db.get(ProcurementPackage, package_id)
+    if package is None or not is_member(db, user.id, package.project.organization_id):
+        raise HTTPException(status_code=404, detail="package not found")
+    return list(
+        db.scalars(
+            select(ProcurementAuditEvent)
+            .where(ProcurementAuditEvent.package_id == package_id)
+            .order_by(ProcurementAuditEvent.id)
+        )
+    )
 
 
 @app.get("/health")
@@ -1047,7 +1091,9 @@ def update_technical_status(
     status_value = payload.status.strip().upper()
     if status_value not in allowed:
         raise HTTPException(status_code=422, detail="invalid technical status")
+    old_status = offer.technical_status
     offer.technical_status = status_value
+    _audit(db, offer.package, user, "TECHNICAL_STATUS_CHANGED", offer, old_status, status_value)
     db.commit()
     db.refresh(offer)
     return offer
@@ -1083,6 +1129,7 @@ def lock_technical_bid(
             detail=f"technical evaluation incomplete for: {', '.join(blocking)}",
         )
     package.technical_bid_locked = True
+    _audit(db, package, user, "TECHNICAL_BID_LOCKED", to_status="LOCKED")
     db.commit()
     db.refresh(package)
     return package
@@ -1103,6 +1150,7 @@ def open_commercial_evaluation(
             detail="technical bid must be locked before commercial evaluation",
         )
     package.commercial_evaluation_open = True
+    _audit(db, package, user, "COMMERCIAL_EVALUATION_OPENED", to_status="OPEN")
     for offer in package.offers:
         if offer.technical_status in {"ACCEPTED", "ACCEPTED_WITH_DEVIATION"}:
             offer.commercial_status = "OPEN"
@@ -1144,7 +1192,9 @@ def update_commercial_status(
             status_code=409,
             detail=f"invalid commercial status transition from {offer.commercial_status} to {requested}",
         )
+    old_status = offer.commercial_status
     offer.commercial_status = requested
+    _audit(db, package, user, "COMMERCIAL_STATUS_CHANGED", offer, old_status, requested)
     db.commit()
     db.refresh(offer)
     return offer

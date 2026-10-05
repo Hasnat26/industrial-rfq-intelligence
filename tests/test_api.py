@@ -1197,3 +1197,27 @@ def test_project_epc_commercial_evaluation_requires_gate() -> None:
     hidden = client.get(f"/packages/{seeded['package']['id']}/commercial-comparison")
     assert hidden.status_code == 409
 
+
+
+def test_package_audit_records_epc_gate_and_status_transitions() -> None:
+    seeded = _seed_offer(mode="PROJECT_EPC")
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+    assert client.post(f"/offers/{offer_id}/technical-status", json={"status": "ACCEPTED"}).status_code == 200
+    assert client.post(f"/packages/{package_id}/technical-lock").status_code == 200
+    assert client.post(f"/packages/{package_id}/commercial-open").status_code == 200
+    assert client.post(f"/offers/{offer_id}/commercial-status", json={"status": "IN_REVIEW"}).status_code == 200
+    audit = client.get(f"/packages/{package_id}/audit")
+    assert audit.status_code == 200
+    events = audit.json()
+    assert [item["event_type"] for item in events] == [
+        "TECHNICAL_STATUS_CHANGED",
+        "TECHNICAL_BID_LOCKED",
+        "COMMERCIAL_EVALUATION_OPENED",
+        "COMMERCIAL_STATUS_CHANGED",
+    ]
+    assert events[0]["from_status"] == "PENDING"
+    assert events[0]["to_status"] == "ACCEPTED"
+    assert events[-1]["from_status"] == "OPEN"
+    assert events[-1]["to_status"] == "IN_REVIEW"
+

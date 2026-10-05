@@ -229,6 +229,23 @@ def get_db() -> Generator[object, None, None]:
         db.close()
 
 
+class ProcurementAuditEvent(Base):
+    __tablename__ = "procurement_audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    offer_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_offers.id"), nullable=True, index=True)
+    actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    event_type: Mapped[str] = mapped_column(String(60), index=True)
+    from_status: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    to_status: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    package: Mapped[ProcurementPackage] = relationship()
+    offer: Mapped[VendorOffer | None] = relationship()
+    actor: Mapped[User] = relationship()
+
+
 class TechnicalDeviation(Base):
     __tablename__ = "technical_deviations"
 

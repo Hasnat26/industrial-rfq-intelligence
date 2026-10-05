@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -295,6 +297,18 @@ class QuotationBatchResponse(BaseModel):
     package_id: int
     offers: list[OfferRead]
     document_ids: list[int]
+
+
+class AuditEventRead(BaseModel):
+    id: int
+    package_id: int
+    offer_id: int | None
+    actor_user_id: int
+    event_type: str
+    from_status: str | None
+    to_status: str | None
+    note: str | None
+    created_at: datetime
 
 
 class ProductCategoryParameterRead(BaseModel):
