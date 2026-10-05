@@ -58,6 +58,11 @@ Repository = "https://github.com/Hasnat26/industrial-rfq-intelligence"
 Issues = "https://github.com/Hasnat26/industrial-rfq-intelligence/issues"
 
 [project.optional-dependencies]
+ocr = [
+    "Pillow>=10.0",
+    "PyMuPDF>=1.24",
+    "pytesseract>=0.3.13",
+]
 dev = [
     "build>=1.2",
     "mypy>=1.10",
