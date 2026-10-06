@@ -73,3 +73,17 @@ def test_saas_deployment_surface_is_explicit() -> None:
     assert 'Dockerfile.saas' in compose
     assert 'INDUSTRIAL_RFQ_DATABASE_URL' in deployment
     assert 'alembic upgrade head' in deployment
+
+
+
+def test_saas_compose_separates_local_smoke_from_production() -> None:
+    local = (ROOT / "docker-compose.saas.yml").read_text(encoding="utf-8")
+    production = (ROOT / "docker-compose.saas.production.yml").read_text(encoding="utf-8")
+
+    assert "INDUSTRIAL_RFQ_ENV: development" in local
+    assert "sqlite:////app/data/industrial_rfq.db" in local
+    assert "INDUSTRIAL_RFQ_ENV: production" in production
+    assert "INDUSTRIAL_RFQ_DATABASE_URL: ${INDUSTRIAL_RFQ_DATABASE_URL:?" in production
+    assert "INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET: ${INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET:?" in production
+    assert "INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET: ${INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET:?" in production
+    assert "sqlite:" not in production
