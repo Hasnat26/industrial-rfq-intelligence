@@ -17,11 +17,10 @@ model setting untouched — just set the base URL and any API key.
 
 ## Release status
 
-Latest release: 0.13.0. GitHub and PyPI both provide the Hermes profile, the
-readiness/provider operations APIs, refreshed providers, Vercel AI Gateway
-support, `spread` routing, and registry-readiness hardening for the existing
-repository-local OpenCode plugins. Install it with
-`python -m pip install freellmpool`.
+Latest release: 0.1.0. The release from this repository is the Industrial RFQ
+Intelligence SaaS under the `industrial-rfq-intelligence` package name (see the
+README for the product surface). Install it from source with
+`python -m pip install .`.
 
 ---
 

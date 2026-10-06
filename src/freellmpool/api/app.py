@@ -313,7 +313,7 @@ def run() -> None:
     )
 
 
-app = FastAPI(title="Industrial RFQ Intelligence API", version="0.2.0")
+app = FastAPI(title="Industrial RFQ Intelligence API", version="0.1.0")
 
 
 @app.on_event("startup")
