@@ -6,7 +6,7 @@ The SaaS API is the FastAPI application exposed by `industrial-rfq-api`, not the
 
 ## Production configuration
 
-Set `INDUSTRIAL_RFQ_DATABASE_URL` to managed PostgreSQL in production and run `alembic upgrade head` as a deployment step before starting the application. Set `INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET` when billing webhooks are enabled and `INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET` before enabling scheduled reconciliation.
+Set `INDUSTRIAL_RFQ_DATABASE_URL` to managed PostgreSQL in production and run `alembic upgrade head` as a deployment step before starting the application. Production startup fails closed unless the database URL uses PostgreSQL, `INDUSTRIAL_RFQ_AUTO_CREATE_TABLES` is not enabled, and both `INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET` and `INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET` are configured with at least 32 characters.
 
 Do not enable `INDUSTRIAL_RFQ_AUTO_CREATE_TABLES` in production. The application deliberately does not mutate non-SQLite schemas during startup.
 
@@ -18,7 +18,7 @@ Use:
 
 Then verify `/ready` returns HTTP 200. Create a user through `POST /auth/register`, authenticate through `POST /auth/login`, create an organization, project, package, and ingest vendor quotations.
 
-The compose file uses SQLite only for local smoke testing. It is not a production database topology; production should use PostgreSQL with managed backups and recovery.
+The compose file uses SQLite only for local smoke testing, and therefore intentionally fails if used with `INDUSTRIAL_RFQ_ENV=production` without replacing the database/secrets. It is not a production database topology; production should use PostgreSQL with managed backups and recovery.
 
 ## Storage boundary
 

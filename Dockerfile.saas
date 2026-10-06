@@ -2,14 +2,17 @@
 # Production deployments must provide database URLs and secrets through the
 # deployment platform; no credentials are baked into the image.
 
-FROM python:3.14-alpine@sha256:05b2b8b732ecd268fee8727a369f936f022d1321b59befd13c30ede22769dcdc
+FROM python:3.14.7-slim-bookworm@sha256:bf5a06313080f516be80f78839d992270e7877dde4e2c345a41b84f862fbc28b
 
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir . \
-    && adduser -D -u 10001 industrial \
+    && useradd --system --uid 10001 --create-home --home-dir /home/industrial industrial \
     && mkdir -p /app/data \
     && chown -R industrial:industrial /app
 USER industrial

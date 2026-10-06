@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_TABLES = {
     "organizations",
@@ -137,6 +139,30 @@ def test_application_starts_against_migrated_database(tmp_path: Path) -> None:
         "    assert org.status_code == 201, org.text\n"
     )
     _run(["-c", smoke], database)
+
+
+def test_production_configuration_fails_closed(monkeypatch) -> None:
+    from freellmpool.api.app import _validate_production_configuration
+
+    monkeypatch.setenv("INDUSTRIAL_RFQ_ENV", "production")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_DATABASE_URL", "sqlite:///./unsafe.db")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET", "x" * 32)
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "y" * 32)
+    with pytest.raises(RuntimeError, match="PostgreSQL"):
+        _validate_production_configuration()
+
+    monkeypatch.setenv("INDUSTRIAL_RFQ_DATABASE_URL", "postgresql://user:pass@localhost/production")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_AUTO_CREATE_TABLES", "1")
+    with pytest.raises(RuntimeError, match="AUTO_CREATE_TABLES"):
+        _validate_production_configuration()
+
+    monkeypatch.setenv("INDUSTRIAL_RFQ_AUTO_CREATE_TABLES", "0")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "short")
+    with pytest.raises(RuntimeError, match="INTERNAL_RECONCILIATION_SECRET"):
+        _validate_production_configuration()
+
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "y" * 32)
+    _validate_production_configuration()
 
 
 def test_startup_does_not_auto_create_tables_for_non_sqlite(monkeypatch) -> None:
