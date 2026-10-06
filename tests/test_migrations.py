@@ -11,9 +11,9 @@ import sqlite3
 import subprocess
 import sys
 
-import pytest
-import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_TABLES = {
