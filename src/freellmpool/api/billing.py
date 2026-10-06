@@ -26,7 +26,7 @@ from freellmpool.api.schemas import BillingWebhookEventRead
 
 router = APIRouter(tags=["billing"])
 
-_STATUS_MAP = {
+_STATUS_MAP: dict[str, str] = {
     "subscription.active": "ACTIVE",
     "subscription.updated": "ACTIVE",
     "subscription.trialing": "TRIALING",
@@ -37,7 +37,7 @@ _STATUS_MAP = {
     "subscription.paused": "PAUSED",
     "subscription.resumed": "ACTIVE",
 }
-_SUPPORTED_EVENT_TYPES = frozenset(_STATUS_MAP)
+_SUPPORTED_EVENT_TYPES: frozenset[str] = frozenset(_STATUS_MAP)
 _PROVIDER_PATTERN = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 
 
@@ -51,11 +51,11 @@ def _normalize_provider(provider: str) -> str:
 def _subscription_from_event(
     db: Session, payload: dict[str, object], provider: str
 ) -> OrganizationSubscription | None:
-    organization_id = payload.get("organization_id")
-    if isinstance(organization_id, bool) or organization_id is None:
+    organization_value = payload.get("organization_id")
+    if isinstance(organization_value, bool) or organization_value is None:
         return None
     try:
-        normalized_organization_id = int(organization_id)
+        normalized_organization_id = int(organization_value)
     except (TypeError, ValueError):
         return None
 
@@ -82,8 +82,9 @@ def _subscription_from_event(
     if external_subscription_id is not None:
         subscription.external_subscription_id = str(external_subscription_id)
 
-    mapped_status = _STATUS_MAP.get(str(payload.get("type", "")).strip().lower())
-    if mapped_status:
+    event_type = str(payload.get("type", "")).strip().lower()
+    mapped_status = _STATUS_MAP.get(event_type)
+    if mapped_status is not None:
         subscription.status = mapped_status
 
     for value, attribute in (
@@ -118,11 +119,12 @@ async def receive_billing_webhook(
 
     body = await request.body()
     try:
-        payload = json.loads(body)
+        raw_payload = json.loads(body)
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail="invalid webhook JSON") from exc
-    if not isinstance(payload, dict):
+    if not isinstance(raw_payload, dict):
         raise HTTPException(status_code=400, detail="webhook payload must be an object")
+    payload: dict[str, object] = raw_payload
 
     external_event_id = str(payload.get("id", "")).strip()
     event_type = str(payload.get("type", "")).strip()
@@ -143,11 +145,11 @@ async def receive_billing_webhook(
         if existing is not None:
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
-        organization_id = payload.get("organization_id")
-        if organization_id is None:
+        organization_value = payload.get("organization_id")
+        if organization_value is None:
             raise HTTPException(status_code=400, detail="organization_id is required")
         try:
-            organization_id = int(organization_id)
+            organization_id = int(organization_value)
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail="organization_id must be an integer") from exc
 
