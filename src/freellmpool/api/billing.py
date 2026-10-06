@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -32,23 +33,30 @@ _STATUS_MAP = {
     "subscription.past_due": "PAST_DUE",
     "subscription.canceled": "CANCELED",
     "subscription.cancelled": "CANCELED",
+    "subscription.expired": "EXPIRED",
+    "subscription.paused": "PAUSED",
+    "subscription.resumed": "ACTIVE",
 }
+_SUPPORTED_EVENT_TYPES = frozenset(_STATUS_MAP)
+_PROVIDER_PATTERN = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 
 
-def _subscription_from_event(db: Session, payload: dict[str, object], provider: str) -> OrganizationSubscription | None:
+def _normalize_provider(provider: str) -> str:
+    normalized = provider.strip().upper()
+    if not _PROVIDER_PATTERN.fullmatch(normalized):
+        raise HTTPException(status_code=400, detail="invalid billing provider")
+    return normalized
+
+
+def _subscription_from_event(
+    db: Session, payload: dict[str, object], provider: str
+) -> OrganizationSubscription | None:
     organization_id = payload.get("organization_id")
-    if organization_id is None:
+    if isinstance(organization_id, bool) or organization_id is None:
         return None
-    if isinstance(organization_id, bool):
-        return None
-    if isinstance(organization_id, int):
-        normalized_organization_id = organization_id
-    elif isinstance(organization_id, str):
-        try:
-            normalized_organization_id = int(organization_id)
-        except ValueError:
-            return None
-    else:
+    try:
+        normalized_organization_id = int(organization_id)
+    except (TypeError, ValueError):
         return None
 
     subscription = db.scalar(
@@ -59,9 +67,16 @@ def _subscription_from_event(db: Session, payload: dict[str, object], provider: 
     if subscription is None:
         return None
 
-    subscription.billing_provider = provider.upper()
-    external_customer_id = payload.get("customer_id")
     external_subscription_id = payload.get("subscription_id")
+    if (
+        subscription.external_subscription_id
+        and external_subscription_id is not None
+        and str(external_subscription_id) != subscription.external_subscription_id
+    ):
+        raise HTTPException(status_code=409, detail="billing subscription identity mismatch")
+
+    subscription.billing_provider = provider
+    external_customer_id = payload.get("customer_id")
     if external_customer_id is not None:
         subscription.external_customer_id = str(external_customer_id)
     if external_subscription_id is not None:
@@ -71,17 +86,17 @@ def _subscription_from_event(db: Session, payload: dict[str, object], provider: 
     if mapped_status:
         subscription.status = mapped_status
 
-    period_start = payload.get("current_period_start")
-    period_end = payload.get("current_period_end")
-    for value, attribute in ((period_start, "current_period_start"), (period_end, "current_period_end")):
+    for value, attribute in (
+        (payload.get("current_period_start"), "current_period_start"),
+        (payload.get("current_period_end"), "current_period_end"),
+    ):
         if value is not None:
             try:
                 setattr(subscription, attribute, datetime.fromisoformat(str(value)))
             except ValueError:
-                pass
+                raise HTTPException(status_code=400, detail=f"invalid {attribute}") from None
     subscription.updated_at = datetime.now(UTC)
     return subscription
-
 
 
 def _webhook_secret() -> str:
@@ -94,6 +109,7 @@ async def receive_billing_webhook(
     request: Request,
     x_billing_webhook_secret: str | None = Header(default=None),
 ) -> dict[str, object]:
+    normalized_provider = _normalize_provider(provider)
     secret = _webhook_secret()
     if not secret:
         raise HTTPException(status_code=503, detail="billing webhook secret is not configured")
@@ -112,13 +128,15 @@ async def receive_billing_webhook(
     event_type = str(payload.get("type", "")).strip()
     if not external_event_id or not event_type:
         raise HTTPException(status_code=400, detail="webhook id and type are required")
+    if event_type.casefold() not in _SUPPORTED_EVENT_TYPES:
+        raise HTTPException(status_code=400, detail="unsupported billing event type")
 
     payload_hash = hashlib.sha256(body).hexdigest()
     db = SessionLocal()
     try:
         existing = db.scalar(
             select(BillingWebhookEvent).where(
-                BillingWebhookEvent.provider == provider.upper(),
+                BillingWebhookEvent.provider == normalized_provider,
                 BillingWebhookEvent.external_event_id == external_event_id,
             )
         )
@@ -126,15 +144,16 @@ async def receive_billing_webhook(
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
         organization_id = payload.get("organization_id")
-        if organization_id is not None:
-            try:
-                organization_id = int(organization_id)
-            except (TypeError, ValueError) as exc:
-                raise HTTPException(status_code=400, detail="organization_id must be an integer") from exc
+        if organization_id is None:
+            raise HTTPException(status_code=400, detail="organization_id is required")
+        try:
+            organization_id = int(organization_id)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="organization_id must be an integer") from exc
 
         event = BillingWebhookEvent(
             organization_id=organization_id,
-            provider=provider.upper(),
+            provider=normalized_provider,
             external_event_id=external_event_id,
             event_type=event_type,
             payload_hash=payload_hash,
@@ -148,14 +167,17 @@ async def receive_billing_webhook(
             db.rollback()
             existing = db.scalar(
                 select(BillingWebhookEvent).where(
-                    BillingWebhookEvent.provider == provider.upper(),
+                    BillingWebhookEvent.provider == normalized_provider,
                     BillingWebhookEvent.external_event_id == external_event_id,
                 )
             )
             if existing is None:
                 raise
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
-        _subscription_from_event(db, payload, provider)
+
+        if _subscription_from_event(db, payload, normalized_provider) is None:
+            raise HTTPException(status_code=404, detail="subscription not found")
+
         event.status = "PROCESSED"
         event.processed_at = datetime.now(UTC)
         db.commit()
