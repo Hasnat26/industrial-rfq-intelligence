@@ -6,7 +6,7 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Real GitHub Actions green run | Main commit `3a00414c73ab531d0ca4c3016a39f08c33f839fa`, CI Run #503 completed successfully | PASS |
+| Real GitHub Actions green run | Main commit `9154867717d7f6b1f1e02550cdcea6c3604e35c4`, CI Run #512 completed successfully | PASS |
 | Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits | PASS |
 | Security gate | Security commands and regression tests are part of the main CI gate | PASS |
