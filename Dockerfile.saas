@@ -12,7 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir . \
-    && adduser -D -u 10001 industrial \
+    && useradd --system --uid 10001 --create-home --home-dir /home/industrial industrial \
     && mkdir -p /app/data \
     && chown -R industrial:industrial /app
 USER industrial
