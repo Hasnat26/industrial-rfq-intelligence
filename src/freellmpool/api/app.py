@@ -7,13 +7,14 @@ import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from freellmpool.api import ratelimit
 from freellmpool.api.auth import authenticate, get_current_user, is_member, issue_session
 from freellmpool.api.db import (
     Organization,
@@ -554,15 +555,32 @@ def register_user(
 
 @app.post("/auth/login", response_model=TokenResponse)
 def login(
-    payload: LoginRequest, db: Session = Depends(get_db)  # noqa: B008
+    payload: LoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> TokenResponse:
+    email = payload.email.strip().casefold()
+    client_ip = request.client.host if request.client else "unknown"
+    email_key = f"login:email:{email}"
+    ip_key = f"login:ip:{client_ip}"
+    if ratelimit.is_blocked(email_key, ratelimit.email_max_failures()) or ratelimit.is_blocked(
+        ip_key, ratelimit.ip_max_failures()
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="too many failed login attempts",
+            headers={"Retry-After": str(int(ratelimit.window_seconds()))},
+        )
     user = authenticate(db, payload.email, payload.password)
     if user is None:
+        ratelimit.record_failure(email_key)
+        ratelimit.record_failure(ip_key)
         raise HTTPException(
             status_code=401,
             detail="incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    ratelimit.clear(email_key)
     _session, token = issue_session(db, user)
     db.commit()
     return TokenResponse(access_token=token, user=UserRead.model_validate(user))

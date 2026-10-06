@@ -7,6 +7,8 @@ between Organization A and Organization B.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -340,6 +342,135 @@ def test_cross_tenant_mutations_blocked() -> None:
     package = client.get(f"/packages/{package_id}/offers", headers=victim)
     assert package.status_code == 200
     assert len(package.json()) == 1
+
+
+def test_failed_login_attempts_are_rate_limited_per_account(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_LOGIN_EMAIL_MAX_FAILURES", "3")
+    _account("brute@example.com")
+
+    for _ in range(3):
+        failed = client.post(
+            "/auth/login",
+            json={"email": "brute@example.com", "password": "wrong-pass"},
+        )
+        assert failed.status_code == 401
+
+    # Once the failure budget is exhausted, even the correct password is refused.
+    blocked = client.post(
+        "/auth/login",
+        json={"email": "brute@example.com", "password": PASSWORD},
+    )
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked.headers
+
+
+def test_rate_limit_is_keyed_per_account_not_globally(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_LOGIN_EMAIL_MAX_FAILURES", "2")
+    _account("blocked@example.com")
+    for _ in range(2):
+        client.post(
+            "/auth/login",
+            json={"email": "blocked@example.com", "password": "wrong-pass"},
+        )
+
+    blocked = client.post(
+        "/auth/login",
+        json={"email": "blocked@example.com", "password": PASSWORD},
+    )
+    assert blocked.status_code == 429
+
+    # A different account on the same client is unaffected.
+    _account("healthy@example.com")
+    healthy = client.post(
+        "/auth/login",
+        json={"email": "healthy@example.com", "password": PASSWORD},
+    )
+    assert healthy.status_code == 200
+
+
+def test_successful_login_resets_the_failure_counter(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_LOGIN_EMAIL_MAX_FAILURES", "3")
+    _account("reset@example.com")
+    for _ in range(2):
+        client.post(
+            "/auth/login",
+            json={"email": "reset@example.com", "password": "wrong-pass"},
+        )
+    ok = client.post(
+        "/auth/login",
+        json={"email": "reset@example.com", "password": PASSWORD},
+    )
+    assert ok.status_code == 200
+
+    # The budget starts fresh after a successful authentication.
+    for _ in range(2):
+        again = client.post(
+            "/auth/login",
+            json={"email": "reset@example.com", "password": "wrong-pass"},
+        )
+        assert again.status_code == 401
+
+
+def test_ip_failure_budget_blocks_password_spraying(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_LOGIN_IP_MAX_FAILURES", "3")
+    _account("spray-valid@example.com")
+
+    # Spray many distinct addresses from one source.
+    for index in range(3):
+        sprayed = client.post(
+            "/auth/login",
+            json={"email": f"spray-{index}@example.com", "password": "wrong-pass"},
+        )
+        assert sprayed.status_code == 401
+
+    # Same source, valid credentials: further attempts are refused outright.
+    refused = client.post(
+        "/auth/login",
+        json={"email": "spray-valid@example.com", "password": PASSWORD},
+    )
+    assert refused.status_code == 429
+
+
+def test_login_block_expires_with_the_window(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_LOGIN_EMAIL_MAX_FAILURES", "2")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_RATE_LIMIT_WINDOW_SECONDS", "0")
+    _account("window@example.com")
+    for _ in range(3):
+        attempt = client.post(
+            "/auth/login",
+            json={"email": "window@example.com", "password": "wrong-pass"},
+        )
+        assert attempt.status_code == 401
+
+
+def test_successful_login_purges_expired_sessions() -> None:
+    headers = _account("purge@example.com")
+    assert headers
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.email == "purge@example.com"))
+        assert user is not None
+        user_id = user.id
+        db.add(
+            AuthSession(
+                user_id=user_id,
+                token_hash="expired-token-digest",
+                expires_at=datetime.now(UTC) - timedelta(hours=1),
+            )
+        )
+        db.commit()
+
+    login = client.post(
+        "/auth/login",
+        json={"email": "purge@example.com", "password": PASSWORD},
+    )
+    assert login.status_code == 200
+
+    with SessionLocal() as db:
+        remaining = list(
+            db.scalars(select(AuthSession).where(AuthSession.user_id == user_id)).all()
+        )
+    assert all(row.token_hash != "expired-token-digest" for row in remaining)
+    assert len(remaining) == 2  # the two live sessions; the expired row is purged
 
 
 def test_client_supplied_organization_id_cannot_switch_tenant() -> None:
