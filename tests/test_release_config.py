@@ -14,6 +14,24 @@ def test_installed_package_version_matches_pyproject() -> None:
     assert __version__ == pyproject["project"]["version"]
 
 
+def test_api_and_release_docs_report_the_authoritative_version() -> None:
+    """No current-facing artifact may contradict the package version."""
+    from freellmpool.api.app import app
+
+    assert app.version == __version__
+
+    for doc in ("docs/index.html", "docs/AGENTS.md", "docs/INTEGRATIONS.md"):
+        text = (ROOT / doc).read_text(encoding="utf-8")
+        assert f"Latest release: {__version__}" in text, doc
+        assert "0.13.0" not in text, f"stale version in {doc}"
+
+    index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    assert f'"softwareVersion": "{__version__}"' in index
+
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert f"## [{__version__}]" in changelog
+
+
 def test_release_identity_is_industrial_rfq() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     checklist = (ROOT / "docs" / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")

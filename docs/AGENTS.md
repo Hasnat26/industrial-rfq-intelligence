@@ -7,11 +7,11 @@ rate-limits you mid-run (exactly when long agent loops tend to die).
 
 ## Release status
 
-- **Latest release: 0.13.0.** GitHub and PyPI both provide 0.13.0, including
-  the Hermes profile, `freellmpool/spread` routing, public `/livez` and
-  `/readyz`, authenticated `/v1/providers`, `/v1/models?ready=true`, refreshed
-  providers, Vercel AI Gateway support, and OpenCode registry-readiness hardening.
-  Install it with `python -m pip install freellmpool`.
+- **Latest release: 0.1.0.** This repository releases the Industrial RFQ
+  Intelligence SaaS — authenticated multi-tenant API, procurement workflow
+  gates, entitlement/usage metering, and billing webhook integrity — under
+  the `industrial-rfq-intelligence` package name. Install it from source
+  with `python -m pip install .`; see the README for the product surface.
 
 - **Registry publication status: pending.** `opencode-freellmpool` and
   `opencode-freellmpool-tui` were not published on npm as of 2026-08-29; use

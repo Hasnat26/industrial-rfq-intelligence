@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-10-06
+
+### Added
+- Industrial RFQ Intelligence SaaS foundation: persistent database, multi-tenant
+  organizations and users, authenticated API with server-side tenant isolation,
+  Alembic migration workflow, document upload/ingestion, and atomic batch
+  quotation ingestion.
+- Procurement workflow hardening: OWNER-only subscription changes, failed-login
+  rate limiting with expired-session pruning, webhook payload-integrity checks,
+  and entitlement/usage metering with reconciliation audit runs.
+- Auditable CI release gate on Python 3.11–3.14: ruff, strict mypy, full pytest,
+  bandit/pip-audit/zizmor security checks, and wheel/sdist install smoke tests.
+
+### Changed
+- The package now reports a single authoritative version: `pyproject.toml`,
+  `freellmpool.__version__`, the API metadata, and the release docs all
+  report `0.1.0`.
+
 ## [0.13.0] — 2026-08-29
 
 ### Added
