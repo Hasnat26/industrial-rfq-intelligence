@@ -154,6 +154,10 @@ async def receive_billing_webhook(
             )
         )
         if existing is not None:
+            if existing.payload_hash != payload_hash:
+                raise HTTPException(
+                    status_code=409, detail="billing webhook payload mismatch"
+                )
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
         organization_id = _organization_id(payload.get("organization_id"))
@@ -179,9 +183,20 @@ async def receive_billing_webhook(
             )
             if existing is None:
                 raise
+            if existing.payload_hash != payload_hash:
+                raise HTTPException(
+                    status_code=409, detail="billing webhook payload mismatch"
+                )
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
-        _subscription_from_event(db, payload, normalized_provider)
+        try:
+            _subscription_from_event(db, payload, normalized_provider)
+        except HTTPException as exc:
+            event.status = "FAILED"
+            event.error = str(exc.detail)
+            event.processed_at = datetime.now(UTC)
+            db.commit()
+            raise
         event.status = "PROCESSED"
         event.processed_at = datetime.now(UTC)
         db.commit()
