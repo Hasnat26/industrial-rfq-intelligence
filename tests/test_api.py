@@ -391,6 +391,32 @@ def test_health() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_ready_reports_database_readiness() -> None:
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["database"] == "ok"
+
+
+def test_ready_returns_503_when_database_is_unavailable(monkeypatch) -> None:
+    from sqlalchemy.exc import OperationalError
+
+    import freellmpool.api.db as db_module
+
+    class BrokenSession:
+        def execute(self, *_args, **_kwargs):
+            raise OperationalError("SELECT 1", {}, RuntimeError("database down"))
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(db_module, "SessionLocal", lambda: BrokenSession())
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "database unavailable"
+
+
 def test_technical_status_cannot_change_after_commercial_open() -> None:
     organization = client.post("/organizations", json={"name": "Org B"}).json()
     project = client.post(

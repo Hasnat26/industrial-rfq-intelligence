@@ -10,8 +10,8 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from pydantic import ValidationError
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from freellmpool.api import ratelimit
@@ -530,6 +530,22 @@ def package_audit(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "industrial-rfq-intelligence"}
+
+
+@app.get("/ready")
+def ready(db: Session = Depends(get_db)) -> dict[str, str]:  # noqa: B008
+    """Readiness probe: verifies the database answers a trivial query.
+
+    Unauthenticated by design (orchestrators probe it before traffic);
+    it exposes no tenant data.
+    """
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503, detail="database unavailable"
+        ) from exc
+    return {"status": "ready", "database": "ok"}
 
 
 @app.post("/auth/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
