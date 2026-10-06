@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from freellmpool.api.db import (
@@ -72,13 +72,21 @@ def issue_session(db: Session, user: User) -> tuple[AuthSession, str]:
     """Persist a new session row; returns the row and the plaintext bearer token.
 
     Only the SHA-256 digest of the token is stored, so a database leak does
-    not yield usable credentials.
+    not yield usable credentials. Issuing a session also purges this user's
+    already-expired sessions so stale rows cannot accumulate forever.
     """
+    now = datetime.now(UTC)
+    db.execute(
+        delete(AuthSession).where(
+            AuthSession.user_id == user.id,
+            AuthSession.expires_at <= now,
+        )
+    )
     token = new_session_token()
     session = AuthSession(
         user_id=user.id,
         token_hash=hash_session_token(token),
-        expires_at=datetime.now(UTC) + timedelta(hours=SESSION_TTL_HOURS),
+        expires_at=now + timedelta(hours=SESSION_TTL_HOURS),
     )
     db.add(session)
     return session, token

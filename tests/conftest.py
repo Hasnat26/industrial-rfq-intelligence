@@ -6,8 +6,16 @@ from datetime import UTC, datetime
 
 import pytest
 
+from freellmpool.api import ratelimit
 from freellmpool.models import Model, Provider
 from freellmpool.quota import QuotaStore
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> object:
+    """Auth rate-limit state must not leak between tests."""
+    ratelimit.clear()
+    yield
 
 
 @pytest.fixture

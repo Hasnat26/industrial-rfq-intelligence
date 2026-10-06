@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import os
 from datetime import UTC, datetime, timedelta
 from typing import TypedDict
@@ -92,6 +93,18 @@ def enforce_limit(db: Session, organization_id: int, metric: str, quantity: floa
 def _member(db: Session, user: User, organization_id: int) -> None:
     if not is_member(db, user.id, organization_id):
         raise HTTPException(status_code=404, detail="organization not found")
+
+
+def _require_reconciliation_secret(provided: str | None) -> None:
+    """Authenticate internal reconciliation callers with a timing-safe compare."""
+    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="commercial reconciliation secret is not configured",
+        )
+    if not provided or not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
 
 
 def _owner(db: Session, user: User, organization_id: int) -> None:
@@ -326,11 +339,7 @@ def reconcile_commercial_state(
     x_commercial_reconciliation_secret: str | None = Header(default=None),
     db: Session = Depends(get_db),  # noqa: B008
 ) -> CommercialReconciliationResponse:
-    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
-    if not expected:
-        raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
-    if x_commercial_reconciliation_secret != expected:
-        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
+    _require_reconciliation_secret(x_commercial_reconciliation_secret)
     return run_commercial_reconciliation(db)
 
 
@@ -342,11 +351,7 @@ def reconciliation_runs(
     x_commercial_reconciliation_secret: str | None = Header(default=None),
     db: Session = Depends(get_db),  # noqa: B008
 ) -> list[CommercialReconciliationRun]:
-    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
-    if not expected:
-        raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
-    if x_commercial_reconciliation_secret != expected:
-        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
+    _require_reconciliation_secret(x_commercial_reconciliation_secret)
     return list(
         db.scalars(
             select(CommercialReconciliationRun).order_by(CommercialReconciliationRun.id.desc()).limit(50)
@@ -362,11 +367,7 @@ def reconciliation_health(
     x_commercial_reconciliation_secret: str | None = Header(default=None),
     db: Session = Depends(get_db),  # noqa: B008
 ) -> CommercialReconciliationHealthResponse:
-    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
-    if not expected:
-        raise HTTPException(status_code=503, detail="commercial reconciliation secret is not configured")
-    if x_commercial_reconciliation_secret != expected:
-        raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
+    _require_reconciliation_secret(x_commercial_reconciliation_secret)
     last_run = db.scalar(
         select(CommercialReconciliationRun)
         .order_by(CommercialReconciliationRun.id.desc())

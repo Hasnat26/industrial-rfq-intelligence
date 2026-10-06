@@ -188,15 +188,33 @@ mypy --follow-imports=skip src/freellmpool/industrial.py src/freellmpool/industr
 mypy src/freellmpool/api src/freellmpool/procurement_domain.py
 ```
 
+## Abuse controls (session lifecycle, rate limiting)
+
+- **Failed-login rate limiting**: `/auth/login` keeps a sliding-window
+  failure budget per normalized email (`INDUSTRIAL_RFQ_LOGIN_EMAIL_MAX_FAILURES`,
+  default 5) and per client IP (`INDUSTRIAL_RFQ_LOGIN_IP_MAX_FAILURES`, default 25)
+  over `INDUSTRIAL_RFQ_RATE_LIMIT_WINDOW_SECONDS` (default 300). Exhausted budgets
+  return `429` with `Retry-After` *before* any password verification; a successful
+  login clears the email budget. The limiter is in-process (see below).
+- **Expired-session pruning**: issuing a new session deletes that user's
+  already-expired `auth_sessions` rows in the same transaction, so stale rows
+  cannot accumulate. Expired tokens are additionally rejected at every request.
+- **Timing-safe internal secrets**: the `/commercial/internal/*` reconciliation
+  endpoints compare their shared secret with `hmac.compare_digest` (billing
+  webhooks already did).
+- **Deployment boundary**: the in-process limiter assumes a single application
+  process. Multi-worker or multi-replica deployments must enforce a shared
+  failure budget at the edge (reverse proxy or shared store); that integration
+  is documented here rather than faked with a local-only counter.
+
 ## Known limitations (deliberate scope cuts)
 
 - No OAuth/OIDC/social login, no password reset flow, no email verification.
-- No rate limiting or lockout on `/auth/login` (candidate for the security
-  hardening milestone).
+- Registration (`/auth/register`) is not IP-rate-limited; duplicate emails are
+  rejected, but bulk account creation is an edge-infrastructure concern.
 - Role granularity exists (`OWNER`/`ADMIN`/`MEMBER`) but all members
   currently have full access to their organization; per-role authorization
   rules are future work.
-- Expired sessions are not eagerly pruned from `auth_sessions`.
 - Single active organization context per request is derived from resource
   ownership; there is no "switch organization" endpoint because resources
   already carry their tenant.
