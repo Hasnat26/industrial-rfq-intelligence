@@ -50,6 +50,17 @@ jobs:
         run: |
           pytest
           pytest tests/test_industrial_demo.py tests/test_industrial_report.py tests/test_api.py tests/test_decision_support.py tests/test_engineering_decision.py tests/test_integrated_evaluation.py --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
+      - name: Security gate
+        run: |
+          python -m pip install --disable-pip-version-check bandit==1.9.4 pip-audit==2.10.1 zizmor==1.29.0
+          python scripts/security_exceptions.py validate
+          python scripts/security_exceptions.py check-suppressions
+          bandit --recursive src --severity-level high --confidence-level high --ignore-nosec
+          mapfile -t ignored < <(python scripts/security_exceptions.py ids pip-audit)
+          args=()
+          for advisory in "${ignored[@]}"; do args+=(--ignore-vuln "$advisory"); done
+          python -m pip_audit . --strict --desc=on --aliases=on "${args[@]}"
+          zizmor --strict-collection --no-ignores --no-config --min-severity=high --min-confidence=high .
       - name: Build and wheel smoke
         run: |
           python -m build
