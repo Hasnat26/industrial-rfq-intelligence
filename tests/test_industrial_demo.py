@@ -982,7 +982,6 @@ def test_document_ocr_fails_with_actionable_error_when_optional_dependencies_are
     tmp_path, monkeypatch
 ) -> None:
     from pypdf import PdfWriter
-
     from freellmpool.industrial import extract_document_pages_with_ocr
 
     path = tmp_path / "scanned.pdf"
