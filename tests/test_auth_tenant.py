@@ -7,6 +7,8 @@ between Organization A and Organization B.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -340,6 +342,162 @@ def test_cross_tenant_mutations_blocked() -> None:
     package = client.get(f"/packages/{package_id}/offers", headers=victim)
     assert package.status_code == 200
     assert len(package.json()) == 1
+
+
+def test_inactive_user_cannot_login_or_keep_using_a_session() -> None:
+    headers = _account("inactive@example.com")
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.email == "inactive@example.com"))
+        assert user is not None
+        user.is_active = False
+        db.commit()
+
+    login = client.post(
+        "/auth/login",
+        json={"email": "inactive@example.com", "password": PASSWORD},
+    )
+    assert login.status_code == 401
+
+    # The already-issued bearer token stops resolving immediately.
+    me = client.get("/auth/me", headers=headers)
+    assert me.status_code == 401
+    assert "WWW-Authenticate" in me.headers
+
+
+def test_expired_session_is_rejected() -> None:
+    headers = _account("expired@example.com")
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.email == "expired@example.com"))
+        assert user is not None
+        stored = db.scalar(
+            select(AuthSession).where(AuthSession.user_id == user.id)
+        )
+        assert stored is not None
+        stored.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+        db.commit()
+
+    me = client.get("/auth/me", headers=headers)
+    assert me.status_code == 401
+    assert me.json()["detail"] == "session expired"
+
+
+def test_extended_cross_tenant_reads_blocked() -> None:
+    tenant_a = _seed_tenant("alice@example.com", "Org Alpha")
+    tenant_b = _seed_tenant("bob@example.com", "Org Beta")
+    attacker = tenant_b["headers"]
+    package_id = tenant_a["package"]["id"]
+    organization_id = tenant_a["organization"]["id"]
+
+    reads = [
+        f"/packages/{package_id}/assets",
+        f"/packages/{package_id}/lifecycle-events",
+        f"/packages/{package_id}/lifecycle-costs",
+        f"/packages/{package_id}/lifecycle-intelligence",
+        f"/packages/{package_id}/workflow",
+        f"/packages/{package_id}/decision",
+        f"/packages/{package_id}/audit",
+        f"/packages/{package_id}/decision-support",
+        f"/packages/{package_id}/commercial-comparison",
+        f"/packages/{package_id}/technical-evaluation",
+        f"/packages/{package_id}/evaluation-weighting",
+        f"/packages/{package_id}/integrated-evaluation",
+        f"/packages/{package_id}/engineering-decision-summary",
+        f"/packages/{package_id}/report",
+        f"/packages/{package_id}/report/markdown",
+        f"/organizations/{organization_id}/assets",
+        f"/organizations/{organization_id}/lifecycle-events",
+        f"/organizations/{organization_id}/lifecycle-cost-summary",
+        f"/organizations/{organization_id}/subscription",
+        f"/organizations/{organization_id}/usage",
+        f"/organizations/{organization_id}/usage/reconciliation",
+        f"/organizations/{organization_id}/billing/webhooks",
+    ]
+    for path in reads:
+        response = client.get(path, headers=attacker)
+        assert response.status_code == 404, f"GET {path} -> {response.status_code}"
+
+    # Indistinguishable from a nonexistent resource.
+    missing = client.get("/organizations/999999/subscription", headers=attacker)
+    forbidden = client.get(
+        f"/organizations/{organization_id}/subscription", headers=attacker
+    )
+    assert missing.status_code == forbidden.status_code == 404
+    assert missing.json()["detail"] == forbidden.json()["detail"]
+
+
+def test_extended_cross_tenant_mutations_blocked() -> None:
+    tenant_a = _seed_tenant("alice@example.com", "Org Alpha")
+    tenant_b = _seed_tenant("bob@example.com", "Org Beta")
+    attacker = tenant_b["headers"]
+    package_id = tenant_a["package"]["id"]
+    organization_id = tenant_a["organization"]["id"]
+
+    mutations: list[tuple[str, str, dict]] = [
+        (
+            "POST",
+            f"/packages/{package_id}/assets",
+            {"asset_id": "X-INTRUDER"},
+        ),
+        (
+            "POST",
+            f"/packages/{package_id}/lifecycle-events",
+            {
+                "asset_id": "X-INTRUDER",
+                "event_type": "INSTALLATION",
+                "event_date": "2026-01-01T00:00:00",
+                "description": "Injected lifecycle event.",
+            },
+        ),
+        (
+            "POST",
+            f"/packages/{package_id}/lifecycle-costs",
+            {
+                "asset_id": "X-INTRUDER",
+                "cost_type": "MAINTENANCE",
+                "amount": 1.0,
+                "currency": "USD",
+                "cost_date": "2026-01-01T00:00:00",
+                "description": "Injected lifecycle cost.",
+            },
+        ),
+        (
+            "PUT",
+            f"/packages/{package_id}/evaluation-weighting",
+            {"technical_weight": 100, "commercial_weight": 0},
+        ),
+        (
+            "PUT",
+            f"/organizations/{organization_id}/subscription",
+            {"plan_key": "STARTER", "status": "CANCELED"},
+        ),
+        (
+            "POST",
+            f"/organizations/{organization_id}/usage",
+            {"metric": "vendor_offers", "quantity": 1},
+        ),
+        ("POST", f"/organizations/{organization_id}/subscription/rollover", {}),
+    ]
+    for method, path, payload in mutations:
+        response = client.request(method, path, json=payload, headers=attacker)
+        assert response.status_code == 404, f"{method} {path} -> {response.status_code}"
+
+    # The batch ingestion gate runs before any payload parsing.
+    batch = client.post(
+        f"/packages/{package_id}/quotations/batch",
+        data={"entries": '[{"vendor_name": "Intruder", "price": "1", "currency": "USD"}]'},
+        files={"files": ("intruder.txt", b"tampered", "text/plain")},
+        headers=attacker,
+    )
+    assert batch.status_code == 404
+
+    # The victim's organization state is untouched.
+    victim = tenant_a["headers"]
+    subscription = client.get(
+        f"/organizations/{organization_id}/subscription", headers=victim
+    )
+    assert subscription.status_code == 200
+    assert subscription.json()["status"] == "ACTIVE"
+    assert client.get(f"/packages/{package_id}/assets", headers=victim).status_code == 200
 
 
 def test_client_supplied_organization_id_cannot_switch_tenant() -> None:
