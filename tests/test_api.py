@@ -728,8 +728,14 @@ def test_document_ingestion_formats_and_rejections() -> None:
 
 def test_single_document_upload_enforces_plan_limit() -> None:
     seeded = _seed_offer(mode="STANDARD")
-    organization_id = seeded["organization"]["id"]
     offer_id = seeded["offer"]["id"]
+    package = client.get(f"/packages/{seeded['package']['id']}/rfq").json()
+    organization_id = client.get(f"/packages/{seeded['package']['id']}/offers").json()[0]["id"]
+    del package
+    # Resolve the tenant through the authenticated development fixture rather than
+    # relying on helper return shape.
+    with SessionLocal() as db:
+        organization_id = db.get(VendorOffer, offer_id).package.project.organization_id
     usage = client.post(
         f"/organizations/{organization_id}/usage",
         json={"metric": "documents", "quantity": 100},
