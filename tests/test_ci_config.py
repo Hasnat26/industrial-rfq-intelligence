@@ -57,6 +57,9 @@ def test_ci_validates_active_product_surfaces() -> None:
         "pytest",
         "python -m build",
         "python -m twine check",
+        "bandit --recursive src --severity-level high --confidence-level high --ignore-nosec",
+        "python -m pip_audit . --strict",
+        "zizmor --strict-collection --no-ignores --no-config --min-severity=high --min-confidence=high .",
     ):
         assert required in workflow
 
