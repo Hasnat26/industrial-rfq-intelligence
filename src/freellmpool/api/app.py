@@ -572,13 +572,30 @@ def ready(db: Session = Depends(get_db)) -> dict[str, str]:  # noqa: B008
 
 @app.post("/auth/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register_user(
-    payload: UserRegister, db: Session = Depends(get_db)  # noqa: B008
+    payload: UserRegister,
+    request: Request,
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> User:
     email = payload.email.strip().casefold()
+    client_ip = request.client.host if request.client else "unknown"
+    email_key = f"register:email:{email}"
+    ip_key = f"register:ip:{client_ip}"
+    if ratelimit.is_blocked(
+        email_key, ratelimit.registration_email_max_failures()
+    ) or ratelimit.is_blocked(ip_key, ratelimit.registration_ip_max_failures()):
+        raise HTTPException(
+            status_code=429,
+            detail="too many registration attempts",
+            headers={"Retry-After": str(int(ratelimit.window_seconds()))},
+        )
     if "@" not in email or email.startswith("@") or email.endswith("@") or " " in email:
+        ratelimit.record_failure(email_key)
+        ratelimit.record_failure(ip_key)
         raise HTTPException(status_code=422, detail="a valid email address is required")
     existing: User | None = db.scalar(select(User).where(User.email == email))
     if existing is not None:
+        ratelimit.record_failure(email_key)
+        ratelimit.record_failure(ip_key)
         raise HTTPException(status_code=409, detail="email is already registered")
     user = User(email=email, password_hash=hash_password(payload.password))
     db.add(user)
@@ -586,7 +603,10 @@ def register_user(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
+        ratelimit.record_failure(email_key)
+        ratelimit.record_failure(ip_key)
         raise HTTPException(status_code=409, detail="email is already registered") from exc
+    ratelimit.clear(email_key)
     db.refresh(user)
     return user
 
