@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from freellmpool.api import ratelimit
 from freellmpool.api.app import app
 from freellmpool.api.db import AuthSession, Base, SessionLocal, User, engine
 
