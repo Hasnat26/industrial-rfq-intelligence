@@ -7,7 +7,9 @@ import hmac
 import json
 import os
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
+from typing import cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
@@ -49,7 +51,7 @@ def _normalize_provider(provider: str) -> str:
 
 
 def _subscription_from_event(
-    db: Session, payload: dict[str, object], provider: str
+    db: Session, payload: Mapping[str, object], provider: str
 ) -> OrganizationSubscription | None:
     organization_value = payload.get("organization_id")
     if isinstance(organization_value, bool) or organization_value is None:
@@ -124,7 +126,7 @@ async def receive_billing_webhook(
         raise HTTPException(status_code=400, detail="invalid webhook JSON") from exc
     if not isinstance(raw_payload, dict):
         raise HTTPException(status_code=400, detail="webhook payload must be an object")
-    payload: dict[str, object] = raw_payload
+    payload = cast(Mapping[str, object], raw_payload)
 
     external_event_id = str(payload.get("id", "")).strip()
     event_type = str(payload.get("type", "")).strip()
