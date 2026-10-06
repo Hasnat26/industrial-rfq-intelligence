@@ -6,15 +6,15 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Real GitHub Actions green run | Main commit `1573a5d726ccfadd9b1433ee29a9bd22ea7d95a1`, CI Run #496 completed successfully | PASS |
+| Real GitHub Actions green run | Main commit `3a00414c73ab531d0ca4c3016a39f08c33f839fa`, CI Run #503 completed successfully | PASS |
 | Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits | PASS |
 | Security gate | Security commands and regression tests are part of the main CI gate | PASS |
 | Package/CLI smoke | Main CI includes wheel/sdist build and installation smoke | PASS |
-| SaaS readiness surface | Dedicated FastAPI container, readiness endpoint, deployment instructions, and local compose smoke surface are present | PASS |
+| SaaS readiness surface | Dedicated FastAPI container, readiness endpoint, deployment instructions, local compose smoke surface, OCR runtime, and container CI smoke are present | PASS |
 | Original binary document retention | Original uploads are intentionally not retained; only extracted text/pages are persisted | LIMITATION |
 | Production payment execution | Provider-neutral billing boundary exists; provider credentials/execution are still required | EXTERNAL DEPENDENCY |
-| Production database | PostgreSQL + managed backup/recovery must be supplied by the deployment environment | EXTERNAL DEPENDENCY |
+| Production fail-closed configuration | Production rejects SQLite, table auto-creation, and missing/weak billing/reconciliation secrets | PASS |\n| Production database | PostgreSQL + managed backup/recovery must be supplied by the deployment environment | EXTERNAL DEPENDENCY |
 
 ## Acceptance rule
 
