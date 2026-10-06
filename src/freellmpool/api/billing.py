@@ -50,15 +50,24 @@ def _normalize_provider(provider: str) -> str:
     return normalized
 
 
+def _organization_id(value: object) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
+
+
 def _subscription_from_event(
     db: Session, payload: Mapping[str, object], provider: str
 ) -> OrganizationSubscription | None:
-    organization_value = payload.get("organization_id")
-    if isinstance(organization_value, bool) or organization_value is None:
-        return None
-    try:
-        normalized_organization_id = int(organization_value)
-    except (TypeError, ValueError):
+    normalized_organization_id = _organization_id(payload.get("organization_id"))
+    if normalized_organization_id is None:
         return None
 
     subscription = db.scalar(
@@ -147,13 +156,9 @@ async def receive_billing_webhook(
         if existing is not None:
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
-        organization_value = payload.get("organization_id")
-        if organization_value is None:
-            raise HTTPException(status_code=400, detail="organization_id is required")
-        try:
-            organization_id = int(organization_value)
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail="organization_id must be an integer") from exc
+        organization_id = _organization_id(payload.get("organization_id"))
+        if organization_id is None:
+            raise HTTPException(status_code=400, detail="organization_id must be an integer")
 
         event = BillingWebhookEvent(
             organization_id=organization_id,
