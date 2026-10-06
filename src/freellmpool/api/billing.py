@@ -6,7 +6,10 @@ import hashlib
 import hmac
 import json
 import os
+import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
+from typing import cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
@@ -25,30 +28,46 @@ from freellmpool.api.schemas import BillingWebhookEventRead
 
 router = APIRouter(tags=["billing"])
 
-_STATUS_MAP = {
+_STATUS_MAP: dict[str, str] = {
     "subscription.active": "ACTIVE",
     "subscription.updated": "ACTIVE",
     "subscription.trialing": "TRIALING",
     "subscription.past_due": "PAST_DUE",
     "subscription.canceled": "CANCELED",
     "subscription.cancelled": "CANCELED",
+    "subscription.expired": "EXPIRED",
+    "subscription.paused": "PAUSED",
+    "subscription.resumed": "ACTIVE",
 }
+_SUPPORTED_EVENT_TYPES: frozenset[str] = frozenset(_STATUS_MAP)
+_PROVIDER_PATTERN = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 
 
-def _subscription_from_event(db: Session, payload: dict[str, object], provider: str) -> OrganizationSubscription | None:
-    organization_id = payload.get("organization_id")
-    if organization_id is None:
+def _normalize_provider(provider: str) -> str:
+    normalized = provider.strip().upper()
+    if not _PROVIDER_PATTERN.fullmatch(normalized):
+        raise HTTPException(status_code=400, detail="invalid billing provider")
+    return normalized
+
+
+def _organization_id(value: object) -> int | None:
+    if isinstance(value, bool) or value is None:
         return None
-    if isinstance(organization_id, bool):
-        return None
-    if isinstance(organization_id, int):
-        normalized_organization_id = organization_id
-    elif isinstance(organization_id, str):
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
         try:
-            normalized_organization_id = int(organization_id)
+            return int(value)
         except ValueError:
             return None
-    else:
+    return None
+
+
+def _subscription_from_event(
+    db: Session, payload: Mapping[str, object], provider: str
+) -> OrganizationSubscription | None:
+    normalized_organization_id = _organization_id(payload.get("organization_id"))
+    if normalized_organization_id is None:
         return None
 
     subscription = db.scalar(
@@ -59,29 +78,39 @@ def _subscription_from_event(db: Session, payload: dict[str, object], provider: 
     if subscription is None:
         return None
 
-    subscription.billing_provider = provider.upper()
-    external_customer_id = payload.get("customer_id")
     external_subscription_id = payload.get("subscription_id")
+    if (
+        subscription.external_subscription_id
+        and external_subscription_id is not None
+        and str(external_subscription_id) != subscription.external_subscription_id
+    ):
+        raise HTTPException(status_code=409, detail="billing subscription identity mismatch")
+
+    subscription.billing_provider = provider
+    external_customer_id = payload.get("customer_id")
     if external_customer_id is not None:
         subscription.external_customer_id = str(external_customer_id)
     if external_subscription_id is not None:
         subscription.external_subscription_id = str(external_subscription_id)
 
-    mapped_status = _STATUS_MAP.get(str(payload.get("type", "")).strip().lower())
-    if mapped_status:
+    event_type = str(payload.get("type", "")).strip().lower()
+    mapped_status = _STATUS_MAP.get(event_type)
+    if mapped_status is not None:
         subscription.status = mapped_status
 
-    period_start = payload.get("current_period_start")
-    period_end = payload.get("current_period_end")
-    for value, attribute in ((period_start, "current_period_start"), (period_end, "current_period_end")):
-        if value is not None:
-            try:
-                setattr(subscription, attribute, datetime.fromisoformat(str(value)))
-            except ValueError:
-                pass
+        for value, attribute in (
+            (payload.get("current_period_start"), "current_period_start"),
+            (payload.get("current_period_end"), "current_period_end"),
+        ):
+            if value is not None:
+                try:
+                    setattr(subscription, attribute, datetime.fromisoformat(str(value)))
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400, detail=f"invalid {attribute}"
+                    ) from None
     subscription.updated_at = datetime.now(UTC)
     return subscription
-
 
 
 def _webhook_secret() -> str:
@@ -94,6 +123,7 @@ async def receive_billing_webhook(
     request: Request,
     x_billing_webhook_secret: str | None = Header(default=None),
 ) -> dict[str, object]:
+    normalized_provider = _normalize_provider(provider)
     secret = _webhook_secret()
     if not secret:
         raise HTTPException(status_code=503, detail="billing webhook secret is not configured")
@@ -102,11 +132,12 @@ async def receive_billing_webhook(
 
     body = await request.body()
     try:
-        payload = json.loads(body)
+        raw_payload = json.loads(body)
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=400, detail="invalid webhook JSON") from exc
-    if not isinstance(payload, dict):
+    if not isinstance(raw_payload, dict):
         raise HTTPException(status_code=400, detail="webhook payload must be an object")
+    payload = cast(Mapping[str, object], raw_payload)
 
     external_event_id = str(payload.get("id", "")).strip()
     event_type = str(payload.get("type", "")).strip()
@@ -118,23 +149,17 @@ async def receive_billing_webhook(
     try:
         existing = db.scalar(
             select(BillingWebhookEvent).where(
-                BillingWebhookEvent.provider == provider.upper(),
+                BillingWebhookEvent.provider == normalized_provider,
                 BillingWebhookEvent.external_event_id == external_event_id,
             )
         )
         if existing is not None:
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
-        organization_id = payload.get("organization_id")
-        if organization_id is not None:
-            try:
-                organization_id = int(organization_id)
-            except (TypeError, ValueError) as exc:
-                raise HTTPException(status_code=400, detail="organization_id must be an integer") from exc
-
+        organization_id = _organization_id(payload.get("organization_id"))
         event = BillingWebhookEvent(
             organization_id=organization_id,
-            provider=provider.upper(),
+            provider=normalized_provider,
             external_event_id=external_event_id,
             event_type=event_type,
             payload_hash=payload_hash,
@@ -148,14 +173,15 @@ async def receive_billing_webhook(
             db.rollback()
             existing = db.scalar(
                 select(BillingWebhookEvent).where(
-                    BillingWebhookEvent.provider == provider.upper(),
+                    BillingWebhookEvent.provider == normalized_provider,
                     BillingWebhookEvent.external_event_id == external_event_id,
                 )
             )
             if existing is None:
                 raise
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
-        _subscription_from_event(db, payload, provider)
+
+        _subscription_from_event(db, payload, normalized_provider)
         event.status = "PROCESSED"
         event.processed_at = datetime.now(UTC)
         db.commit()
