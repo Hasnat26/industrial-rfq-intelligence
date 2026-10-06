@@ -28,6 +28,16 @@ EXPECTED_TABLES = {
     "vendor_documents",
     "vendor_claims",
     "vendor_document_pages",
+    "package_evaluation_settings",
+    "asset_products",
+    "organization_subscriptions",
+    "usage_records",
+    "billing_webhook_events",
+    "commercial_reconciliation_runs",
+    "lifecycle_events",
+    "procurement_decisions",
+    "procurement_audit_events",
+    "lifecycle_cost_records",
 }
 
 
