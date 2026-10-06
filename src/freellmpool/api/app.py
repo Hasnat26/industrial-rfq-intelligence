@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from freellmpool.api import ratelimit
 from freellmpool.api.auth import authenticate, get_current_user, is_member, issue_session
+from freellmpool.api.commercial import enforce_limit
 from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
@@ -29,6 +30,7 @@ from freellmpool.api.db import (
     RfqRevision,
     TechnicalClarification,
     TechnicalDeviation,
+    UsageRecord,
     User,
     VendorClaim,
     VendorDocument,
@@ -696,6 +698,7 @@ def create_package(
     project = db.get(Project, payload.project_id)
     if project is None or not is_member(db, user.id, project.organization_id):
         raise HTTPException(status_code=404, detail="project not found")
+    enforce_limit(db, project.organization_id, "procurement_packages")
     package = ProcurementPackage(
         project_id=payload.project_id,
         name=payload.name.strip(),
@@ -734,6 +737,7 @@ def create_package(
                 acceptance_rule=item.acceptance_rule,
             )
         )
+    db.add(UsageRecord(organization_id=project.organization_id, metric="procurement_packages", quantity=1.0))
     db.commit()
     db.refresh(package)
     return package
@@ -888,6 +892,7 @@ def add_offer(
     if package is None or not is_member(db, user.id, package.project.organization_id):
         raise HTTPException(status_code=404, detail="package not found")
     _require_technical_stage_open(package)
+    enforce_limit(db, package.project.organization_id, "vendor_offers")
     vendor_name = payload.vendor_name.strip()
     technical_revision = payload.technical_revision.strip()
     vendor_key = _vendor_key(vendor_name)
@@ -1009,6 +1014,8 @@ async def batch_ingest_quotations(
             status_code=422,
             detail="entries and files must be non-empty and match one-to-one",
         )
+    enforce_limit(db, package.project.organization_id, "vendor_offers", len(batch))
+    enforce_limit(db, package.project.organization_id, "documents", len(files))
     # Duplicate detection spans the batch and the existing offers, and runs
     # before any write so a conflicting batch persists nothing.
     seen: set[tuple[str, str]] = set()
@@ -1100,6 +1107,8 @@ async def batch_ingest_quotations(
     ):
         _auto_create_document_claims(db, offer, document, prepared_item[3])
     _audit(db, package, user, "QUOTATION_BATCH_INGESTED", to_status=str(len(offers)), note="; ".join(f"{offer.vendor_name} revision {offer.technical_revision}" for offer in offers))
+    db.add(UsageRecord(organization_id=package.project.organization_id, metric="vendor_offers", quantity=float(len(offers))))
+    db.add(UsageRecord(organization_id=package.project.organization_id, metric="documents", quantity=float(len(documents))))
     try:
         db.commit()
     except IntegrityError as exc:
@@ -1134,6 +1143,7 @@ def create_offer_revision(
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     _require_current_rfq_offer(offer.package, offer)
+    enforce_limit(db, offer.package.project.organization_id, "vendor_offers")
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for resubmission")
     revision = payload.technical_revision.strip()
@@ -1171,6 +1181,7 @@ def create_offer_revision(
         to_status=revision,
         note=f"Technical revision created from {offer.technical_revision}",
     )
+    db.add(UsageRecord(organization_id=offer.package.project.organization_id, metric="vendor_offers", quantity=1.0))
     try:
         db.commit()
     except IntegrityError as exc:
@@ -1202,6 +1213,8 @@ async def resubmit_technical_offer(
     package = offer.package
     _require_technical_stage_open(package)
     _require_current_rfq_offer(package, offer)
+    enforce_limit(db, package.project.organization_id, "vendor_offers")
+    enforce_limit(db, package.project.organization_id, "documents")
     if offer.revisions:
         raise HTTPException(status_code=409, detail="use the latest technical revision for resubmission")
     revision = technical_revision.strip()
@@ -1279,6 +1292,8 @@ async def resubmit_technical_offer(
         to_status=revision,
         note=f"Technical resubmission uploaded as {filename}",
     )
+    db.add(UsageRecord(organization_id=package.project.organization_id, metric="vendor_offers", quantity=1.0))
+    db.add(UsageRecord(organization_id=package.project.organization_id, metric="documents", quantity=1.0))
     try:
         db.commit()
     except IntegrityError as exc:
