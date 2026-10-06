@@ -16,11 +16,11 @@ from sqlalchemy.orm import Session
 
 from freellmpool.api import ratelimit
 from freellmpool.api.auth import authenticate, get_current_user, is_member, issue_session
+from freellmpool.api.commercial import enforce_limit
 from freellmpool.api.db import (
     Organization,
     OrganizationMembership,
     OrganizationSubscription,
-    UsageRecord,
     PackageEvaluationSettings,
     ProcurementAuditEvent,
     ProcurementDecision,
@@ -98,7 +98,6 @@ from freellmpool.api.schemas import (
     VendorDocumentRead,
 )
 from freellmpool.api.security import hash_password
-from freellmpool.api.commercial import enforce_limit
 from freellmpool.api.web import web_app
 from freellmpool.decision_support import build_decision_support
 from freellmpool.engineering_decision import build_engineering_decision_summary
