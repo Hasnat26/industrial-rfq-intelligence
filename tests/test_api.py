@@ -726,6 +726,23 @@ def test_document_ingestion_formats_and_rejections() -> None:
     assert client.get("/documents/999999").status_code == 404
 
 
+def test_single_document_upload_enforces_plan_limit() -> None:
+    seeded = _seed_offer(mode="STANDARD")
+    organization_id = seeded["organization"]["id"]
+    offer_id = seeded["offer"]["id"]
+    usage = client.post(
+        f"/organizations/{organization_id}/usage",
+        json={"metric": "documents", "quantity": 100},
+    )
+    assert usage.status_code == 201
+    blocked = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("limit.txt", b"Rated voltage: 415 V", "text/plain")},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "documents plan limit exceeded"
+
+
 def test_document_upload_blocked_after_technical_lock() -> None:
     seeded = _seed_offer()
     offer_id = seeded["offer"]["id"]
