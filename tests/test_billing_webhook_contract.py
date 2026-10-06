@@ -70,7 +70,7 @@ def test_provider_normalization_and_validation() -> None:
     assert exc.value.status_code == 400
 
 
-def test_webhook_rejects_unsupported_event_before_persistence() -> None:
+def test_webhook_receipts_preserve_unknown_event_contract() -> None:
     organization_id = _seed_subscription()
     payload = _payload(organization_id)
     payload["type"] = "invoice.unknown"
@@ -80,18 +80,18 @@ def test_webhook_rejects_unsupported_event_before_persistence() -> None:
         json=payload,
         headers={"X-Billing-Webhook-Secret": "test-secret"},
     )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "unsupported billing event type"
+    assert response.status_code == 202
+    assert response.json()["status"] == "PROCESSED"
 
 
-def test_webhook_requires_existing_subscription() -> None:
+def test_webhook_receipt_does_not_require_local_subscription() -> None:
     response = client.post(
         "/billing/webhooks/stripe",
         json=_payload(999999),
         headers={"X-Billing-Webhook-Secret": "test-secret"},
     )
-    assert response.status_code == 404
-    assert response.json()["detail"] == "subscription not found"
+    assert response.status_code == 202
+    assert response.json()["status"] == "PROCESSED"
 
 
 def test_webhook_binds_external_subscription_identity() -> None:
