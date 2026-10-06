@@ -1,5 +1,6 @@
 # Local/staging SaaS deployment for Industrial RFQ Intelligence.
-# For production, use managed PostgreSQL and platform-managed secrets.
+# This file intentionally uses SQLite + development mode for reproducible local smoke tests.
+# Production deployments must use docker-compose.saas.production.yml with managed PostgreSQL.
 services:
   industrial-rfq-api:
     build:
@@ -8,10 +9,8 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      INDUSTRIAL_RFQ_ENV: production
-      INDUSTRIAL_RFQ_DATABASE_URL: ${INDUSTRIAL_RFQ_DATABASE_URL:-sqlite:////app/data/industrial_rfq.db}
-      INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET: ${INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET:-}
-      INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET: ${INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET:-}
+      INDUSTRIAL_RFQ_ENV: development
+      INDUSTRIAL_RFQ_DATABASE_URL: sqlite:////app/data/industrial_rfq.db
     volumes:
       - industrial-rfq-data:/app/data
     restart: unless-stopped
