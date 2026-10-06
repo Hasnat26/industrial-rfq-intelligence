@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from freellmpool.api.app import app
+from freellmpool.api.billing import _normalize_provider
 from freellmpool.api.db import (
     Base,
     Organization,
@@ -17,7 +18,6 @@ from freellmpool.api.db import (
     SessionLocal,
     engine,
 )
-from freellmpool.api.billing import _normalize_provider
 
 client = TestClient(app)
 
@@ -120,7 +120,12 @@ def test_webhook_accepts_supported_lifecycle_events() -> None:
     organization_id = _seed_subscription()
 
     for index, event_type in enumerate(
-        ["subscription.trialing", "subscription.paused", "subscription.resumed", "subscription.expired"],
+        [
+            "subscription.trialing",
+            "subscription.paused",
+            "subscription.resumed",
+            "subscription.expired",
+        ],
         start=1,
     ):
         payload = _payload(organization_id, event_id=f"evt_{index}")
