@@ -607,7 +607,7 @@ def _seed_offer(mode: str = "PROJECT_EPC") -> dict:
         f"/packages/{package['id']}/offers",
         json={"vendor_name": "Vendor Flow", "price": "5000", "currency": "USD"},
     ).json()
-    return {"package": package, "offer": offer}
+    return {"organization": organization, "package": package, "offer": offer}
 
 
 def test_batch_quotation_ingestion_is_atomic_and_persists_documents() -> None:
@@ -724,6 +724,23 @@ def test_document_ingestion_formats_and_rejections() -> None:
     assert fetched.status_code == 200
     assert fetched.json()["filename"] == "technical-offer.md"
     assert client.get("/documents/999999").status_code == 404
+
+
+def test_single_document_upload_enforces_plan_limit() -> None:
+    seeded = _seed_offer(mode="STANDARD")
+    offer_id = seeded["offer"]["id"]
+    organization_id = seeded["organization"]["id"]
+    usage = client.post(
+        f"/organizations/{organization_id}/usage",
+        json={"metric": "documents", "quantity": 100},
+    )
+    assert usage.status_code == 201
+    blocked = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("limit.txt", b"Rated voltage: 415 V", "text/plain")},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "documents plan limit exceeded"
 
 
 def test_document_upload_blocked_after_technical_lock() -> None:

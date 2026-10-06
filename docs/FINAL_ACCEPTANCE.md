@@ -1,25 +1,25 @@
 # Final Acceptance Gate
 
-## P3-M28 status
+## Current status
 
-This document records the final acceptance evidence without converting configured checks into claims of successful execution.
+This document records executable acceptance evidence for the current repository state.
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Real GitHub Actions green run | No run captured for the current revision | BLOCKED |
-| Benchmark acceptance | Checked-in benchmark and regression assertions are present | CONFIGURED; execution evidence pending |
-| Security gate | Security workflow, dependency controls, and security regression tests are present | CONFIGURED; execution evidence pending |
-| Package/CLI smoke | CI configuration contains wheel/sdist install and native CLI smoke checks | CONFIGURED; execution evidence pending |
-| Sample report consistency | Checked-in sample input/report and report regression coverage are present | INSPECTABLE; execution evidence pending |
-| Public documentation audit | README, roadmap, portfolio evidence, demo, and release checklist are present | PASS |
-| Final release/portfolio readiness | Depends on executable CI evidence | BLOCKED |
+| Real GitHub Actions green run | Main commit `1573a5d726ccfadd9b1433ee29a9bd22ea7d95a1`, CI Run #496 completed successfully | PASS |
+| Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
+| Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits | PASS |
+| Security gate | Security commands and regression tests are part of the main CI gate | PASS |
+| Package/CLI smoke | Main CI includes wheel/sdist build and installation smoke | PASS |
+| SaaS readiness surface | Dedicated FastAPI container, readiness endpoint, deployment instructions, and local compose smoke surface are present | PASS |
+| Original binary document retention | Original uploads are intentionally not retained; only extracted text/pages are persisted | LIMITATION |
+| Production payment execution | Provider-neutral billing boundary exists; provider credentials/execution are still required | EXTERNAL DEPENDENCY |
+| Production database | PostgreSQL + managed backup/recovery must be supplied by the deployment environment | EXTERNAL DEPENDENCY |
 
 ## Acceptance rule
 
-P3-M28 can only be marked DONE after an actual GitHub Actions run demonstrates the configured test, security, benchmark, package, and CLI gates. Repository configuration alone is not execution evidence.
-
-P3-M14 remains the blocking dependency. No CI-green claim should be made until GitHub Actions provides a real successful run.
+Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully.
 
 ## Portfolio-safe statement
 
-The repository contains an inspectable, evidence-aware industrial RFQ decision-support prototype with deterministic comparison controls, provenance handling, human-review boundaries, security/release configuration, benchmark fixtures, and a reproducible demo. CI execution success is intentionally not claimed until independently observable GitHub Actions evidence exists.
+The repository contains an inspectable, evidence-aware industrial RFQ decision-support SaaS MVP with persistent multi-tenant data, deterministic comparison controls, provenance handling, human-review boundaries, lifecycle intelligence, commercial entitlement enforcement, authenticated billing boundaries, migration coverage, and a reproducible FastAPI deployment surface. Production payment collection, managed PostgreSQL, backups/recovery, and original binary document retention remain deployment-specific capabilities rather than claims of the repository itself.

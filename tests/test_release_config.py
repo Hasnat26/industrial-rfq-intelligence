@@ -60,3 +60,16 @@ def test_ci_checks_both_wheel_and_sdist_installation() -> None:
     assert "pip install dist/*.tar.gz" in workflow
     assert "industrial-rfq-intelligence --version" in workflow
     assert "industrial-sdist-report.md" in workflow
+
+
+def test_saas_deployment_surface_is_explicit() -> None:
+    dockerfile = (ROOT / "Dockerfile.saas").read_text(encoding="utf-8")
+    compose = (ROOT / "docker-compose.saas.yml").read_text(encoding="utf-8")
+    deployment = (ROOT / "docs/DEPLOYMENT.md").read_text(encoding="utf-8")
+
+    assert 'CMD ["uvicorn", "freellmpool.api.app:app"' in dockerfile
+    assert 'HEALTHCHECK' in dockerfile
+    assert 'industrial-rfq-api:' in compose
+    assert 'Dockerfile.saas' in compose
+    assert 'INDUSTRIAL_RFQ_DATABASE_URL' in deployment
+    assert 'alembic upgrade head' in deployment

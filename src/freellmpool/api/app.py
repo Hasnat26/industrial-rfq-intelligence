@@ -1782,6 +1782,7 @@ async def upload_offer_document(
         raise HTTPException(status_code=404, detail="offer not found")
     _require_technical_stage_open(offer.package)
     _require_current_rfq_offer(offer.package, offer)
+    enforce_limit(db, offer.package.project.organization_id, "documents")
     filename = _safe_filename(file.filename)
     suffix = Path(filename).suffix.casefold()
     if suffix not in SUPPORTED_DOCUMENT_SUFFIXES:
@@ -1824,6 +1825,7 @@ async def upload_offer_document(
         VendorDocumentPage(page_number=page.page, text=page.text) for page in pages
     ]
     db.add(document)
+    db.add(UsageRecord(organization_id=offer.package.project.organization_id, metric="documents", quantity=1.0))
     db.flush()
     _auto_create_document_claims(db, offer, document, pages)
     _audit(
