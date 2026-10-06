@@ -1,0 +1,15 @@
+# Production deployment boundary for Industrial RFQ Intelligence.
+# PostgreSQL, secrets, backups, TLS/ingress, and object storage are supplied externally.
+services:
+  industrial-rfq-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.saas
+    ports:
+      - "8000:8000"
+    environment:
+      INDUSTRIAL_RFQ_ENV: production
+      INDUSTRIAL_RFQ_DATABASE_URL: ${INDUSTRIAL_RFQ_DATABASE_URL:?INDUSTRIAL_RFQ_DATABASE_URL must be set to managed PostgreSQL}
+      INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET: ${INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET:?INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET must be set}
+      INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET: ${INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET:?INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET must be set}
+    restart: unless-stopped
