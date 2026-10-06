@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
+from freellmpool import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_installed_package_version_matches_pyproject() -> None:
+    """`_version.py` is documented as the single source for the package version."""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert __version__ == pyproject["project"]["version"]
 
 
 def test_release_identity_is_industrial_rfq() -> None:
