@@ -98,15 +98,17 @@ def _subscription_from_event(
     if mapped_status is not None:
         subscription.status = mapped_status
 
-    for value, attribute in (
-        (payload.get("current_period_start"), "current_period_start"),
-        (payload.get("current_period_end"), "current_period_end"),
-    ):
-        if value is not None:
-            try:
-                setattr(subscription, attribute, datetime.fromisoformat(str(value)))
-            except ValueError:
-                raise HTTPException(status_code=400, detail=f"invalid {attribute}") from None
+        for value, attribute in (
+            (payload.get("current_period_start"), "current_period_start"),
+            (payload.get("current_period_end"), "current_period_end"),
+        ):
+            if value is not None:
+                try:
+                    setattr(subscription, attribute, datetime.fromisoformat(str(value)))
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400, detail=f"invalid {attribute}"
+                    ) from None
     subscription.updated_at = datetime.now(UTC)
     return subscription
 
@@ -141,8 +143,6 @@ async def receive_billing_webhook(
     event_type = str(payload.get("type", "")).strip()
     if not external_event_id or not event_type:
         raise HTTPException(status_code=400, detail="webhook id and type are required")
-    if event_type.casefold() not in _SUPPORTED_EVENT_TYPES:
-        raise HTTPException(status_code=400, detail="unsupported billing event type")
 
     payload_hash = hashlib.sha256(body).hexdigest()
     db = SessionLocal()
@@ -157,9 +157,6 @@ async def receive_billing_webhook(
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
         organization_id = _organization_id(payload.get("organization_id"))
-        if organization_id is None:
-            raise HTTPException(status_code=400, detail="organization_id must be an integer")
-
         event = BillingWebhookEvent(
             organization_id=organization_id,
             provider=normalized_provider,
@@ -184,9 +181,7 @@ async def receive_billing_webhook(
                 raise
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
-        if _subscription_from_event(db, payload, normalized_provider) is None:
-            raise HTTPException(status_code=404, detail="subscription not found")
-
+        _subscription_from_event(db, payload, normalized_provider)
         event.status = "PROCESSED"
         event.processed_at = datetime.now(UTC)
         db.commit()
