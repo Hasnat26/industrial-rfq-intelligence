@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -318,8 +319,27 @@ def run() -> None:
 app = FastAPI(title="Industrial RFQ Intelligence API", version="0.1.0")
 
 
+def _validate_production_configuration() -> None:
+    """Fail closed when production is configured with unsafe local defaults."""
+    if os.getenv("INDUSTRIAL_RFQ_ENV", "").strip().lower() != "production":
+        return
+    database_url = os.getenv("INDUSTRIAL_RFQ_DATABASE_URL", "").strip()
+    allowed_prefixes = ("postgresql://", "postgresql+psycopg://", "postgresql+psycopg2://")
+    if not database_url or not database_url.startswith(allowed_prefixes):
+        raise RuntimeError("production requires INDUSTRIAL_RFQ_DATABASE_URL to use PostgreSQL")
+    if os.getenv("INDUSTRIAL_RFQ_AUTO_CREATE_TABLES") == "1":
+        raise RuntimeError("INDUSTRIAL_RFQ_AUTO_CREATE_TABLES=1 is forbidden in production")
+    for name in (
+        "INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET",
+        "INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET",
+    ):
+        if len(os.getenv(name, "")) < 32:
+            raise RuntimeError(f"{name} must be configured with at least 32 characters in production")
+
+
 @app.on_event("startup")
 def startup() -> None:
+    _validate_production_configuration()
     init_db()
 
 
