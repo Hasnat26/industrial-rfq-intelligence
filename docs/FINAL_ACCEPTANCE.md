@@ -6,7 +6,9 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Real GitHub Actions green run | Main commit `9154867717d7f6b1f1e02550cdcea6c3604e35c4`, CI Run #512 completed successfully | PASS |
+| Last verified Main GitHub Actions green run | Main commit `9154867717d7f6b1f1e02550cdcea6c3604e35c4`, CI Run #512 completed successfully | PASS |
+| Latest merged Main commit | `04b8d390a47c7fb5fb2da18fddd414f833b28dcc` (PR #87) | MERGED; current push-run evidence not exposed by the connected workflow reader |
+| Latest verified PR CI | PR #87, CI Run #521 completed successfully across Python 3.11–3.14, security, SaaS container, and package smoke | PASS |
 | Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits | PASS |
 | Security gate | Security commands and regression tests are part of the main CI gate | PASS |
@@ -18,7 +20,7 @@ This document records executable acceptance evidence for the current repository 
 
 ## Acceptance rule
 
-Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully.
+Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader currently exposes PR-triggered runs, so a push-triggered Main run is not marked green here unless independently verified.
 
 ## Portfolio-safe statement
 
