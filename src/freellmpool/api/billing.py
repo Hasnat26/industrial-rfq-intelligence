@@ -186,7 +186,7 @@ async def receive_billing_webhook(
             if existing.payload_hash != payload_hash:
                 raise HTTPException(
                     status_code=409, detail="billing webhook payload mismatch"
-                )
+                ) from None
             return {"status": existing.status, "event_id": existing.id, "duplicate": True}
 
         try:
