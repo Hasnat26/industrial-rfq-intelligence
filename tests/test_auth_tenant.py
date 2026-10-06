@@ -504,6 +504,7 @@ def test_extended_cross_tenant_mutations_blocked() -> None:
 def test_registration_attempts_are_rate_limited_per_account_and_ip(monkeypatch) -> None:
     monkeypatch.setenv("INDUSTRIAL_RFQ_REGISTRATION_EMAIL_MAX_FAILURES", "2")
     monkeypatch.setenv("INDUSTRIAL_RFQ_REGISTRATION_IP_MAX_FAILURES", "3")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_RATE_LIMIT_WINDOW_SECONDS", "300")
     _account("existing@example.com")
 
     for _ in range(2):
