@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from freellmpool.api.auth import get_current_user, is_member
+from freellmpool.api.auth import get_current_user, is_member, require_role
 from freellmpool.api.db import (
     CommercialReconciliationRun,
     OrganizationSubscription,
@@ -107,6 +107,11 @@ def _require_reconciliation_secret(provided: str | None) -> None:
         raise HTTPException(status_code=401, detail="invalid commercial reconciliation secret")
 
 
+def _owner(db: Session, user: User, organization_id: int) -> None:
+    """Privileged commercial operations are OWNER-only (403 for members)."""
+    require_role(db, user, organization_id, "OWNER")
+
+
 def _subscription(
     db: Session,
     organization_id: int,
@@ -169,7 +174,7 @@ def update_subscription(
     db: Session = Depends(get_db),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> OrganizationSubscription:
-    _member(db, user, organization_id)
+    _owner(db, user, organization_id)
     if payload.plan_key not in PLANS:
         raise HTTPException(status_code=422, detail="unknown subscription plan")
     if payload.status not in {"ACTIVE", "PAST_DUE", "CANCELED", "TRIALING"}:

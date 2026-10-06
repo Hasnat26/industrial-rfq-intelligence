@@ -94,10 +94,32 @@ def issue_session(db: Session, user: User) -> tuple[AuthSession, str]:
 
 def is_member(db: Session, user_id: int, organization_id: int) -> bool:
     """Server-side tenant check: does this user belong to this organization?"""
+    return member_role(db, user_id, organization_id) is not None
+
+
+def member_role(db: Session, user_id: int, organization_id: int) -> str | None:
+    """Return the user's role in the organization, or ``None`` if not a member."""
     membership = db.scalar(
         select(OrganizationMembership).where(
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.organization_id == organization_id,
         )
     )
-    return membership is not None
+    return None if membership is None else membership.role
+
+
+def require_role(
+    db: Session, user: User, organization_id: int, *allowed_roles: str
+) -> str:
+    """Enforce a privileged role inside an organization.
+
+    Non-members receive the same 404 as a nonexistent organization so
+    membership is not disclosed. Members without an allowed role receive
+    403: they already know the organization exists.
+    """
+    role = member_role(db, user.id, organization_id)
+    if role is None:
+        raise HTTPException(status_code=404, detail="organization not found")
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="insufficient role")
+    return role

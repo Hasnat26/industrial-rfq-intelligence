@@ -136,3 +136,59 @@ def test_webhook_accepts_supported_lifecycle_events() -> None:
             headers={"X-Billing-Webhook-Secret": "test-secret"},
         )
         assert response.status_code == 202, response.text
+
+
+def test_webhook_rejects_same_event_id_with_different_payload() -> None:
+    organization_id = _seed_subscription()
+    first = client.post(
+        "/billing/webhooks/stripe",
+        json=_payload(organization_id, event_id="evt_integrity"),
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert first.status_code == 202
+
+    changed = _payload(organization_id, event_id="evt_integrity")
+    changed["customer_id"] = "cus_tampered"
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json=changed,
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "billing webhook payload mismatch"
+
+
+def test_webhook_processing_failure_is_persisted() -> None:
+    organization_id = _seed_subscription()
+    first = client.post(
+        "/billing/webhooks/stripe",
+        json=_payload(organization_id, event_id="evt_failed"),
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert first.status_code == 202
+
+    with SessionLocal() as db:
+        subscription = db.query(OrganizationSubscription).filter_by(
+            organization_id=organization_id
+        ).one()
+        subscription.external_subscription_id = "sub_existing"
+        db.commit()
+
+    conflicting = _payload(organization_id, event_id="evt_failed_identity")
+    conflicting["subscription_id"] = "sub_attacker"
+    response = client.post(
+        "/billing/webhooks/stripe",
+        json=conflicting,
+        headers={"X-Billing-Webhook-Secret": "test-secret"},
+    )
+    assert response.status_code == 409
+
+    from freellmpool.api.db import BillingWebhookEvent
+
+    with SessionLocal() as db:
+        event = db.query(BillingWebhookEvent).filter_by(
+            external_event_id="evt_failed_identity"
+        ).one()
+        assert event.status == "FAILED"
+        assert event.error == "billing subscription identity mismatch"
+        assert event.processed_at is not None

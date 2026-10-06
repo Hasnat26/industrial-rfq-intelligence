@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from freellmpool.api import app
-from freellmpool.api.db import Base, engine
+from freellmpool.api.db import Base, OrganizationMembership, SessionLocal, engine
 
 client = TestClient(app)
 
@@ -51,6 +51,101 @@ def test_subscription_defaults_to_starter_and_usage_is_aggregated() -> None:
     assert summary.status_code == 200
     assert summary.json()["usage"]["vendor_offers"] == 5
     assert summary.json()["limits"]["vendor_offers"] == 50
+
+
+def _member_account(organization_id: int, email: str) -> dict[str, str]:
+    """Register a second user and grant them MEMBER role in the organization."""
+    registered = client.post(
+        "/auth/register",
+        json={"email": email, "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": email, "password": "correct-horse-battery"},
+    )
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    me = client.get("/auth/me", headers=headers)
+    assert me.status_code == 200
+    with SessionLocal() as db:
+        db.add(
+            OrganizationMembership(
+                organization_id=organization_id,
+                user_id=me.json()["id"],
+                role="MEMBER",
+            )
+        )
+        db.commit()
+    return headers
+
+
+def test_member_cannot_change_subscription_but_owner_can() -> None:
+    organization = client.post("/organizations", json={"name": "RBAC Org"}).json()
+    owner_headers = dict(client.headers)
+    member_headers = _member_account(organization["id"], "member-rbac@example.com")
+
+    # Ordinary members may read commercial state...
+    read = client.get(
+        f"/organizations/{organization['id']}/subscription", headers=member_headers
+    )
+    assert read.status_code == 200
+    assert read.json()["plan_key"] == "STARTER"
+
+    # ...but cannot change plan or subscription status.
+    denied = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json={"plan_key": "ENTERPRISE", "status": "CANCELED"},
+        headers=member_headers,
+    )
+    assert denied.status_code == 403
+
+    # The organization's commercial state is unchanged.
+    unchanged = client.get(
+        f"/organizations/{organization['id']}/subscription", headers=member_headers
+    )
+    assert unchanged.json()["plan_key"] == "STARTER"
+    assert unchanged.json()["status"] == "ACTIVE"
+
+    # The owner retains the privileged operation.
+    allowed = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json={"plan_key": "PRO", "status": "ACTIVE"},
+        headers=owner_headers,
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["plan_key"] == "PRO"
+
+
+def test_subscription_role_denial_differs_from_non_member_404() -> None:
+    organization = client.post("/organizations", json={"name": "RBAC Gap Org"}).json()
+    member_headers = _member_account(organization["id"], "member-gap@example.com")
+
+    registered = client.post(
+        "/auth/register",
+        json={"email": "outsider-rbac@example.com", "password": "correct-horse-battery"},
+    )
+    assert registered.status_code == 201
+    login = client.post(
+        "/auth/login",
+        json={"email": "outsider-rbac@example.com", "password": "correct-horse-battery"},
+    )
+    outsider_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    payload = {"plan_key": "PRO", "status": "ACTIVE"}
+    as_member = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json=payload,
+        headers=member_headers,
+    )
+    as_outsider = client.put(
+        f"/organizations/{organization['id']}/subscription",
+        json=payload,
+        headers=outsider_headers,
+    )
+    # A member lacks the role (403); a non-member does not learn the org exists (404).
+    assert as_member.status_code == 403
+    assert as_outsider.status_code == 404
 
 
 def test_usage_is_tenant_isolated() -> None:
