@@ -500,6 +500,39 @@ def test_extended_cross_tenant_mutations_blocked() -> None:
     assert client.get(f"/packages/{package_id}/assets", headers=victim).status_code == 200
 
 
+def test_registration_attempts_are_rate_limited_per_account_and_ip(monkeypatch) -> None:
+    monkeypatch.setenv("INDUSTRIAL_RFQ_REGISTRATION_EMAIL_MAX_FAILURES", "2")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_REGISTRATION_IP_MAX_FAILURES", "3")
+
+    for _ in range(2):
+        failed = client.post(
+            "/auth/register",
+            json={"email": "existing@example.com", "password": PASSWORD},
+        )
+        assert failed.status_code == 409
+
+    blocked = client.post(
+        "/auth/register",
+        json={"email": "new@example.com", "password": PASSWORD},
+    )
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked.headers
+
+    ratelimit.clear()
+    for index in range(3):
+        failed = client.post(
+            "/auth/register",
+            json={"email": f"not-an-email-{index}", "password": PASSWORD},
+        )
+        assert failed.status_code == 422
+
+    refused = client.post(
+        "/auth/register",
+        json={"email": "fourth-invalid", "password": PASSWORD},
+    )
+    assert refused.status_code == 429
+
+
 def test_failed_login_attempts_are_rate_limited_per_account(monkeypatch) -> None:
     monkeypatch.setenv("INDUSTRIAL_RFQ_LOGIN_EMAIL_MAX_FAILURES", "3")
     _account("brute@example.com")
