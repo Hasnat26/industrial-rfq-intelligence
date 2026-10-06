@@ -30,6 +30,7 @@ from freellmpool.api.db import (
     RfqRevision,
     TechnicalClarification,
     TechnicalDeviation,
+    UsageRecord,
     User,
     VendorClaim,
     VendorDocument,
