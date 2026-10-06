@@ -516,7 +516,7 @@ def test_registration_attempts_are_rate_limited_per_account_and_ip(monkeypatch) 
 
     blocked = client.post(
         "/auth/register",
-        json={"email": "new@example.com", "password": PASSWORD},
+        json={"email": "existing@example.com", "password": PASSWORD},
     )
     assert blocked.status_code == 429
     assert "Retry-After" in blocked.headers
