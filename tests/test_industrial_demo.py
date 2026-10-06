@@ -353,6 +353,7 @@ def test_document_rfq_extraction_passes_provenance_to_llm() -> None:
             pool,
             rfq,
             [{"vendor": "Vendor X", "path": quote}],
+            use_markdown=False,
         )
         assert "[SOURCE:" in pool.prompt
         assert "PAGE: 1" in pool.prompt
