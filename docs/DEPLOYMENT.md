@@ -8,6 +8,8 @@ The SaaS API is the FastAPI application exposed by `industrial-rfq-api`, not the
 
 Set `INDUSTRIAL_RFQ_DATABASE_URL` to managed PostgreSQL in production and run `alembic upgrade head` as a deployment step before starting the application. Production startup fails closed unless the database URL uses PostgreSQL, `INDUSTRIAL_RFQ_AUTO_CREATE_TABLES` is not enabled, and both `INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET` and `INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET` are configured with at least 32 characters.
 
+For a Compose-based production deployment, use `docker-compose.saas.production.yml`. It intentionally has no SQLite/database or secret defaults, so an incomplete production environment fails before the service starts. PostgreSQL, TLS/ingress, backups/recovery, and secret storage remain deployment-platform responsibilities.
+
 Do not enable `INDUSTRIAL_RFQ_AUTO_CREATE_TABLES` in production. The application deliberately does not mutate non-SQLite schemas during startup.
 
 ## Local smoke deployment
@@ -16,9 +18,9 @@ Use:
 
     docker compose -f docker-compose.saas.yml up --build
 
-Then verify `/ready` returns HTTP 200. Create a user through `POST /auth/register`, authenticate through `POST /auth/login`, create an organization, project, package, and ingest vendor quotations.
+This compose file explicitly runs in development mode with SQLite so the documented smoke path is reproducible without external infrastructure. Then verify `/ready` returns HTTP 200. Create a user through `POST /auth/register`, authenticate through `POST /auth/login`, create an organization, project, package, and ingest vendor quotations.
 
-The compose file uses SQLite only for local smoke testing, and therefore intentionally fails if used with `INDUSTRIAL_RFQ_ENV=production` without replacing the database/secrets. It is not a production database topology; production should use PostgreSQL with managed backups and recovery.
+It is not a production database topology. Production should use `docker-compose.saas.production.yml` with PostgreSQL and managed backups/recovery.
 
 ## Storage boundary
 
