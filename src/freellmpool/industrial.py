@@ -985,12 +985,13 @@ def extract_rfq_documents_with_llm(
             })
         return extract_rfq_with_llm(pool, rfq_text, quotations)
 
-    page_extractor = extract_document_pages_with_ocr if use_ocr else extract_document_pages
-    rfq_pages = (
-        page_extractor(rfq_document, language=ocr_language)
-        if use_ocr
-        else page_extractor(rfq_document)
-    )
+    if use_ocr:
+        rfq_pages = extract_document_pages_with_ocr(
+            rfq_document,
+            language=ocr_language,
+        )
+    else:
+        rfq_pages = extract_document_pages(rfq_document)
     rfq_text = document_text(rfq_pages)
     quotations = []
     for index, item in enumerate(quotation_documents):
@@ -998,11 +999,13 @@ def extract_rfq_documents_with_llm(
         path = item.get("path")
         if not vendor or path is None:
             raise ValueError(f"quotation_documents[{index}] requires vendor and path")
-        pages = (
-            page_extractor(path, language=ocr_language)
-            if use_ocr
-            else page_extractor(path)
-        )
+        if use_ocr:
+            pages = extract_document_pages_with_ocr(
+                path,
+                language=ocr_language,
+            )
+        else:
+            pages = extract_document_pages(path)
         text = document_text(pages)
         if not text.strip():
             raise ValueError(f"quotation document is empty: {path}")
