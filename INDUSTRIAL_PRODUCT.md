@@ -109,7 +109,7 @@ Supported document formats in the current implementation:
 
 PDF pages are extracted separately and represented with source/page provenance.
 
-Scanned or image-only PDF OCR is not currently included.
+Scanned or image-only PDF OCR is available through the optional `ocr` dependency set and Tesseract runtime.
 
 ### 5.2 LLM-assisted extraction
 
@@ -250,7 +250,7 @@ The repository must not contain:
 - plant-control credentials;
 - secrets or API keys.
 
-The current product is a local/CLI-oriented engineering workflow. Production deployment, authentication, multi-user access, database persistence, and enterprise security controls are future work.
+The repository now contains a database-backed, authenticated multi-tenant SaaS/API layer with workflow controls. Production deployment, provider-specific billing execution, granular RBAC, object storage, and enterprise operational hardening remain release-scope work.
 
 ## 11. Current implementation status
 
@@ -268,6 +268,7 @@ Implemented in the current repository:
 - evidence register;
 - review flags;
 - PDF/TXT/Markdown ingestion;
+- optional scanned-PDF OCR with page-level provenance;
 - source/page provenance;
 - engineering Markdown report;
 - JSON/Markdown CLI output;
