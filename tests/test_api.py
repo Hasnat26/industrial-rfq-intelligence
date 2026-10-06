@@ -607,7 +607,7 @@ def _seed_offer(mode: str = "PROJECT_EPC") -> dict:
         f"/packages/{package['id']}/offers",
         json={"vendor_name": "Vendor Flow", "price": "5000", "currency": "USD"},
     ).json()
-    return {"package": package, "offer": offer}
+    return {"organization": organization, "package": package, "offer": offer}
 
 
 def test_batch_quotation_ingestion_is_atomic_and_persists_documents() -> None:
@@ -729,13 +729,7 @@ def test_document_ingestion_formats_and_rejections() -> None:
 def test_single_document_upload_enforces_plan_limit() -> None:
     seeded = _seed_offer(mode="STANDARD")
     offer_id = seeded["offer"]["id"]
-    package = client.get(f"/packages/{seeded['package']['id']}/rfq").json()
-    organization_id = client.get(f"/packages/{seeded['package']['id']}/offers").json()[0]["id"]
-    del package
-    # Resolve the tenant through the authenticated development fixture rather than
-    # relying on helper return shape.
-    with SessionLocal() as db:
-        organization_id = db.get(VendorOffer, offer_id).package.project.organization_id
+    organization_id = seeded["organization"]["id"]
     usage = client.post(
         f"/organizations/{organization_id}/usage",
         json={"metric": "documents", "quantity": 100},
