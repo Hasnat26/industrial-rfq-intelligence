@@ -177,7 +177,7 @@ def update_subscription(
     _owner(db, user, organization_id)
     if payload.plan_key not in PLANS:
         raise HTTPException(status_code=422, detail="unknown subscription plan")
-    if payload.status not in {"ACTIVE", "PAST_DUE", "CANCELED", "TRIALING"}:
+    if payload.status not in {"ACTIVE", "PAST_DUE", "CANCELED", "TRIALING", "PAUSED"}:
         raise HTTPException(status_code=422, detail="invalid subscription status")
     subscription = _subscription(db, organization_id)
     subscription.plan_key = payload.plan_key

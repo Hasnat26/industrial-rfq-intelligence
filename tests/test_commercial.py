@@ -53,6 +53,44 @@ def test_subscription_defaults_to_starter_and_usage_is_aggregated() -> None:
     assert summary.json()["limits"]["vendor_offers"] == 50
 
 
+def test_subscription_can_be_paused_and_resumed() -> None:
+    organization = client.post("/organizations", json={"name": "Pause Org"}).json()
+    org_id = organization["id"]
+
+    paused = client.put(
+        f"/organizations/{org_id}/subscription",
+        json={"plan_key": "STARTER", "status": "PAUSED"},
+    )
+    assert paused.status_code == 200
+    assert paused.json()["status"] == "PAUSED"
+
+    # A paused subscription cannot record billable usage (402), matching the
+    # webhook-driven PAUSED state the billing boundary can already set.
+    blocked = client.post(
+        f"/organizations/{org_id}/usage",
+        json={"metric": "vendor_offers", "quantity": 1},
+    )
+    assert blocked.status_code == 402
+
+    # The paused period must not auto-roll forward on read.
+    current = client.get(f"/organizations/{org_id}/subscription")
+    assert current.status_code == 200
+    assert current.json()["status"] == "PAUSED"
+
+    resumed = client.put(
+        f"/organizations/{org_id}/subscription",
+        json={"plan_key": "STARTER", "status": "ACTIVE"},
+    )
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "ACTIVE"
+
+    allowed = client.post(
+        f"/organizations/{org_id}/usage",
+        json={"metric": "vendor_offers", "quantity": 1},
+    )
+    assert allowed.status_code == 201
+
+
 def _member_account(organization_id: int, email: str) -> dict[str, str]:
     """Register a second user and grant them MEMBER role in the organization."""
     registered = client.post(
