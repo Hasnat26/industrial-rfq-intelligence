@@ -27,6 +27,8 @@ _EVENTS: dict[str, deque[float]] = {}
 
 DEFAULT_EMAIL_MAX_FAILURES = "5"
 DEFAULT_IP_MAX_FAILURES = "25"
+DEFAULT_REGISTRATION_EMAIL_MAX_FAILURES = "5"
+DEFAULT_REGISTRATION_IP_MAX_FAILURES = "10"
 DEFAULT_WINDOW_SECONDS = "300"
 
 
@@ -61,6 +63,20 @@ def ip_max_failures() -> int:
     )
 
 
+def registration_email_max_failures() -> int:
+    return _positive_int(
+        "INDUSTRIAL_RFQ_REGISTRATION_EMAIL_MAX_FAILURES",
+        DEFAULT_REGISTRATION_EMAIL_MAX_FAILURES,
+    )
+
+
+def registration_ip_max_failures() -> int:
+    return _positive_int(
+        "INDUSTRIAL_RFQ_REGISTRATION_IP_MAX_FAILURES",
+        DEFAULT_REGISTRATION_IP_MAX_FAILURES,
+    )
+
+
 def _prune(events: deque[float], now: float, window: float) -> None:
     while events and now - events[0] >= window:
         events.popleft()
@@ -76,7 +92,7 @@ def record_failure(key: str) -> None:
         events.append(now)
         # Bound memory: a key cannot accumulate more events than the
         # largest configurable budget plus one.
-        max_events = max(ip_max_failures(), email_max_failures()) + 1
+        max_events = max(ip_max_failures(), email_max_failures(), registration_ip_max_failures(), registration_email_max_failures()) + 1
         while len(events) > max_events:
             events.popleft()
 
