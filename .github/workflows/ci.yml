@@ -61,6 +61,24 @@ jobs:
           for advisory in "${ignored[@]}"; do args+=(--ignore-vuln "$advisory"); done
           python -m pip_audit . --strict --desc=on --aliases=on "${args[@]}"
           zizmor --strict-collection --no-ignores --no-config --min-severity=high --min-confidence=high .
+      - name: SaaS container build and runtime smoke
+        run: |
+          docker build -f Dockerfile.saas -t industrial-rfq-saas-smoke .
+          container_id=$(docker run -d \\
+            -e INDUSTRIAL_RFQ_ENV=development \\
+            -e INDUSTRIAL_RFQ_DATABASE_URL=sqlite:////tmp/industrial_rfq.db \\
+            industrial-rfq-saas-smoke)
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 30); do
+            if docker exec "$container_id" python -c \\
+              "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs "$container_id"
+          exit 1
+
       - name: Build and wheel smoke
         run: |
           python -m build
