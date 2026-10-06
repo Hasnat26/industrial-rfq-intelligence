@@ -1,0 +1,19 @@
+# Local/staging SaaS deployment for Industrial RFQ Intelligence.
+# For production, use managed PostgreSQL and platform-managed secrets.
+services:
+  industrial-rfq-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.saas
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      INDUSTRIAL_RFQ_ENV: production
+      INDUSTRIAL_RFQ_DATABASE_URL: ${INDUSTRIAL_RFQ_DATABASE_URL:-sqlite:////app/data/industrial_rfq.db}
+      INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET: ${INDUSTRIAL_RFQ_BILLING_WEBHOOK_SECRET:-}
+      INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET: ${INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET:-}
+    volumes:
+      - industrial-rfq-data:/app/data
+    restart: unless-stopped
+volumes:
+  industrial-rfq-data:
