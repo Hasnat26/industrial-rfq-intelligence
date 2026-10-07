@@ -7,92 +7,128 @@
 3. Separate domain models from CLI concerns where practical.
 4. Keep the existing local workflow runnable while the web layer is introduced.
 
+**Status: Complete.**
+
 ## P1 - First usable SaaS vertical slice
 
-**Status (authentication + tenancy + batch ingestion milestones):** persistent
-database, organization/user model, web API, authentication, tenant isolation,
-and the migration foundation are delivered. See `docs/SAAS_AUTH_AND_TENANCY.md`
-for the architecture and migration workflow. Document storage/ingestion APIs,
-atomic batch quotation ingestion (`POST /packages/{id}/quotations/batch`),
-product-category configuration, browser review UI, and exportable report are delivered.
+Authentication + tenancy + persistent database, web API, tenant isolation, document ingestion, atomic batch quotation ingestion, product-category configuration, browser review surfaces, and exportable reporting are implemented.
+
+**Status: Complete.**
 
 Target workflow:
 
 Requirement -> Standard RFQ -> upload 2-5 vendor quotations -> normalize -> technical comparison -> commercial comparison -> review report.
 
-Deliverables:
-
-- persistent database;
-- organization/user model;
-- web API;
-- authentication;
-- tenant isolation;
-- document upload/storage;
-- batch quotation ingestion;
-- product-category configuration;
-- web review screen;
-- exportable CS/TBE-style report.
-
 ## P2 - Project/EPC procurement workflow
 
-**Status: Complete.** PROJECT_EPC now has controlled technical issue resolution, revision lineage, technical bid locking, commercial opening/evaluation, final human decision, workflow audit trail, and browser visibility.
+PROJECT_EPC supports controlled technical issue resolution, revision lineage, technical bid locking, commercial opening/evaluation, final human decision, workflow audit trail, and browser visibility.
 
-Deliverables:
-
-- project/package hierarchy;
-- technical offer revisioning;
-- clarification/deviation workflow;
-- technical bid lock gate;
-- commercial opening/evaluation gate;
-- human-controlled final decision / approval record;
-- audit trail.
+**Status: Complete.**
 
 ## P3 - Procurement memory
 
-**Status: Initial historical retrieval slice complete.** Procurement memory is now exposed as a read model over the canonical procurement ledger. It retrieves vendor history, product/category history, decision rationale, price/lead-time/warranty history, and reusable claim evidence without duplicating source records. Tenant-isolated search is available by vendor, category, package, and free-text query.
+The procurement memory slice is implemented as a read model over the canonical procurement ledger. It retrieves vendor history, product/category history, decision rationale, price/lead-time/warranty history, and reusable evidence with tenant isolation. Product/manufacturer/model identity has also been added to the persistent model.
 
-Deliverables:
+**Status: Complete for the current MVP scope.**
 
-- vendor history;
-- product history;
-- decision rationale history;
-- price/lead-time/warranty history;
-- reusable evidence;
-- historical search and retrieval.
-
-Historical information remains decision support, not an automatic procurement instruction. The next P3 increment should add explicit product/manufacturer/model identity and richer historical aggregation where the source workflow captures those fields.
+Historical information remains decision support, not an automatic procurement instruction.
 
 ## P4 - Lifecycle intelligence
 
-**Status: In progress.** P4.1 canonical lifecycle events, P4.2 installed asset/product records, P4.3 lifecycle cost inputs, P4.4 asset-level lifecycle economics, and P4.5 reliability indicators, P4.6 warranty exposure indicators, and P4.7 spare/replacement lifecycle metrics are implemented and merged. Lifecycle intelligence now exposes event history, failure/maintenance patterns, warranty dates, lifecycle cost totals, and transparent reliability intervals.
+Canonical lifecycle events, installed asset/product records, lifecycle cost inputs, asset-level lifecycle economics, reliability indicators, warranty exposure indicators, spare-part metrics, and replacement lifecycle metrics are implemented.
 
-Deliverables:
+**Status: Complete for the current MVP scope.**
 
-- installation/commissioning records;
-- maintenance and failure history;
-- warranty events;
-- spare-part history;
-- replacement history;
-- lifecycle cost inputs.
-
-P4.3 provides a canonical cost ledger for purchase, maintenance, spare-part, failure, warranty, and other lifecycle cost inputs. P4.4 rolls those costs into asset-level lifecycle intelligence alongside warranty dates and event history. P4.5 adds failure-to-failure intervals and failure-to-next-maintenance intervals, with mean values derived only from canonical dated lifecycle events. P4.6 adds deterministic warranty status and remaining warranty days from canonical asset warranty dates. P4.7 adds spare-part event counts and replacement intervals derived from canonical lifecycle history. Costs remain separate from event descriptions while optionally linking to a canonical lifecycle event for traceability.
+Lifecycle intelligence is derived from canonical dated events and cost records; it does not make autonomous maintenance or replacement decisions.
 
 ## P5 - Commercial SaaS hardening
 
-**Status: In progress.** P5.1 commercial entitlement and usage-metering foundation, P5.2 server-side plan-limit enforcement, P5.3 provider-neutral subscription lifecycle integration, P5.4 billing webhook receipt/idempotency foundation, P5.5 canonical billing-event subscription synchronization, P5.6 commercial usage reconciliation, P5.7 deterministic subscription period rollover, P5.8 authenticated commercial reconciliation execution, P5.9 entitlement anomaly detection, P5.10 reconciliation audit trail, P5.11 reconciliation health status, P5.12 scheduler-safe reconciliation runner, and P5.13 scheduler-ready commercial CLI are implemented and merged. Organizations now have a subscription state, plan catalog, append-only usage ledger, current-period usage summary, and tenant-isolated metering API. Actual payment execution remains provider-neutral and requires external billing-provider credentials/configuration; webhook receipts are now authenticated and idempotently persisted.
+The application-side commercial control plane is implemented:
 
-Deliverables:
+- subscription and plan catalog;
+- append-only usage ledger;
+- server-side entitlement enforcement on metered write paths;
+- provider-neutral subscription lifecycle;
+- authenticated/idempotent billing webhook receipt;
+- billing-event subscription synchronization;
+- usage reconciliation;
+- deterministic subscription-period rollover;
+- authenticated reconciliation execution;
+- anomaly detection;
+- reconciliation audit trail and health state;
+- scheduler-safe reconciliation runner;
+- scheduler-ready commercial CLI;
+- PostgreSQL-safe entitlement serialization;
+- OWNER-only manual usage mutation.
 
-- subscription plans;
-- usage metering;
-- billing/payment integration;
-- API limits;
-- observability;
-- backups/recovery;
-- security hardening;
-- privacy/data-retention controls;
-- production deployment.
+**Status: Complete for application-side commercial controls.**
 
-## Immediate build priority
+Actual payment collection/execution remains provider-neutral and requires an external billing provider, credentials, and deployment configuration. Managed PostgreSQL, backups/recovery, TLS/ingress, and production hosting are also deployment dependencies.
 
-P0/P1/P2 are implemented, P3 has its first usable historical-memory slice, and P4 now has the core lifecycle event, asset, cost, reliability, warranty, spare, and replacement intelligence layers. P5 has started with commercial entitlement and usage metering; the next revenue-oriented priority is billing/payment integration, subscription lifecycle management, payment-provider execution, full webhook event coverage, observability, automated reconciliation, production scheduling, and production-grade entitlement controls.
+## P6 - Production deployment and market launch
+
+P6 is the post-code-freeze track. The objective is to turn the current CI-green release candidate into an independently deployable pilot and then a paid production service without weakening the deterministic/evidence-first control model.
+
+### P6.1 - Source-of-truth and operator documentation
+
+- synchronize roadmap and acceptance records with the latest verified green state;
+- maintain a production deployment runbook;
+- define preflight, migration, readiness, rollback, backup, and incident procedures;
+- explicitly separate repository capabilities from external deployment capabilities.
+
+**Status: In progress.**
+
+### P6.2 - Deployment validation
+
+- provision managed PostgreSQL;
+- apply Alembic migrations to head;
+- build the SaaS image;
+- verify /health and database-backed /ready;
+- execute a minimal authenticated tenant/package/offer/report smoke flow;
+- verify production fail-closed configuration;
+- capture reproducible deployment evidence.
+
+### P6.3 - Operational controls
+
+- centralized application/container logs;
+- external database backup and tested restore procedure;
+- TLS/ingress;
+- shared-store rate limiting for multi-replica deployments;
+- alerting around readiness, error rate, database failures, billing webhook failures, and reconciliation anomalies.
+
+### P6.4 - Billing execution
+
+- select one supported billing provider;
+- configure product/price identifiers;
+- implement provider webhook verification against the existing provider-neutral boundary;
+- test subscription activation, renewal, cancellation, payment failure, and replay/idempotency behavior;
+- keep entitlement decisions server-side and fail-closed.
+
+### P6.5 - Pilot launch package
+
+- customer-facing quickstart;
+- pilot RFQ sample package;
+- technical-commercial report example;
+- limitations and human-approval statement;
+- support/incident contact procedure;
+- first-customer onboarding checklist.
+
+### P6.6 - Release gate
+
+The release gate requires:
+
+1. Main CI green for the exact release commit.
+2. Production deployment smoke green.
+3. Database migration state verified.
+4. /ready green against managed PostgreSQL.
+5. Authenticated tenant isolation smoke green.
+6. Entitlement enforcement smoke green.
+7. Billing webhook verification green when billing is enabled.
+8. Backup/restore evidence recorded.
+9. No unverified claim that the service is already publicly hosted.
+
+## Priority order after the current code freeze
+
+Do not add broad new product features before P6.2 unless a production validation discovers a blocking defect. The fastest route to revenue is:
+
+**deployment -> real pilot workflow -> operational reliability -> billing execution -> first paid customer -> only then broader feature expansion.**
