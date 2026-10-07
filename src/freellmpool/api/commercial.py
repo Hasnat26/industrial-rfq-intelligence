@@ -80,7 +80,14 @@ def _usage_total(db: Session, organization_id: int, metric: str, subscription: O
 
 
 def enforce_limit(db: Session, organization_id: int, metric: str, quantity: float = 1.0) -> None:
-    subscription = _subscription(db, organization_id)
+    _subscription(db, organization_id)
+    subscription = db.scalar(
+        select(OrganizationSubscription)
+        .where(OrganizationSubscription.organization_id == organization_id)
+        .with_for_update()
+    )
+    if subscription is None:
+        raise RuntimeError("organization subscription disappeared during entitlement check")
     if subscription.status != "ACTIVE":
         raise HTTPException(status_code=402, detail="subscription is not active")
     limit = PLANS[subscription.plan_key]["limits"].get(metric)
@@ -208,7 +215,7 @@ def record_usage(
     db: Session = Depends(get_db),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> UsageRecord:
-    _member(db, user, organization_id)
+    _owner(db, user, organization_id)
     enforce_limit(db, organization_id, payload.metric, payload.quantity)
     db.add(UsageRecord(organization_id=organization_id, **payload.model_dump()))
     db.commit()

@@ -124,6 +124,33 @@ def _member_account(organization_id: int, email: str) -> dict[str, str]:
     return headers
 
 
+def test_member_cannot_write_usage_but_owner_can() -> None:
+    organization = client.post("/organizations", json={"name": "Usage RBAC Org"}).json()
+    owner_headers = dict(client.headers)
+    member_headers = _member_account(organization["id"], "member-usage-rbac@example.com")
+
+    denied = client.post(
+        f"/organizations/{organization['id']}/usage",
+        json={"metric": "vendor_offers", "quantity": 1},
+        headers=member_headers,
+    )
+    assert denied.status_code == 403
+
+    allowed = client.post(
+        f"/organizations/{organization['id']}/usage",
+        json={"metric": "vendor_offers", "quantity": 1},
+        headers=owner_headers,
+    )
+    assert allowed.status_code == 201, allowed.text
+
+    summary = client.get(
+        f"/organizations/{organization['id']}/usage",
+        headers=owner_headers,
+    )
+    assert summary.status_code == 200
+    assert summary.json()["usage"]["vendor_offers"] == 1
+
+
 def test_member_cannot_change_subscription_but_owner_can() -> None:
     organization = client.post("/organizations", json={"name": "RBAC Org"}).json()
     owner_headers = dict(client.headers)
