@@ -973,6 +973,13 @@ def add_offer(
         to_status=offer.technical_status,
         note=f"Offer {offer.vendor_name} revision {offer.technical_revision} created",
     )
+    db.add(
+        UsageRecord(
+            organization_id=package.project.organization_id,
+            metric="vendor_offers",
+            quantity=1.0,
+        )
+    )
     try:
         db.commit()
     except IntegrityError as exc:
