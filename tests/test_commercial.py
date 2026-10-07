@@ -3,7 +3,13 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from freellmpool.api import app
-from freellmpool.api.db import Base, OrganizationMembership, SessionLocal, engine
+from freellmpool.api.db import (
+    Base,
+    OrganizationMembership,
+    SessionLocal,
+    UsageRecord,
+    engine,
+)
 
 client = TestClient(app)
 
@@ -616,3 +622,128 @@ def test_scheduler_safe_reconciliation_runner_records_completion() -> None:
         assert run.completed_at is not None
     finally:
         db.close()
+
+
+def test_package_creation_consumes_and_enforces_package_entitlement() -> None:
+    organization = client.post("/organizations", json={"name": "Package Entitlement Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    with SessionLocal() as db:
+        db.add(
+            UsageRecord(
+                organization_id=organization["id"],
+                metric="procurement_packages",
+                quantity=9.0,
+            )
+        )
+        db.commit()
+
+    first = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Package 10",
+            "category": "MOTOR",
+            "requirements": [],
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    blocked = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Package 11",
+            "category": "MOTOR",
+            "requirements": [],
+        },
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "procurement_packages plan limit exceeded"
+
+    summary = client.get(f"/organizations/{organization['id']}/usage")
+    assert summary.status_code == 200
+    assert summary.json()["usage"]["procurement_packages"] == 10
+
+
+def test_vendor_offer_creation_consumes_and_enforces_offer_entitlement() -> None:
+    organization = client.post("/organizations", json={"name": "Offer Entitlement Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [],
+        },
+    ).json()
+    with SessionLocal() as db:
+        db.add(
+            UsageRecord(
+                organization_id=organization["id"],
+                metric="vendor_offers",
+                quantity=49.0,
+            )
+        )
+        db.commit()
+
+    first = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    )
+    assert first.status_code == 201, first.text
+
+    blocked = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor B", "technical_revision": "R1"},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "vendor_offers plan limit exceeded"
+
+    summary = client.get(f"/organizations/{organization['id']}/usage")
+    assert summary.status_code == 200
+    assert summary.json()["usage"]["vendor_offers"] == 50
+
+
+def test_quotation_batch_is_blocked_by_document_entitlement_before_persistence() -> None:
+    organization = client.post("/organizations", json={"name": "Document Entitlement Org"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [],
+        },
+    ).json()
+    with SessionLocal() as db:
+        db.add(
+            UsageRecord(
+                organization_id=organization["id"],
+                metric="documents",
+                quantity=100.0,
+            )
+        )
+        db.commit()
+
+    response = client.post(
+        f"/packages/{package['id']}/quotations/batch",
+        data={"entries": '[{"vendor_name":"Vendor A","technical_revision":"R1"}]'},
+        files={"files": ("quote.txt", b"Rated voltage: 415 V", "text/plain")},
+    )
+    assert response.status_code == 429
+    assert response.json()["detail"] == "documents plan limit exceeded"
+
+    summary = client.get(f"/organizations/{organization['id']}/usage")
+    assert summary.status_code == 200
+    assert summary.json()["usage"].get("documents", 0) == 100
