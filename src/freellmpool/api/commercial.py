@@ -215,7 +215,7 @@ def record_usage(
     db: Session = Depends(get_db),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> UsageRecord:
-    _member(db, user, organization_id)
+    _owner(db, user, organization_id)
     enforce_limit(db, organization_id, payload.metric, payload.quantity)
     db.add(UsageRecord(organization_id=organization_id, **payload.model_dump()))
     db.commit()
