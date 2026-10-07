@@ -6,8 +6,8 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Last verified Main GitHub Actions green run | Main commit `8ce84228ee32a70633a00f08f26da313db5ba5cc`, CI Run #539 completed successfully across Python 3.11–3.14 | PASS |
-| Latest verified PR CI | PR #95 and its post-merge Main validation completed successfully; current Main Run #539 completed successfully across Python 3.11–3.14 | PASS |
+| Last verified Main GitHub Actions green run | Main commit `7f5ae440b01a273e66cc984f3f27e1e14b4c7cc4`, CI Run #543 completed successfully across Python 3.11–3.14 | PASS |
+| Latest verified PR CI | PR #97 CI Run #542 completed successfully; post-merge Main Run #543 completed successfully across Python 3.11–3.14 | PASS |
 | Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits and persist usage atomically | PASS |
 | Commercial usage integrity | Manual usage writes are OWNER-only and PostgreSQL entitlement checks serialize on the organization subscription row | PASS |
@@ -22,7 +22,7 @@ This document records executable acceptance evidence for the current repository 
 
 ## Acceptance rule
 
-Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader exposes real GitHub Actions runs. For this acceptance record, the current Main commit and push-triggered Run #539 are explicitly verified above.
+Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader exposes real GitHub Actions runs. For this acceptance record, the current Main commit and push-triggered Run #543 are explicitly verified above.
 
 ## Portfolio-safe statement
 

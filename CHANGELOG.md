@@ -20,6 +20,7 @@ All notable changes to this project are documented here. The format is based on
   bandit/pip-audit/zizmor security checks, and wheel/sdist install smoke tests.
 
 ### Changed
+- Production-readiness documentation now distinguishes **Main Green** from **Hosted Production Green**, with an operator deployment runbook covering migrations, readiness, smoke validation, rollback, backup/recovery, and billing boundaries.
 - The package now reports a single authoritative version: `pyproject.toml`,
   `freellmpool.__version__`, the API metadata, and the release docs all
   report `0.1.0`.
