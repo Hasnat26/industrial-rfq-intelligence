@@ -48,6 +48,7 @@ dependencies = [
     "alembic>=1.14",
     "fastapi>=0.115",
     "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2,<4",
     "uvicorn>=0.30",
     "python-multipart>=0.0.20",
     "markitdown[pdf,docx,pptx,xlsx]==0.1.8",
