@@ -6,8 +6,8 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Last verified Main GitHub Actions green run | Main commit `9154867717d7f6b1f1e02550cdcea6c3604e35c4`, CI Run #512 completed successfully | PASS |
-| Latest verified PR CI | PR #88, CI Run #523 completed successfully across Python 3.11–3.14, security, SaaS container, and package smoke | PASS |
+| Last verified Main GitHub Actions green run | Main commit `1573a5d726ccfadd9b1433ee29a9bd22ea7d95a1`, CI Run #496 completed successfully across Python 3.11–3.14 | PASS |
+| Latest verified PR CI | PR #82, CI Run #495 completed successfully across Python 3.11–3.14; post-merge Main Run #496 also completed successfully | PASS |
 | Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits | PASS |
 | Security gate | Security commands and regression tests are part of the main CI gate | PASS |
@@ -20,7 +20,7 @@ This document records executable acceptance evidence for the current repository 
 
 ## Acceptance rule
 
-Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader currently exposes PR-triggered runs, so a push-triggered Main run is not marked green here unless independently verified. The acceptance record therefore intentionally avoids hardcoding the current Main commit.
+Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader exposes real GitHub Actions runs. For this acceptance record, the current Main commit and push-triggered Run #496 are explicitly verified above.
 
 ## Portfolio-safe statement
 
