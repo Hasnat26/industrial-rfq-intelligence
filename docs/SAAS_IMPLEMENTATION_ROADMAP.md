@@ -76,7 +76,7 @@ P6 is the post-code-freeze track. The objective is to turn the current CI-green 
 - define preflight, migration, readiness, rollback, backup, and incident procedures;
 - explicitly separate repository capabilities from external deployment capabilities.
 
-**Status: In progress.**
+**Status: Complete.**
 
 ### P6.2 - Deployment validation
 
