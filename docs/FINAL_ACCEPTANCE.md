@@ -6,8 +6,8 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Last verified Main GitHub Actions green run | Main commit `790f7bb8d99f874c8d74d5ff3ab654154b7b93c2`, CI Run #549 completed successfully across Python 3.11–3.14 | PASS |
-| Latest verified PR CI | PR #99 CI and post-merge Main Run #549 completed successfully across Python 3.11–3.14 | PASS |
+| Last verified Main GitHub Actions green run | Main commit `5d05564ddd7e8435bbac4606df3ad760ff9a7474`, CI Run #551 completed successfully across Python 3.11–3.14 | PASS |
+| Latest verified PR CI | PR #99 CI and post-merge Main Run #551 completed successfully across Python 3.11–3.14 | PASS |
 | Migration schema coverage | Full current persistent schema is covered and package evaluation settings has an Alembic revision | PASS |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits and persist usage atomically | PASS |
 | Commercial usage integrity | Manual usage writes are OWNER-only and PostgreSQL entitlement checks serialize on the organization subscription row | PASS |
@@ -22,7 +22,7 @@ This document records executable acceptance evidence for the current repository 
 
 ## Acceptance rule
 
-Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader exposes real GitHub Actions runs. For this acceptance record, the current Main commit and push-triggered Run #549 are explicitly verified above.
+Repository configuration alone is not execution evidence. A release claim is considered CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. The connected workflow reader exposes real GitHub Actions runs. For this acceptance record, the current Main commit and push-triggered Run #551 are explicitly verified above.
 
 ## Portfolio-safe statement
 
