@@ -516,7 +516,7 @@ def test_canceled_subscription_does_not_roll_forward() -> None:
 
 
 def test_internal_reconciliation_requires_secret(monkeypatch) -> None:
-    monkeypatch.delenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", raising=False)
+    monkeypatch.delenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", raising=False)
     response = client.post("/commercial/internal/reconcile")
     assert response.status_code == 503
 
@@ -526,7 +526,7 @@ def test_internal_reconciliation_rolls_active_expired_subscriptions(monkeypatch)
 
     from freellmpool.api.db import OrganizationSubscription, SessionLocal
 
-    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "reconcile-secret")
     organization = client.post("/organizations", json={"name": "Internal Reconcile Org"}).json()
     db = SessionLocal()
     try:
@@ -582,7 +582,7 @@ def test_usage_reconciliation_reports_unknown_and_negative_usage_anomalies() -> 
 
 
 def test_internal_reconciliation_creates_audit_run(monkeypatch) -> None:
-    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "reconcile-secret")
     client.post("/organizations", json={"name": "Audit Run Org"})
     response = client.post(
         "/commercial/internal/reconcile",
@@ -606,7 +606,7 @@ def test_internal_reconciliation_creates_audit_run(monkeypatch) -> None:
 
 
 def test_reconciliation_health_reports_no_runs(monkeypatch) -> None:
-    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "reconcile-secret")
     response = client.get(
         "/commercial/internal/reconcile/health",
         headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
@@ -616,7 +616,7 @@ def test_reconciliation_health_reports_no_runs(monkeypatch) -> None:
 
 
 def test_reconciliation_health_reports_latest_completed_run(monkeypatch) -> None:
-    monkeypatch.setenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET", "reconcile-secret")
+    monkeypatch.setenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET", "reconcile-secret")
     run = client.post(
         "/commercial/internal/reconcile",
         headers={"X-Commercial-Reconciliation-Secret": "reconcile-secret"},
