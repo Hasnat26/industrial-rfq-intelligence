@@ -104,7 +104,7 @@ def _member(db: Session, user: User, organization_id: int) -> None:
 
 def _require_reconciliation_secret(provided: str | None) -> None:
     """Authenticate internal reconciliation callers with a timing-safe compare."""
-    expected = os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET")
+    expected = os.getenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET")
     if not expected:
         raise HTTPException(
             status_code=503,
