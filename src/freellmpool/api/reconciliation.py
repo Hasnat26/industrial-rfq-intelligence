@@ -71,4 +71,4 @@ def run_commercial_reconciliation(db: Session) -> CommercialReconciliationRespon
 
 
 def scheduler_secret_configured() -> bool:
-    return bool(os.getenv("INDUSTRIAL_RFQ_COMMERCIAL_RECONCILIATION_SECRET"))
+    return bool(os.getenv("INDUSTRIAL_RFQ_INTERNAL_RECONCILIATION_SECRET"))
