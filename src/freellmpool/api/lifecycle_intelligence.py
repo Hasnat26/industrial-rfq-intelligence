@@ -96,13 +96,15 @@ def _build(db: Session, organization_id: int, assets: list[AssetProduct]) -> Lif
         counts = Counter(event.event_type for event in asset_events)
         failure_dates = [event.event_date for event in asset_events if event.event_type == "FAILURE"]
         replacement_dates = [event.event_date for event in asset_events if event.event_type == "REPLACEMENT"]
+        # Pairwise intervals intentionally zip an N-length list with its
+        # N-1 tail, so ``strict=True`` would raise for any non-empty list.
         replacement_intervals = [
             (current - previous).total_seconds() / 86400
-            for previous, current in zip(replacement_dates, replacement_dates[1:], strict=True)
+            for previous, current in zip(replacement_dates, replacement_dates[1:], strict=False)
         ]
         failure_intervals = [
             (current - previous).total_seconds() / 86400
-            for previous, current in zip(failure_dates, failure_dates[1:], strict=True)
+            for previous, current in zip(failure_dates, failure_dates[1:], strict=False)
         ]
         now = datetime.now(UTC)
         warranty_status = "NOT_SET"
