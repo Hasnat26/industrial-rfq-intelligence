@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -114,11 +115,22 @@ class Project(Base):
 
 class ProcurementPackage(Base):
     __tablename__ = "procurement_packages"
+    # Named use_alter constraint marks the nullable side of the
+    # package<->revision FK cycle so metadata DDL (test setup/teardown) can
+    # order DROPs around the cycle instead of warning it cannot.
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["current_rfq_revision_id"],
+            ["rfq_revisions.id"],
+            name="fk_procurement_packages_current_rfq_revision",
+            use_alter=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
     current_rfq_revision_id: Mapped[int | None] = mapped_column(
-        ForeignKey("rfq_revisions.id"), nullable=True, index=True
+        nullable=True, index=True
     )
     name: Mapped[str] = mapped_column(String(250))
     category: Mapped[str] = mapped_column(String(100), index=True)
@@ -160,10 +172,16 @@ class RfqRevision(Base):
             "revision",
             name="uq_rfq_revisions_package_revision",
         ),
+        ForeignKeyConstraint(
+            ["package_id"],
+            ["procurement_packages.id"],
+            name="fk_rfq_revisions_package",
+            use_alter=True,
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), index=True)
+    package_id: Mapped[int] = mapped_column(index=True)
     revision: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(30), default="CURRENT")
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)

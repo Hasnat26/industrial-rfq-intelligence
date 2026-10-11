@@ -73,6 +73,35 @@ def _tables(db_path: Path) -> set[str]:
     return {name for (name,) in rows}
 
 
+def test_metadata_drop_all_resolves_the_package_revision_fk_cycle() -> None:
+    """Metadata DDL must not emit unsortable-DROP warnings for the cycle.
+
+    ``procurement_packages.current_rfq_revision_id`` and
+    ``rfq_revisions.package_id`` form a foreign-key cycle; the nullable side
+    is marked ``use_alter`` so ``drop_all`` can order statements around it.
+    """
+    import warnings
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import SAWarning
+
+    from freellmpool.api.db import Base
+
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    try:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            Base.metadata.drop_all(bind=engine)
+        cycle_warnings = [
+            warning for warning in caught if "foreign key dependency" in str(warning.message)
+        ]
+        assert cycle_warnings == [], [str(w.message) for w in cycle_warnings]
+        assert not any(issubclass(w.category, SAWarning) for w in cycle_warnings)
+    finally:
+        engine.dispose()
+
+
 def test_migration_upgrades_a_clean_database(tmp_path: Path) -> None:
     database = tmp_path / "clean.db"
     _alembic("upgrade", "head", db_path=database)
