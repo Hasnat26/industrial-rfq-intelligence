@@ -6,9 +6,9 @@ This document records executable acceptance evidence for the current repository 
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Last verified Main GitHub Actions green run | Main CI Run #577 completed successfully for commit `d98d258b49e65c3babf50ec2c45d5db473c731c8`: Python 3.11–3.14, PostgreSQL 16 migration validation, lint/type checks, security, container smoke, and wheel/sdist smoke | PASS |
-| Latest deployed application commit | Render deployment `dep-db5o737lot8c73fkud90` for commit `d98d258b49e65c3babf50ec2c45d5db473c731c8` reached `live` on 2026-10-11; build and deploy events reported success | DEPLOYED |
-| Latest commit CI evidence | GitHub Actions Run #577 completed with conclusion `success` for the deployed commit | PASS |
+| Last verified Main GitHub Actions green run | Main CI Run #580 completed successfully for commit `dce34187ae3d4d14d35ece2fb049db4d1a38761e`: Python 3.11–3.14, PostgreSQL 16 migration validation, lint/type checks, security, container smoke, and wheel/sdist smoke | PASS |
+| Latest deployed application commit | Render deployment `dep-db5ohc3bc2fs739jgfdg` for commit `dce34187ae3d4d14d35ece2fb049db4d1a38761e` reached `live` on 2026-10-11; build and deploy events reported success | DEPLOYED |
+| Latest commit CI evidence | GitHub Actions Run #580 completed with conclusion `success` for the deployed commit | PASS |
 | Migration schema coverage | Clean PostgreSQL 16 migration chain, `alembic current`, and `alembic check` pass in CI; live Render DB still has no `alembic_version` and has not been safely baselined or migrated | CI PASS / LIVE PENDING |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits and persist usage atomically | PASS |
 | Commercial usage integrity | Manual usage writes are OWNER-only and PostgreSQL entitlement checks serialize on the organization subscription row | PASS |
@@ -20,12 +20,12 @@ This document records executable acceptance evidence for the current repository 
 | Production fail-closed configuration | Production rejects SQLite, table auto-creation, and missing/weak billing/reconciliation secrets | PASS |
 | Production PostgreSQL runtime | PostgreSQL DBAPI driver is packaged with the SaaS runtime dependencies | PASS |
 | Production database | Current Render PostgreSQL is a Free staging database that expires on 2026-11-08 and has no managed backup; durable managed PostgreSQL and tested backup/recovery are still required | NOT YET GREEN |
-| Hosted health/readiness | Render `healthCheckPath` is configured as `/ready`; user verified external `/health` returns `{"status":"ok","service":"industrial-rfq-intelligence"}` and `/ready` returns `{"status":"ready","database":"ok"}`. After deployment `d98d258b49e65c3babf50ec2c45d5db473c731c8`, Render app logs show repeated `GET /ready` responses with `200 OK` at 2026-10-11 12:41 UTC | PASS |
-| Hosted production validation | Commit `d98d258b49e65c3babf50ec2c45d5db473c731c8` is live and readiness returned 200; production migration state, backups/restore, provider billing, and authenticated tenant-isolation smoke remain unverified | NOT YET GREEN |
+| Hosted health/readiness | Render `healthCheckPath` is configured as `/ready`; user verified external `/health` returns `{"status":"ok","service":"industrial-rfq-intelligence"}` and `/ready` returns `{"status":"ready","database":"ok"}`. After deployment `dce34187ae3d4d14d35ece2fb049db4d1a38761e`, Render app logs show repeated `GET /ready` responses with `200 OK` at 2026-10-11 13:03 UTC | PASS |
+| Hosted production validation | Commit `dce34187ae3d4d14d35ece2fb049db4d1a38761e` is live and Render logs show repeated readiness 200 responses; production migration state, backups/restore, provider billing, and authenticated tenant-isolation smoke remain unverified | NOT YET GREEN |
 
 ## Acceptance rule
 
-Repository configuration alone is not execution evidence. A release claim is CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. Main CI Run #577 is confirmed successful for deployed commit `d98d258b49e65c3babf50ec2c45d5db473c731c8`. This is Main Green, not proof of hosted production readiness.
+Repository configuration alone is not execution evidence. A release claim is CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. Main CI Run #580 is confirmed successful for deployed commit `dce34187ae3d4d14d35ece2fb049db4d1a38761e`. This is Main Green, not proof of hosted production readiness.
 
 Render's platform health-check path is `/ready`. User-visible external checks previously returned successful `/health` and `/ready` JSON responses, and current Render app logs show repeated `/ready` 200 responses after the latest deployment. The active environment configuration could not be read back in this verification pass; previously observed configuration indicated development mode with automatic table creation. Do not switch the service to production mode until the database, migration, secrets, and recovery gates are ready.
 
@@ -42,4 +42,4 @@ Render's platform health-check path is `/ready`. User-visible external checks pr
 
 ## Portfolio-safe statement
 
-The repository contains an inspectable, evidence-aware industrial RFQ decision-support SaaS MVP with persistent multi-tenant data, deterministic comparison controls, provenance handling, human-review boundaries, lifecycle intelligence, commercial entitlement enforcement, authenticated billing boundaries, migration coverage, and a reproducible FastAPI deployment surface. Main CI Run #577 and the Render deployment of commit `d98d258b49e65c3babf50ec2c45d5db473c731c8` are confirmed successful. Hosted production remains unverified until durable database/recovery, production migration/configuration, billing-provider validation, and authenticated tenant-isolation smoke gates above are completed. Health-check configuration and live readiness are now verified.
+The repository contains an inspectable, evidence-aware industrial RFQ decision-support SaaS MVP with persistent multi-tenant data, deterministic comparison controls, provenance handling, human-review boundaries, lifecycle intelligence, commercial entitlement enforcement, authenticated billing boundaries, migration coverage, and a reproducible FastAPI deployment surface. Main CI Run #580 and the Render deployment of commit `dce34187ae3d4d14d35ece2fb049db4d1a38761e` are confirmed successful. Hosted production remains unverified until durable database/recovery, production migration/configuration, billing-provider validation, and authenticated tenant-isolation smoke gates above are completed. Health-check configuration and live readiness are now verified.
