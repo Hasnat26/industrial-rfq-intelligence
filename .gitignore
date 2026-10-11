@@ -1,3 +1,9 @@
+# Database backups (contain tenant data; never commit)
+backups/
+*.dump
+*.dump.sha256
+*.dump.toc.txt
+
 # Python
 __pycache__/
 *.py[cod]
