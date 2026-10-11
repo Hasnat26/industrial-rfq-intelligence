@@ -44,23 +44,9 @@ def upgrade() -> None:
         unique=False,
     )
 
-    # The ORM expresses package_id uniqueness as a unique index. The older
-    # migration also created a redundant UNIQUE constraint for the same key.
-    # Keep ix_procurement_decisions_package_id (the unique index) and remove
-    # only the redundant constraint so schema and metadata converge.
-    op.drop_constraint(
-        "procurement_decisions_package_id_key",
-        "procurement_decisions",
-        type_="unique",
-    )
 
 
 def downgrade() -> None:
-    op.create_unique_constraint(
-        "procurement_decisions_package_id_key",
-        "procurement_decisions",
-        ["package_id"],
-    )
     op.drop_index(
         "ix_rfq_revisions_supersedes_revision_id",
         table_name="rfq_revisions",
