@@ -54,10 +54,22 @@ def test_lifecycle_intelligence_aggregates_asset_events() -> None:
 
 def test_lifecycle_intelligence_is_tenant_isolated() -> None:
     client.post("/organizations", json={"name": "First Org"}).json()
-    second = client.post("/organizations", json={"name": "Second Org"}).json()
+
+    # A different tenant's organization must be indistinguishable from a
+    # missing one for the authenticated caller.
+    other = client.post("/auth/register", json={"email": "life-intel-other@example.com", "password": "correct-horse-battery"})
+    assert other.status_code in (201, 200), other.text
+    other_login = client.post("/auth/login", json={"email": "life-intel-other@example.com", "password": "correct-horse-battery"})
+    other_headers = {"Authorization": f"Bearer {other_login.json()['access_token']}"}
+    second = client.post("/organizations", json={"name": "Second Org"}, headers=other_headers).json()
+
     response = client.get(f"/organizations/{second['id']}/lifecycle-intelligence")
     assert response.status_code == 404
     assert response.json()["detail"] == "organization not found"
+
+    missing = client.get("/organizations/999999/lifecycle-intelligence")
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == response.json()["detail"]
 
 
 def test_lifecycle_intelligence_includes_costs_and_warranty_dates() -> None:

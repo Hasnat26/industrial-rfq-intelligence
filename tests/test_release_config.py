@@ -32,6 +32,13 @@ def test_api_and_release_docs_report_the_authoritative_version() -> None:
     assert f"## [{__version__}]" in changelog
 
 
+def test_build_backend_is_reproducibly_pinned() -> None:
+    """The build backend stays exact-pinned so release artifacts are reproducible."""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert pyproject["build-system"]["requires"] == ["hatchling==1.32.0"]
+
+
 def test_release_identity_is_industrial_rfq() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     checklist = (ROOT / "docs" / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
