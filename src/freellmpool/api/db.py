@@ -431,6 +431,7 @@ class LifecycleEvent(Base):
 
 class ProcurementDecision(Base):
     __tablename__ = "procurement_decisions"
+    __table_args__ = (UniqueConstraint("package_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     package_id: Mapped[int] = mapped_column(ForeignKey("procurement_packages.id"), unique=True, index=True)
