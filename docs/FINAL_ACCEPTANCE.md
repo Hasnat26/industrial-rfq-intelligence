@@ -8,7 +8,7 @@ This document records executable acceptance evidence for the current repository 
 |---|---|---|
 | Last verified Main GitHub Actions green run | Main CI Run #577 completed successfully for commit `d98d258b49e65c3babf50ec2c45d5db473c731c8`: Python 3.11–3.14, PostgreSQL 16 migration validation, lint/type checks, security, container smoke, and wheel/sdist smoke | PASS |
 | Latest deployed application commit | Render deployment `dep-db5o737lot8c73fkud90` for commit `d98d258b49e65c3babf50ec2c45d5db473c731c8` reached `live` on 2026-10-11; build and deploy events reported success | DEPLOYED |
-| Latest commit combined status query | GitHub Actions Run #577 completed with conclusion `success` for the deployed commit | NOT CONFIRMED BY STATUS API |
+| Latest commit CI evidence | GitHub Actions Run #577 completed with conclusion `success` for the deployed commit | PASS |
 | Migration schema coverage | Clean PostgreSQL 16 migration chain, `alembic current`, and `alembic check` pass in CI; live Render DB still has no `alembic_version` and has not been safely baselined or migrated | CI PASS / LIVE PENDING |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits and persist usage atomically | PASS |
 | Commercial usage integrity | Manual usage writes are OWNER-only and PostgreSQL entitlement checks serialize on the organization subscription row | PASS |
@@ -27,7 +27,7 @@ This document records executable acceptance evidence for the current repository 
 
 Repository configuration alone is not execution evidence. A release claim is CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. Main CI Run #577 is confirmed successful for deployed commit `d98d258b49e65c3babf50ec2c45d5db473c731c8`. This is Main Green, not proof of hosted production readiness.
 
-A successful CI run is **Main Green**, not proof of hosted production readiness. Render's platform health-check path is now `/ready`. User-visible external checks returned successful `/health` and `/ready` JSON responses, and Render app logs show repeated `/ready` 200 responses after the setting was applied. The active environment configuration could not be read back in this verification pass; previously observed configuration indicated development mode with automatic table creation. Do not switch the service to production mode until the database, migration, secrets, and recovery gates are ready.
+Render's platform health-check path is `/ready`. User-visible external checks previously returned successful `/health` and `/ready` JSON responses, and current Render app logs show repeated `/ready` 200 responses after the latest deployment. The active environment configuration could not be read back in this verification pass; previously observed configuration indicated development mode with automatic table creation. Do not switch the service to production mode until the database, migration, secrets, and recovery gates are ready.
 
 ## Remaining production acceptance work
 
