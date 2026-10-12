@@ -18,15 +18,15 @@ production.
 
 ## Verified baseline (2026-10-12)
 
-- `main` HEAD: `2f26234a1758ddb749a6a56e042df716e4a72dbb`.
-- Main CI Run #594 (`38204840114`): SUCCESS, all 5 jobs
-  (<https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38204840114>).
-- Open PRs: none. Issues: disabled in repository settings.
+- `main` HEAD: `57b63009e9d61c42d1849124382fe6217eceb983`.
+- Main CI Run #598 (`38214323218`): SUCCESS, all 5 jobs
+  (<https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38214323218>).
+- PRs #116 (launch-control docs) and #117 (laptop-ready backup tooling) are merged; current open-PR search returned none. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The four commits
   since (`c2d21a6`, `f0cfea8`, `9720631`, `2f26234`) touch docs, backup scripts,
   and CI only — no runtime-code delta under `src/`, `migrations/`, or
-  `Dockerfile*`.
+  `Dockerfile*` through PR #117.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
@@ -130,25 +130,16 @@ production.
 
 ### P2-BK-02 — Laptop-ready tooling: tool-directory detection + independent
 restore connection + live server identity guard
-- Priority: P0. Status: **IN PROGRESS** (executed this cycle).
-- Gap being closed: the merged scripts assume tools on `PATH` and reuse the
-  source connection for the restore drill. The owner's Windows laptop has
+- Priority: P0. Status: **PASS** (repository code + scratch drill; PR #117 merged).
+- The former gap is closed: the merged scripts locate tools explicitly, use an independent restore connection, and verify live server identity. The owner's Windows laptop has
   PostgreSQL 18.6 in `C:\Program Files\PostgreSQL\18\bin` **not on PATH**, and
   the drill must target a **separate local database with an independent
   connection** (different host/port/user/password allowed). The scripts must
   also verify, from the live server identity (`port` +
   `pg_postmaster_start_time()`), that the restore target is not the source
   server reachable through another interface.
-- Actions: merge the preserved local implementation (tool-dir detection via
-  parameter/`PGBIN`/default install locations, independent restore connection
-  parameters, recreate-restore-database option, secure password prompting,
-  client/server version compatibility checks) with the merged schema
-  verification; extend `tests/test_backup_restore_safety.py`; drill-test all
-  success and refusal paths against scratch PostgreSQL databases.
-- Acceptance criteria: tools resolve without any PATH change; source and
-  restore connections are independently configurable; restore into the source
-  is refused from both configuration and live server identity; all verification
-  checks from P2-BK-01 still enforced; runbook matches.
+- Evidence: PR #117 adds tool detection, independent target credentials, recreate-drill option, source/target identity guard, version checks, refusal tests, and runbook updates. CI Run #598 passed. Scratch PostgreSQL drill evidence is documented in `docs/DB_BACKUP_RUNBOOK.md`.
+- Acceptance criteria: tools resolve without PATH changes; connections independently configurable; source-target collisions refused by config and live identity; P2-BK-01 checks preserved; runbook matches.
 - Autonomy: fully autonomous (scratch infrastructure only).
 
 ### P2-BK-03 — Live Render backup with owner credentials
