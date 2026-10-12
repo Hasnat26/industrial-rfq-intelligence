@@ -18,7 +18,7 @@ The supplier shall quote one motor meeting the following minimum requirements. Q
 |---|---|---|
 | R-01 | Rated voltage | 415 V AC, three-phase, 50 Hz |
 | R-02 | Rated output power | 75 kW |
-| R-03 | Efficiency class | IE3 or better |
+| R-03 | Efficiency class | IE3 |
 | R-04 | Enclosure ingress protection | IP55 minimum |
 
 ## Commercial information requested
