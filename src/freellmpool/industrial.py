@@ -1093,6 +1093,10 @@ def extract_rfq_with_llm(pool: object, rfq_text: str, quotations: Sequence[dict[
     raw = getattr(reply, "text", reply)
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("LLM extraction returned an empty response")
+    if len(raw) > max_response_chars:
+        raise ValueError(
+            f"LLM extraction response exceeds maximum length of {max_response_chars} characters"
+        )
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
