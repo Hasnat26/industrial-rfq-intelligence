@@ -244,7 +244,7 @@ restore connection + live server identity guard
 - Boundary: no hosted log inspection, live production exception injection, provider calls,
   production database operations, or deployment were performed. Hosted security validation remains
   **NOT VERIFIED**.
-- Next: independent human review of PR #129; do not merge without explicit authorization.
+- Next (T24-R22 / PR #132): verify the corrected documentation diff and exact-head CI, then follow the established review/merge procedure. PR #129 is already merged as `f363adc562a494de57cca58c530c99afdfba2818`; keep PR #132 open and unmerged until its review requirements are satisfied and explicit merge authorization is given.
 
 ---
 
