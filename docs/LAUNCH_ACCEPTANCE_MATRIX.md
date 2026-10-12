@@ -2,7 +2,7 @@
 
 Launch gates tracked independently from implementation work. A task can be
 implemented (repository evidence) while its live acceptance test remains
-unverified. Both facts are shown separately. Updated 2026-10-12 after PR #120.
+unverified. Both facts are shown separately. Updated 2026-10-12 after PR #123.
 
 Legend: PASS = verified with linked evidence. NOT VERIFIED = no execution
 evidence. BLOCKED = owner action required. PARTIAL = partially verified.
@@ -11,8 +11,8 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 
 | # | Gate | Implementation | Live/acceptance evidence | Result |
 |---|------|----------------|--------------------------|--------|
-| G1 | Main CI green on release commit | CI workflow complete | Run #604 (`38216301893`) passed all jobs on `0e9ce94`; current Run #607 is in progress | PASS |
-| G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; no runtime-code delta through `1ac4831` | PASS |
+| G1 | Main CI green on release commit | CI workflow complete | Run #612 (`38219830664`) passed all jobs on `656781d` | PASS |
+| G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; PR #122 adds runtime extraction hardening in `src/freellmpool/industrial.py`; latest confirmed deployment remains `2a31c00`, so deploy state must be checked separately | PASS |
 | G3 | Migration chain valid | Alembic chain + `p9meta001` index alignment | `postgres-migrations` CI job green (clean PostgreSQL 16, `upgrade head` + `check`) | PASS |
 | G4 | Live schema baseline established | N/A (live-state gate) | Requires owner laptop + allowlisted connection; no live `alembic_version` verified | BLOCKED (P1-DB-01) |
 | G5 | Durable database secured before 2026-11-08 | N/A (provisioning gate) | Render Free instance expiry recorded; current provider state needs dashboard check | BLOCKED (P1-DB-04) |
@@ -26,7 +26,7 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | G13 | Entitlement enforcement | Server-side metered-write checks | `tests/test_commercial.py` automated | PASS |
 | G14 | Production fail-closed configuration | Rejects SQLite/auto-create/weak secrets | `tests/test_release_config.py` automated | PASS |
 | G15 | Security scanning | Bandit/pip-audit/zizmor in CI; exceptions file validated | Every CI run; standalone Security + CodeQL workflows disabled (`disabled_fork`) | PARTIAL (P0-CI-02) |
-| G16 | Prompt-injection resistance for RFQ docs | Extraction boundary exists | No dedicated adversarial tests | NOT VERIFIED (P5-SEC-01) |
+| G16 | Prompt-injection resistance for RFQ docs | Explicit untrusted-data delimiters, instruction hierarchy, input/output caps | PR #122 CI Run #611 passed synthetic adversarial/size-limit regression tests; hosted attack test not run | PASS (repository tests); hosted NOT VERIFIED |
 | G17 | Core RFQ workflow (intake→export) | Implemented | Broad automated coverage; hosted run not recorded | PARTIAL |
 | G18 | Pilot onboarding package | Partial docs exist | Quickstart/sample RFQ/example report missing | PARTIAL (P7-OPS-02) |
 | G19 | Incident & support procedure | Feedback triage classified | Contact procedure needs owner input | PARTIAL (P7-OPS-03) |

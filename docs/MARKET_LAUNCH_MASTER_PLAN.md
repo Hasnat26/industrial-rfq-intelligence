@@ -18,14 +18,13 @@ production.
 
 ## Verified baseline (2026-10-12)
 
-- `main` HEAD: `1ac483116eee50f0ba8c17ca19ae62cd727abc00`.
-- Main CI Run #604 (`38216301893`): SUCCESS on `0e9ce94`; Main Run #607 (`38217619027`) for current HEAD is still running — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38217619027>.
-- PRs #116 (launch-control docs) and #117 (laptop-ready backup tooling) are merged; current open-PR search returned none. Issues are disabled in repository settings.
+- `main` HEAD: `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
+- Main CI Run #612 (`38219830664`) SUCCESS on `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
+- PRs #116–#122 are merged except PR #119 (closed, superseded). P5-SEC-01 is implemented and CI-verified at PR head; main CI Run #612 is also green. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
   `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
-  tests, and CI only — no runtime-code delta under `src/`, `migrations/`, or
-  `Dockerfile*` through PR #120.
+  tests and CI; PR #122 also changes runtime extraction in `src/freellmpool/industrial.py`. Latest confirmed Render deployment remains `2a31c00`, so deployment of the new runtime code is not yet verified.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
@@ -216,13 +215,11 @@ restore connection + live server identity guard
 ## P5 — Security and operational reliability
 
 ### P5-SEC-01 — Prompt-injection resistance for RFQ documents
-- Priority: P1. Status: **NOT VERIFIED**.
-- Evidence: no dedicated tests found for document-borne instruction override
-  against the extraction prompt boundary.
-- Action: add tests proving untrusted document content cannot alter system
-  instructions, tool behavior, or output schema validation; verify output
-  validation rejects malformed/oversized extraction results.
-- Autonomy: autonomous (test + fix).
+- Priority: P1. Status: **PASS (repository regression tests; hosted attack testing NOT VERIFIED)**.
+- Evidence: PR #122 merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`; PR CI Run #611 passed all five jobs on `4e3e0420a815c9c3eec0e662f6be24e05e231925`.
+- Changes: RFQ/quotation text is JSON-encoded and delimited as untrusted input; extraction instructions explicitly forbid following instructions embedded in document content. RFQ, per-quotation, combined quotation, and model response limits are enforced before/after gateway calls. Four synthetic regression tests cover prompt injection and size limits.
+- Boundary: prompt instructions are a mitigation, not a formal guarantee against every model behavior; output is still strictly validated locally. No live hosted adversarial test was executed.
+- Next: consider hosted synthetic attack exercise only with owner-approved test account, after live DB recovery gates are addressed.
 
 ### P5-SEC-02 — Rate limiting and request hardening scope
 - Priority: P1. Status: **PARTIAL**.
