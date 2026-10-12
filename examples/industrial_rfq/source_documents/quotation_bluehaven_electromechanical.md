@@ -19,7 +19,7 @@
 | Q-B-03 | R-03 | Efficiency class | IE2 |
 | Q-B-04 | R-04 | Enclosure ingress protection | IP55 |
 
-**Declared deviation:** Q-B-03 offers efficiency class **IE2**, while RFQ requirement R-03 requires **IE3 or better**. This is an intentional synthetic deviation that the review workflow should surface. It is not an automatic rejection or supplier-selection instruction.
+**Declared deviation:** Q-B-03 offers efficiency class **IE2**, while RFQ requirement R-03 requires **IE3**. This is an intentional synthetic deviation that the review workflow should surface. It is not an automatic rejection or supplier-selection instruction.
 
 ## Commercial offer
 
