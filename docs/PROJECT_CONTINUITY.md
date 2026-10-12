@@ -3,19 +3,18 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
-## Resume state (2026-10-12)
+## Resume state (2026-10-12, refreshed after PR #117)
 
-- **Current main commit:** `2f26234a1758ddb749a6a56e042df716e4a72dbb`
-- **Latest CI run:** Run #594 (`38204840114`), SUCCESS, all 5 jobs —
-  <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38204840114>
+- **Current main commit:** `57b63009e9d61c42d1849124382fe6217eceb983`
+- **Latest CI run:** Run #598 (`38214323218`), SUCCESS, all 5 jobs (`postgres-migrations`, `industrial (3.11–3.14)`), including lint, type check, security gate, container smoke, and package smoke —
+  <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38214323218>
 - **Latest deployed commit (Render):**
   `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). No runtime-code
   delta between it and main HEAD (docs/scripts/CI only since).
 - **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
   `{"status":"ready","database":"ok"}`.
-- **Active branch / PR:** `docs/market-launch-control` (this document set) —
-  see PR linked in the final report of the creating cycle.
+- **Active branch / PR:** `docs/continuity-after-pr117-2026-10-12` (this handover refresh; PR to be opened after evidence updates). PRs #116 and #117 are merged; no open PRs were found.
 - **Last completed task ID:** P0-CI-01/04, P0-CI-02 (verified FAIL:
   Security+CodeQL workflows `disabled_fork`, cannot enable via App token 403),
   P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P6-BILL-01, P7-OPS-01 (see
@@ -40,13 +39,13 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Files changed during the active task:** none on `main` yet for P2-BK-02.
+- **Latest repository change:** PR #117 merged as `57b63009e9d61c42d1849124382fe6217eceb983`; Run #598 passed. This session verified the merge, branch, and workflow. No live database operations were performed.
 
 ## Test and CI evidence
 
 - Local suite (this cycle, pre-docs): full `pytest` green in the workspace
   venv (`/tmp/ffp-venv`), `ruff` + `mypy` clean as of PR #107/#114 merges.
-- CI: every main push since `d98d258` is green (runs 38146676687 … 38204840114).
+- CI: latest main Run #598 for `57b63009e9d61c42d1849124382fe6217eceb983` passed all five jobs.
 
 ## Unresolved risks and owner-controlled dependencies
 
@@ -57,9 +56,9 @@ is active. Update this file at the end of every meaningful work cycle.
    access required. Never stamp/migrate/reset to resolve uncertainty.
 3. Live backup + isolated restore drill (P2-BK-03/04) require owner laptop,
    real credentials (never in chat), and a separate empty target database.
-4. Standalone Security and CodeQL workflows are `disabled_fork`; enabling
-   them requires owner GitHub admin (P0-CI-02). The main CI security gate
-   (Bandit/pip-audit/zizmor) still runs on every push.
+4. Standalone Security and CodeQL workflows remain `disabled_fork`; enabling
+   them requires owner GitHub admin (P0-CI-02). Main CI security gate
+   (Bandit/pip-audit/zizmor) passes every run.
 5. Hosted authenticated + cross-tenant smoke (P4-AUTH-02) needs owner-approved
    test accounts on production.
 6. Billing provider integration (P6-BILL-02) needs owner approval and
@@ -91,9 +90,9 @@ is active. Update this file at the end of every meaningful work cycle.
 > `docs/MARKET_LAUNCH_MASTER_PLAN.md`, and
 > `docs/LAUNCH_ACCEPTANCE_MATRIX.md`, then check the latest main commit and
 > CI runs on GitHub. Resume the task whose status is IN PROGRESS in the
-> continuity file (currently P2-BK-02: laptop-ready backup tooling with
-> tool-directory detection, independent restore connection, live server
-> identity guard, merged with the schema-verification logic already on main).
+> continuity file (currently P2-BK-03/P2-BK-04: owner-operated live backup and isolated
+> restore drill after PR #117's laptop-ready tooling was merged. If owner access
+> is not available, proceed with autonomous P5-SEC-01 adversarial regression tests.
 > Do not repeat completed audits. Follow the safety prohibitions in the
 > continuity file. Commit on a dedicated branch, open a PR, wait for green
 > CI, merge, confirm on main, and update the three control documents before

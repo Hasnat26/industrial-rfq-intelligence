@@ -6,6 +6,12 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-015 — Backup-tooling P2-BK-02 closed at repository level (2026-10-12)
+
+- **Decision:** treat P2-BK-02 as PASS for repository implementation and scratch-drill evidence after PR #117; keep live Render backup/restore as separate blocked gates P2-BK-03/04.
+- **Evidence:** PR #117 merged as `57b63009e9d61c42d1849124382fe6217eceb983`; main CI Run #598 passed all five jobs. Runbook records scratch PostgreSQL drills and refusal paths.
+- **Boundary:** CI and scratch drills do not demonstrate that the live Render database was backed up or restored. The owner must execute the live drill with actual credentials and a separate empty target.
+
 ## D-014 — Launch-control documents are the durable backlog (2026-10-12)
 
 - **Decision:** `docs/MARKET_LAUNCH_MASTER_PLAN.md`,
