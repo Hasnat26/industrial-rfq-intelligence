@@ -3,18 +3,17 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
-## Resume state (2026-10-12, refreshed after PR #118)
+## Resume state (2026-10-12, refreshed after PR #120)
 
-- **Current main commit:** `57b63009e9d61c42d1849124382fe6217eceb983`
-- **Latest CI run:** Run #598 (`38214323218`), SUCCESS, all 5 jobs (`postgres-migrations`, `industrial (3.11–3.14)`), including lint, type check, security gate, container smoke, and package smoke —
-  <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38214323218>
+- **Current main commit:** `1ac483116eee50f0ba8c17ca19ae62cd727abc00`
+- **Last completed main CI run:** Run #604 (`38216301893`), SUCCESS for `0e9ce94a427f3006dd01c03eda974c64567e5197`. Main Run #607 (`38217619027`) for current main `1ac483116eee50f0ba8c17ca19ae62cd727abc00` is IN PROGRESS (PostgreSQL migration job passed; Python 3.11–3.14 jobs still running) — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38217619027>.
 - **Latest deployed commit (Render):**
   `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). No runtime-code
   delta between it and main HEAD (docs/scripts/CI only since).
 - **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
   `{"status":"ready","database":"ok"}`.
-- **Active branch / PR:** `docs/continuity-after-pr117-2026-10-12`, PR #119 open but conflicting against current main; create a fresh branch from main and re-apply the checkpoint. PRs #116–#118 are merged.
+- **Active branch / PR:** `docs/continuity-final-main-run604-2026-10-12`, PR #120 is merged. PR #119 remains open but conflicts with main and is superseded; do not merge it.
 - **Last completed task ID:** P0-CI-01/04, P0-CI-02 (verified FAIL:
   Security+CodeQL workflows `disabled_fork`, cannot enable via App token 403),
   P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P6-BILL-01, P7-OPS-01 (see
