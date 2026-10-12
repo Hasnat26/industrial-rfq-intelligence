@@ -19,12 +19,12 @@ production.
 ## Verified baseline (2026-10-12)
 
 - `main` HEAD: `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
-- Main CI Run #612 (`38219830664`) SUCCESS on `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
-- PRs #116–#122 are merged except PR #119 (closed, superseded). P5-SEC-01 is implemented and CI-verified at PR head; main CI Run #612 is also green. Issues are disabled in repository settings.
+- Main CI Run #612 (`38219830664`) SUCCESS on parent `656781d2f4761d4a77a43ee93be74d671f6a0b61`; Run #616 (`38221069809`) for current main `20c61a9a60a3c8196e8606774c3021da2337da5d` is IN PROGRESS — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38221069809>.
+- PRs #116–#123 are merged except PR #119 (closed, superseded). P5-SEC-01 is implemented and CI-verified at PR head; main CI Run #612 is also green. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
   `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
-  tests and CI; PR #122 also changes runtime extraction in `src/freellmpool/industrial.py`. Latest confirmed Render deployment remains `2a31c00`, so deployment of the new runtime code is not yet verified.
+  tests, docs and CI; PR #122 also changes runtime extraction in `src/freellmpool/industrial.py`. Latest confirmed Render deployment remains `2a31c00`, so the newly merged runtime change is NOT VERIFIED deployed.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
