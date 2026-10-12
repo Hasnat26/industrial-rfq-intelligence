@@ -814,7 +814,7 @@ class FailingReconciliationSession:
 
     def rollback(self) -> None:
         self.rollback_calls += 1
-        if self.fail_rollback and self.rollback_calls == 1:
+        if self.fail_rollback:
             raise RuntimeError(f"rollback failed: {_reconciliation_failure_sentinel()}")
 
     def commit(self) -> None:
@@ -952,3 +952,30 @@ def test_reconciliation_rollback_failure_is_sanitized(
         if isinstance(item, CommercialReconciliationRun) and item.status == "FAILED"
     ]
     assert len(failed_runs) == 1
+
+
+
+def test_reconciliation_cleanup_rollback_failure_is_sanitized(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    from fastapi import HTTPException
+
+    from freellmpool.api.reconciliation import run_commercial_reconciliation
+
+    caplog.set_level(logging.ERROR, logger="freellmpool.api.reconciliation")
+    db = FailingReconciliationSession(
+        fail_failure_commit=True,
+        fail_rollback=True,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        run_commercial_reconciliation(db)  # type: ignore[arg-type]
+
+    _assert_reconciliation_error_is_sanitized(exc_info, caplog.text)
+    assert db.rollback_calls == 2
+    assert db.commit_calls == 1
+    assert "failure-record persistence failed (OSError)" in caplog.text
+    assert "cleanup rollback failed (RuntimeError)" in caplog.text
+    assert "failure record was not persisted" in caplog.text
