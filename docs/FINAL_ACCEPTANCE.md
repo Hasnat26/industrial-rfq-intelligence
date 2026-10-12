@@ -6,10 +6,10 @@ This document records executable acceptance evidence for the repository and host
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| CI validation for current main | Main CI Run #598 (`38214323218`) completed successfully for commit `57b63009e9d61c42d1849124382fe6217eceb983`: PostgreSQL migration validation and Python 3.11–3.14 jobs, including security, container runtime, and wheel/sdist smoke | PASS |
+| CI validation for current main | Main CI Run #598 (`38214323218`) completed successfully for commit `57b63009e9d61c42d1849124382fe6217eceb983`; Run #604 (`38216301893`) for current documentation commit is pending: PostgreSQL migration validation and Python 3.11–3.14 jobs, including security, container runtime, and wheel/sdist smoke | PASS |
 | CI validation for deployed runtime commit | Main CI Run #582-era pipeline completed successfully for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c`; the same pipeline shape is green on every later main commit | PASS |
 | Latest deployed source commit | Render deployment `dep-db5s11tckfvc73b8ief0` for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c` reached `live` on 2026-10-11 | DEPLOYED |
-| Runtime-code delta | The later commits since the deployed one (`c2d21a6`, `f0cfea8`, `9720631`, `2f26234`, `41fc290`, `57b6300`) change acceptance documentation, backup scripts, tests, and CI only; `git diff` over `src/`, `migrations/`, and `Dockerfile*` against the deployed commit is empty | NO RUNTIME CHANGE |
+| Runtime-code delta | The later commits since the deployed one (`c2d21a6`, `f0cfea8`, `9720631`, `2f26234`, `41fc290`, `57b6300`, `0e9ce94`) change acceptance documentation, backup scripts, tests, and CI only; `git diff` over `src/`, `migrations/`, and `Dockerfile*` against the deployed commit is empty | NO RUNTIME CHANGE |
 | Hosted startup/readiness | Render logs show application startup complete and repeated `GET /ready` responses with `200 OK` after deployment `dep-db5s11tckfvc73b8ief0`; an independent external HTTP probe on 2026-10-12 returned `/health` 200 and `/ready` 200 `{"status":"ready","database":"ok"}` | PASS (platform log + external probe) |
 | Migration schema coverage | Clean PostgreSQL 16 migration chain, `alembic current`, and `alembic check` pass in CI; live Render DB still has no `alembic_version` and has not been safely baselined or migrated | CI PASS / LIVE PENDING |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits and persist usage atomically | PASS (automated tests) |
