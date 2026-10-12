@@ -23,9 +23,9 @@ production.
   (<https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38214323218>).
 - PRs #116 (launch-control docs) and #117 (laptop-ready backup tooling) are merged; current open-PR search returned none. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
-  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The four commits
-  since (`c2d21a6`, `f0cfea8`, `9720631`, `2f26234`) touch docs, backup scripts,
-  and CI only — no runtime-code delta under `src/`, `migrations/`, or
+  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
+  `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
+  tests, and CI only — no runtime-code delta under `src/`, `migrations/`, or
   `Dockerfile*` through PR #117.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
