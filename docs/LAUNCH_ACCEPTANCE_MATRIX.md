@@ -12,11 +12,11 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | # | Gate | Implementation | Live/acceptance evidence | Result |
 |---|------|----------------|--------------------------|--------|
 | G1 | Main CI green on release commit | CI workflow complete | Run #598 (`38214323218`) all jobs success on `57b6300` | PASS |
-| G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; no runtime delta to `2f26234` | PASS |
+| G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; no runtime-code delta through `57b6300` | PASS |
 | G3 | Migration chain valid | Alembic chain + `p9meta001` index alignment | `postgres-migrations` CI job green (clean PostgreSQL 16, `upgrade head` + `check`) | PASS |
 | G4 | Live schema baseline established | N/A (live-state gate) | Requires owner laptop + allowlisted connection; no live `alembic_version` verified | BLOCKED (P1-DB-01) |
 | G5 | Durable database secured before 2026-11-08 | N/A (provisioning gate) | Render Free instance expiry recorded; current provider state needs dashboard check | BLOCKED (P1-DB-04) |
-| G6 | Live backup created from real Render DB | Backup tooling merged (#106/#114/#115) | No archive produced from the live database yet | NOT VERIFIED (P2-BK-03) |
+| G6 | Live backup created from real Render DB | Backup tooling merged (#106/#114/#115/#117) | No archive produced from the live database yet | NOT VERIFIED (P2-BK-03) |
 | G7 | Restore drill into isolated target | Tooling + verification checks merged | Scratch drills passed; no live-derived restore drill yet | NOT VERIFIED (P2-BK-04) |
 | G8 | Backup tooling usable on owner's laptop | Explicit PostgreSQL tool paths; independent drill connection; live source/target identity guard | PR #117 merged; Run #598 passed; scratch drill details in runbook | PASS (repository + scratch only) |
 | G9 | Hosted readiness | `/health` + database-backed `/ready` | External HTTP probes 2026-10-12: `/health` 200, `/ready` 200 `database:ok` | PASS |
