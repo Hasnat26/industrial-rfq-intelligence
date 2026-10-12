@@ -1119,3 +1119,39 @@ def test_llm_extraction_rejects_oversized_model_response() -> None:
 
     with __import__("pytest").raises(ValueError, match="LLM extraction response exceeds maximum length"):
         extract_rfq_with_llm(OversizedPool(), "415 V motor", [{"vendor": "Vendor X", "text": "415 V"}])
+
+def test_llm_extraction_rejects_invalid_schema_version() -> None:
+    import json
+
+    import pytest
+
+    from freellmpool.industrial import extract_rfq_with_llm
+
+    class InvalidSchemaReply:
+        text = json.dumps({
+            "schema_version": "999.0",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required": "415 V"}
+            ],
+            "vendor_data": [
+                {
+                    "vendor": "Vendor X",
+                    "parameter": "Rated voltage",
+                    "value": "400 V",
+                    "evidence": "quote p.1",
+                    "claim_status": "UNVERIFIED",
+                }
+            ],
+        })
+
+    class FakePool:
+        def ask(self, *args, **kwargs):
+            return InvalidSchemaReply()
+
+    with pytest.raises(ValueError, match="unsupported RFQ schema_version"):
+        extract_rfq_with_llm(
+            FakePool(),
+            "Required rated voltage: 415 V",
+            [{"vendor": "Vendor X", "text": "Rated voltage: 400 V"}],
+        )
+
