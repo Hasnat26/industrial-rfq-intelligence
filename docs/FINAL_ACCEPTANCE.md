@@ -6,7 +6,7 @@ This document records executable acceptance evidence for the repository and host
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| Latest Main GitHub Actions run | Main CI Run #584 completed successfully for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c`: PostgreSQL migration validation and Python 3.11–3.14 jobs, including security, container runtime, and wheel/sdist smoke | PASS |
+| CI validation for deployed runtime commit | Main CI Run #584 completed successfully for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c`: PostgreSQL migration validation and Python 3.11–3.14 jobs, including security, container runtime, and wheel/sdist smoke | PASS |
 | Latest deployed source commit | Render deployment `dep-db5s11tckfvc73b8ief0` for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c` reached `live` on 2026-10-11 | DEPLOYED |
 | Runtime-code delta | The deployed commit updates acceptance documentation only; it does not change application runtime code relative to the previously validated runtime commit `dce34187ae3d4d14d35ece2fb049db4d1a38761e` | NO RUNTIME CHANGE |
 | Hosted startup/readiness | Render logs show application startup complete and repeated `GET /ready` responses with `200 OK` after deployment `dep-db5s11tckfvc73b8ief0` | PASS (platform log evidence) |
