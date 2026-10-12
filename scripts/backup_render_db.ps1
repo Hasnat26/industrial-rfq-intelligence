@@ -1,44 +1,21 @@
 <#
 .SYNOPSIS
-    Logical backup + archive validation (+ optional isolated restore test)
-    for the Industrial RFQ Intelligence Render PostgreSQL database.
-
+    Logical backup, archive validation, and optional isolated restore test.
 .DESCRIPTION
-    Creates a timestamped custom-format pg_dump archive, validates it with
-    pg_restore --list, records a SHA-256 checksum, and (optionally) performs
-    a restore drill into a SEPARATE test database. It refuses to restore into
-    the source database.
-
-    Credentials are never accepted as command-line arguments (argv is visible
-    in process listings). The password is read once via a secure prompt into
-    the session environment only; prefer setting PGHOST/PGPORT/PGDATABASE/
-    PGUSER/PGPASSWORD as session-scoped $env: variables before running so
-    nothing is typed at all.
-
-.EXAMPLE
-    $env:PGHOST = "dpg-xxxxx-a.routedb.render.com"
-    $env:PGPORT = "5432"
-    $env:PGUSER = "industrial_rfq_user"
-    $env:PGPASSWORD = Read-Host -Prompt "Render DB password"   # never pasted into chat
-    .\scripts\backup_render_db.ps1 -DatabaseName industrial_rfq `
-        -RestoreTest -RestoreTestDatabase industrial_rfq_restore_test
-
-.NOTES
-    Requires PostgreSQL client tools (pg_dump/pg_restore/psql) on PATH.
-    pg_dump must be the SAME OR NEWER major version than the server
-    (laptop 18.x tools can dump a 16.x server; the reverse is not supported).
+    Writes a custom-format dump to a temporary file, validates its TOC, and
+    publishes the archive with a SHA-256 checksum. Restore validation uses a
+    separate pre-created database. The script never creates or drops databases.
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $false)] [string]$DatabaseHost = $env:PGHOST,
-    [Parameter(Mandatory = $false)] [int]$DatabasePort = 5432,
-    [Parameter(Mandatory = $false)] [string]$DatabaseUser = $env:PGUSER,
-    [Parameter(Mandatory = $false)] [string]$DatabaseName = $env:PGDATABASE,
-    [Parameter(Mandatory = $false)] [string]$OutputDirectory = (Join-Path (Get-Location) "backups"),
-    [Parameter(Mandatory = $false)] [switch]$RestoreTest,
-    [Parameter(Mandatory = $false)] [string]$RestoreTestDatabase
+    [string]$DatabaseHost = $env:PGHOST,
+    [int]$DatabasePort = 5432,
+    [string]$DatabaseUser = $env:PGUSER,
+    [string]$DatabaseName = $env:PGDATABASE,
+    [string]$OutputDirectory = (Join-Path (Get-Location) "backups"),
+    [switch]$RestoreTest,
+    [string]$RestoreTestDatabase
 )
-
 $ErrorActionPreference = "Stop"
 
 foreach ($name in @("DatabaseHost", "DatabaseUser", "DatabaseName")) {
@@ -46,87 +23,98 @@ foreach ($name in @("DatabaseHost", "DatabaseUser", "DatabaseName")) {
         throw "$name is required (parameter or matching PG* environment variable)."
     }
 }
-
 foreach ($tool in @("pg_dump", "pg_restore", "psql")) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
         throw "$tool was not found on PATH. Install PostgreSQL client tools first."
     }
 }
-
 if ([string]::IsNullOrWhiteSpace($env:PGPASSWORD)) {
     $secure = Read-Host -AsSecureString "PostgreSQL password for $DatabaseUser"
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-    }
-    finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
+    try { $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
 }
-
 $env:PGHOST = $DatabaseHost
 $env:PGPORT = "$DatabasePort"
 $env:PGUSER = $DatabaseUser
 $env:PGDATABASE = $DatabaseName
+if ([string]::IsNullOrWhiteSpace($env:PGSSLMODE)) { $env:PGSSLMODE = "verify-full" }
+if ($env:PGSSLMODE -notin @("verify-full", "verify-ca", "require")) {
+    throw "PGSSLMODE must require TLS (verify-full, verify-ca, or require)."
+}
 
 $toolVersion = (pg_dump --version)
-$serverVersion = (psql -tAc "SHOW server_version").Trim()
+$serverVersion = (psql -X -v ON_ERROR_STOP=1 -tAc "SHOW server_version").Trim()
+if ($LASTEXITCODE -ne 0) { throw "Unable to query PostgreSQL server version." }
 $toolMajor = [int](($toolVersion -split "pg_dump \(PostgreSQL\) ")[1].Split(".")[0])
 $serverMajor = [int](($serverVersion -split "\.")[0])
 Write-Host "pg_dump: $toolVersion"
 Write-Host "server : PostgreSQL $serverVersion"
-if ($toolMajor -lt $serverMajor) {
-    throw "pg_dump major version ($toolMajor) is older than the server ($serverMajor). Upgrade the client tools; downgrading the dump is not supported."
+if ($toolMajor -lt $serverMajor) { throw "pg_dump major is older than server major." }
+if ($RestoreTest) {
+    if ([string]::IsNullOrWhiteSpace($RestoreTestDatabase)) { throw "-RestoreTest requires a separate pre-created target." }
+    if ($RestoreTestDatabase -eq $DatabaseName) { throw "Refusing to restore into source database '$DatabaseName'." }
 }
 
-if (-not (Test-Path $OutputDirectory)) {
-    New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
-}
-
+if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory | Out-Null }
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
 $archive = Join-Path $OutputDirectory ("render_{0}_{1}.dump" -f $DatabaseName, $timestamp)
+$partial = "$archive.partial"
+$tocPath = "$archive.toc.txt"
+$checksumPath = "$archive.sha256"
+try {
+    & pg_dump -h $DatabaseHost -p $DatabasePort -U $DatabaseUser -d $DatabaseName --format=custom --no-owner --no-privileges --file="$partial"
+    if ($LASTEXITCODE -ne 0) { throw "pg_dump failed with exit code $LASTEXITCODE" }
+    if (-not (Test-Path $partial) -or (Get-Item $partial).Length -eq 0) { throw "pg_dump produced an empty archive." }
+    & pg_restore --list "$partial" | Out-File -FilePath $tocPath -Encoding utf8
+    if ($LASTEXITCODE -ne 0) { throw "pg_restore --list failed with exit code $LASTEXITCODE" }
+    Move-Item -LiteralPath $partial -Destination $archive
+    $hash = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash
+    $size = (Get-Item $archive).Length
+    $tocLines = (Get-Content $tocPath | Measure-Object -Line).Lines
+    Set-Content -Path $checksumPath -Value ("{0}  {1}" -f $hash, (Split-Path $archive -Leaf))
 
-Write-Host "Dumping $DatabaseName -> $archive"
-& pg_dump -h $DatabaseHost -p $DatabasePort -U $DatabaseUser -d $DatabaseName `
-    --format=custom --no-owner --no-privileges --file="$archive"
-if ($LASTEXITCODE -ne 0) { throw "pg_dump failed with exit code $LASTEXITCODE" }
-
-Write-Host "Validating archive table of contents"
-& pg_restore --list "$archive" | Out-File -FilePath "$archive.toc.txt" -Encoding utf8
-if ($LASTEXITCODE -ne 0) { throw "pg_restore --list failed with exit code $LASTEXITCODE" }
-
-$hash = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash
-$size = (Get-Item $archive).Length
-$tocLines = (Get-Content "$archive.toc.txt" | Measure-Object -Line).Lines
-Set-Content -Path "$archive.sha256" -Value ("{0}  {1}" -f $hash, (Split-Path $archive -Leaf))
-
-$restoreVerified = "not requested"
-if ($RestoreTest) {
-    if ([string]::IsNullOrWhiteSpace($RestoreTestDatabase)) {
-        throw "-RestoreTest requires -RestoreTestDatabase naming a SEPARATE database."
+    $restoreVerified = "not requested"
+    if ($RestoreTest) {
+        & pg_restore --exit-on-error --no-owner --no-privileges -h $DatabaseHost -p $DatabasePort -U $DatabaseUser -d $RestoreTestDatabase "$archive"
+        if ($LASTEXITCODE -ne 0) { throw "pg_restore failed with exit code $LASTEXITCODE" }
+        $schemaSql = @"
+SELECT jsonb_build_object(
+ 'tables', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', tablename) ORDER BY schemaname, tablename) FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
+ 'views', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', viewname) ORDER BY schemaname, viewname) FROM pg_catalog.pg_views WHERE schemaname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
+ 'indexes', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', indexname, 'definition', indexdef) ORDER BY schemaname, indexname) FROM pg_catalog.pg_indexes WHERE schemaname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
+ 'constraints', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', n.nspname, 'table', c.relname, 'name', con.conname, 'type', con.contype, 'definition', pg_catalog.pg_get_constraintdef(con.oid, true)) ORDER BY n.nspname, c.relname, con.conname) FROM pg_catalog.pg_constraint con JOIN pg_catalog.pg_class c ON c.oid=con.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
+ 'alembic_version', (SELECT COALESCE(jsonb_agg(version_num ORDER BY version_num), '[]'::jsonb) FROM public.alembic_version)
+)::text;
+"@
+        $sourceSchema = (psql -X -v ON_ERROR_STOP=1 -d $DatabaseName -tAc $schemaSql).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Failed to inspect source schema metadata." }
+        $restoredSchema = (psql -X -v ON_ERROR_STOP=1 -d $RestoreTestDatabase -tAc $schemaSql).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "Failed to inspect restored schema metadata." }
+        if ($sourceSchema -cne $restoredSchema) { throw "Restore verification failed: schema/index/constraint/Alembic metadata differs." }
+        $tables = (psql -X -v ON_ERROR_STOP=1 -d $DatabaseName -tA -F "|" -c "SELECT schemaname || '|' || tablename FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY schemaname, tablename")
+        if ($LASTEXITCODE -ne 0) { throw "Failed to enumerate source tables." }
+        foreach ($line in $tables) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $parts = $line.Split("|", 2)
+            if ($parts.Count -ne 2) { throw "Unexpected table inventory result." }
+            $schemaName = $parts[0].Replace('"','""')
+            $tableName = $parts[1].Replace('"','""')
+            $sourceCount = (psql -X -v ON_ERROR_STOP=1 -d $DatabaseName -tAc "SELECT count(*) FROM `"$schemaName`".`"$tableName`"").Trim()
+            if ($LASTEXITCODE -ne 0) { throw "Failed counting source table." }
+            $restoredCount = (psql -X -v ON_ERROR_STOP=1 -d $RestoreTestDatabase -tAc "SELECT count(*) FROM `"$schemaName`".`"$tableName`"").Trim()
+            if ($LASTEXITCODE -ne 0) { throw "Failed counting restored table." }
+            if ($sourceCount -ne $restoredCount) { throw "Restore verification failed: row-count mismatch for $($parts[0]).$($parts[1])." }
+        }
+        $restoreVerified = "PASSED (schema/index/constraint/Alembic metadata and all table row counts match)"
     }
-    if ($RestoreTestDatabase -eq $DatabaseName) {
-        throw "Refusing to restore into the source database '$DatabaseName'. Use a separate restore-test database."
-    }
-    Write-Host "Restore drill into isolated database $RestoreTestDatabase"
-    & pg_restore --no-owner --no-privileges -h $DatabaseHost -p $DatabasePort `
-        -U $DatabaseUser -d $RestoreTestDatabase "$archive"
-    if ($LASTEXITCODE -ne 0) { throw "pg_restore failed with exit code $LASTEXITCODE" }
-    $sourceTables = (psql -tAc "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema')")
-    $env:PGDATABASE = $RestoreTestDatabase
-    $restoredTables = (psql -tAc "SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema')")
-    $env:PGDATABASE = $DatabaseName
-    if ($sourceTables -ne $restoredTables) {
-        throw "Restore drill mismatch: source has $sourceTables tables, restored database has $restoredTables."
-    }
-    $restoreVerified = "PASSED ($restoredTables application tables restored)"
+    Write-Host "Archive     : $archive"
+    Write-Host ("Size        : {0:N0} bytes" -f $size)
+    Write-Host "SHA-256     : $hash"
+    Write-Host "TOC entries : $tocLines lines ($tocPath)"
+    Write-Host "Restore test: $restoreVerified"
+    Write-Host "Server      : PostgreSQL $serverVersion"
 }
-
-Write-Host ""
-Write-Host "==== BACKUP RESULT ===="
-Write-Host "Archive     : $archive"
-Write-Host ("Size        : {0:N0} bytes" -f $size)
-Write-Host "SHA-256     : $hash"
-Write-Host "TOC entries : $tocLines lines ($archive.toc.txt)"
-Write-Host "Restore test: $restoreVerified"
-Write-Host "Server      : PostgreSQL $serverVersion"
+finally {
+    if (Test-Path $partial) { Remove-Item -LiteralPath $partial -Force }
+}
