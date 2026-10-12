@@ -5,13 +5,13 @@ RFQ Intelligence.
 
 ## Constraints
 
-- The currently recorded Render Free PostgreSQL instance expires on
-  **2026-11-08** and has no managed backup or PITR; re-check before acting.
+- The recorded Render Free PostgreSQL instance expires on **2026-11-08** and
+  has no managed backup or PITR; re-check current service state before acting.
 - Never store passwords in source control, shell history, or chat.
 - Keep inbound database access restricted to explicit, current `/32` entries.
   Never add `0.0.0.0/0` to make a connector work.
-- Never restore over the source/production database. Restore drills require
-  a separate pre-created target database.
+- Never restore over the source/production database. Restore drills require a
+  separate pre-created, empty target database.
 - Live Render backup and restore remain **NOT VERIFIED** until performed using
   the owner's actual credentials.
 
@@ -46,7 +46,9 @@ connection errors.
    ```powershell
    psql -X -v ON_ERROR_STOP=1 -tAc "SHOW server_version"
    ```
-4. Create an empty separate restore-test database first. Then run:
+4. Create a separate, empty restore-test database first. Pause application writes
+   for the duration of the comparison so live row counts represent the same
+   quiesced state as the backup. Then run:
    ```powershell
    .\scripts\backup_render_db.ps1 -DatabaseName <source-db-name> -RestoreTest -RestoreTestDatabase <separate-restore-db-name>
    ```
@@ -57,23 +59,26 @@ connection errors.
 ## POSIX
 
 Set `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`, `PGPASSWORD`, and
-preferably `PGSSLMODE=verify-full` in the current shell. Run
-`./scripts/backup_render_db.sh`. For a restore drill, set
-`RESTORE_TEST_DATABASE` to a separate pre-created database name.
+preferably `PGSSLMODE=verify-full` in the current shell. Pause application writes
+during the restore comparison. Run `./scripts/backup_render_db.sh`. For a restore
+drill, set `RESTORE_TEST_DATABASE` to a separate pre-created database name.
 
 ## Verification semantics
 
 Scripts create a temporary custom-format dump, validate its TOC, publish the
 archive only after TOC validation, and record a SHA-256 checksum. For a restore
-drill they use pg_restore error-stop behavior, compare tables/views/index
-definitions/constraints and Alembic revision state, and compare row counts for
-every ordinary table.
+drill they use pg_restore error-stop behavior, compare table inventories and
+column definitions, view definitions, index definitions, constraints, and
+Alembic revision state (including whether the Alembic table exists), then
+compare row counts for every ordinary table.
 
 Matching schema metadata and row counts are useful operational checks, not a
-cryptographic proof that every row value is identical. Stronger assurance
-requires table-level content checksums or application invariants on an isolated
-consistent snapshot. These scripts do not claim a live restore has passed
-until actually executed.
+cryptographic proof that every row value is identical. Because the source is
+queried after the dump is created, writes must be paused for the comparison or
+row-count differences may reflect legitimate concurrent changes. Stronger
+assurance requires table-level content checksums or application invariants on
+an isolated consistent snapshot. These scripts do not claim a live restore has
+passed until actually executed.
 
 ## Historical scratch evidence
 

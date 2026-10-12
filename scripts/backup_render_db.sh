@@ -63,17 +63,19 @@ if [ -n "$RESTORE_TEST_DATABASE" ]; then
   compare_sql=$(cat <<'SQL'
 SELECT jsonb_build_object(
  'tables', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', tablename) ORDER BY schemaname, tablename) FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
- 'views', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', viewname) ORDER BY schemaname, viewname) FROM pg_catalog.pg_views WHERE schemaname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
+ 'columns', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', table_schema, 'table', table_name, 'ordinal', ordinal_position, 'column', column_name, 'type', data_type, 'udt', udt_name, 'nullable', is_nullable, 'default', column_default, 'identity', identity_generation, 'generated', is_generated, 'generation_expression', generation_expression) ORDER BY table_schema, table_name, ordinal_position) FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
+ 'views', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', viewname, 'definition', definition) ORDER BY schemaname, viewname) FROM (SELECT schemaname, viewname, definition FROM pg_catalog.pg_views WHERE schemaname NOT IN ('pg_catalog','information_schema')) v), '[]'::jsonb),
  'indexes', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', schemaname, 'name', indexname, 'definition', indexdef) ORDER BY schemaname, indexname) FROM pg_catalog.pg_indexes WHERE schemaname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
  'constraints', COALESCE((SELECT jsonb_agg(jsonb_build_object('schema', n.nspname, 'table', c.relname, 'name', con.conname, 'type', con.contype, 'definition', pg_catalog.pg_get_constraintdef(con.oid, true)) ORDER BY n.nspname, c.relname, con.conname) FROM pg_catalog.pg_constraint con JOIN pg_catalog.pg_class c ON c.oid=con.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema')), '[]'::jsonb),
- 'alembic_version', (SELECT COALESCE(jsonb_agg(version_num ORDER BY version_num), '[]'::jsonb) FROM public.alembic_version)
+ 'alembic_version_table_present', (to_regclass('public.alembic_version') IS NOT NULL),
+ 'alembic_version', CASE WHEN to_regclass('public.alembic_version') IS NULL THEN 'null'::jsonb ELSE (SELECT COALESCE(jsonb_agg(version_num ORDER BY version_num), '[]'::jsonb) FROM public.alembic_version) END
 )::text;
 SQL
 )
   source_schema="$(psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -tAc "$compare_sql")"
   restored_schema="$(psql -X -v ON_ERROR_STOP=1 -d "$RESTORE_TEST_DATABASE" -tAc "$compare_sql")"
   if [ "$source_schema" != "$restored_schema" ]; then
-    echo "ERROR: schema objects, indexes, constraints, or Alembic revision differ." >&2
+    echo "ERROR: schema columns, views, indexes, constraints, or Alembic revision differ." >&2
     exit 1
   fi
 
@@ -89,7 +91,7 @@ SQL
       exit 1
     fi
   done <<< "$source_tables"
-  restore_verified="PASSED (schema/index/constraint/Alembic metadata and all table row counts match)"
+  restore_verified="PASSED (columns/views/indexes/constraints/Alembic state and all table row counts match)"
 fi
 
 echo
