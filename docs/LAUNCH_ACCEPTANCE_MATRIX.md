@@ -31,7 +31,6 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | G18 | Pilot onboarding package | Partial docs exist | Quickstart/sample RFQ/example report missing | PARTIAL (P7-OPS-02) |
 | G19 | Incident & support procedure | Feedback triage classified | Contact procedure needs owner input | PARTIAL (P7-OPS-03) |
 | G20 | Backup/restore runbook matches tooling | `docs/DB_BACKUP_RUNBOOK.md` | PR #117 runbook matches script parameters; Run #598 passed | PASS (documentation/code consistency; live recovery still unverified) |
-
 | G21 | Logging/secrets/error handling (repository-level) | Rejected provider URLs are not logged verbatim; reconciliation failure records omit raw exception messages | PR #129 code/test revision `06fd634a448de3b23c4fe5e82ef68c93f605cc8f`; Run #631 passed all five jobs. No hosted log review or live failure injection was performed | PASS (repository tests); hosted NOT VERIFIED |
 
 ## Commercial-production gates (additional)
