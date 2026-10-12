@@ -6,6 +6,12 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-018 — RFQ extraction prompt-injection hardening merged (2026-10-12)
+
+- **Decision:** protect the deterministic extraction boundary from document-borne instruction override with explicit untrusted-data framing and hard character caps. Keep strict local schema validation as the authoritative control.
+- **Evidence:** PR #122 merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`; CI Run #611 passed all five jobs on the PR head `4e3e0420a815c9c3eec0e662f6be24e05e231925`. Four synthetic regression tests cover injected instructions and oversized RFQ, quotation, and model output.
+- **Boundary:** this is prompt hardening and automated test evidence, not proof all LLMs resist prompt injection or that the hosted endpoint has passed an adversarial exercise.
+
 ## D-017 — Continuity checkpoint aligned with PR #120 (2026-10-12)
 
 - **Decision:** source-of-truth docs now point at PR #120 merge commit `1ac483116eee50f0ba8c17ca19ae62cd727abc00` and distinguish successful Run #604 from pending Run #607.
