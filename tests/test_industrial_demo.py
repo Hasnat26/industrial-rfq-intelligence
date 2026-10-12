@@ -429,6 +429,20 @@ def test_malformed_json_is_rejected(tmp_path) -> None:
     else:
         raise AssertionError("malformed JSON was accepted")
 
+@pytest.mark.parametrize("json_text", ["[]", '"text"', "null"])
+def test_load_rfq_input_rejects_non_object_json_root(tmp_path, json_text: str) -> None:
+    import pytest
+
+    from freellmpool.industrial import load_rfq_input
+
+    path = tmp_path / "non-object-root.json"
+    path.write_text(json_text, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="^RFQ input must be a JSON object$"):
+        load_rfq_input(path)
+
+
+
 
 def test_empty_requirements_and_vendor_data_are_rejected(tmp_path) -> None:
     import json
