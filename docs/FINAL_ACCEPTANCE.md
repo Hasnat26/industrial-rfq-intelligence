@@ -6,7 +6,7 @@ This document records executable acceptance evidence for the repository and host
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| CI validation for current main | Main CI Run #604 (`38216301893`) completed successfully for commit `0e9ce94a427f3006dd01c03eda974c64567e5197`; current main Run #607 (`38217619027`) is in progress for `1ac483116eee50f0ba8c17ca19ae62cd727abc00`: PostgreSQL migration validation and Python 3.11–3.14 jobs, including security, container runtime, and wheel/sdist smoke | PASS |
+| CI validation for current main | Main CI Run #609 (`38218450625`) passed on prior main commit `39b749496ac9e7c518ebf904af8ead979971f756`; PR #122 CI Run #611 (`38219287584`) passed all five jobs on `4e3e0420a815c9c3eec0e662f6be24e05e231925`; merge-commit CI pending | PASS (PR-head verified; main merge pending) |
 | CI validation for deployed runtime commit | Main CI Run #582-era pipeline completed successfully for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c`; the same pipeline shape is green on every later main commit | PASS |
 | Latest deployed source commit | Render deployment `dep-db5s11tckfvc73b8ief0` for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c` reached `live` on 2026-10-11 | DEPLOYED |
 | Runtime-code delta | The later commits since the deployed one (`c2d21a6`, `f0cfea8`, `9720631`, `2f26234`, `41fc290`, `57b6300`, `0e9ce94`, `1ac4831`, `0e9ce94`, `41fc290`, `57b6300`) change acceptance documentation, backup scripts, tests, and CI only; `git diff` over `src/`, `migrations/`, and `Dockerfile*` against the deployed commit is empty | NO RUNTIME CHANGE |
