@@ -3,7 +3,7 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
-## Resume state (2026-10-12, refreshed after P5-SEC-04)
+## Resume state (2026-10-12, PR #129 exception-boundary hardening)
 
 - **Current main commit:** `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`
 - **Current main CI:** Run #624 (`38237349041`) SUCCESS for `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38237349041>.
@@ -14,10 +14,10 @@ is active. Update this file at the end of every meaningful work cycle.
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). PR #122 adds a runtime-code delta in `src/freellmpool/industrial.py` (prompt boundary and extraction-size limits). It is merged to main but is not yet shown as deployed; the latest confirmed Render deployment remains `2a31c006a6e7e3174c6375c6f5226cb3430f373c`.
 - **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
   `{"status":"ready","database":"ok"}`.
-- **Open PRs verified this cycle:** PR #128 remains open/unmerged at head `fe72dffcd54343530da229c26d0beb7b92ae78e8`; PR #129 contains the P5-SEC-04 fixes. PR #124 also appears open in GitHub; it was not modified. PR #128 was not modified, merged, or deployed.
+- **Open PRs verified this cycle:** PR #128 remains open/unmerged at head `fe72dffcd54343530da229c26d0beb7b92ae78e8`; PR #129 remains open/unmerged, with reconciliation exception-boundary hardening and regression tests in code/test commit `179257b9777285b11f1ede73b27beef0df710793`; PR #130 remains open/unmerged at head `d9e3bd3223a75b5869a688807530af45a583092f`; PR #131 remains open/unmerged at head `aac1fb1e79d5fa0ec56e58e3b79e825e5f8a42c2`. PR #124 also appears open in GitHub; it was not modified. PRs #128, #130, and #131 were not modified, merged, or deployed.
 
 - **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (standalone security workflows remain owner-dependent), P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P5-SEC-04 (repository-level fix and regression coverage CI-verified; hosted validation NOT VERIFIED), P6-BILL-01, P7-OPS-01.
-- **Last completed task ID:** P5-SEC-04 logging/secrets/error-handling review. PR #129 code/test revision `06fd634a448de3b23c4fe5e82ef68c93f605cc8f` passed CI Run #631 (`38261693474`), all five jobs. This is repository-level evidence only; hosted logs and live runtime failure behavior were not tested.
+- **Last completed task ID:** T24-R9 — PR #129 reconciliation exception-boundary hardening. PR #129 code/test revision `179257b9777285b11f1ede73b27beef0df710793` passed CI Run #648 (`38277498580`), all five jobs. This is repository-level evidence only; hosted logs and live runtime failure behavior were not tested.
 - **Exact next action:** obtain independent human review for PR #129; do not merge without explicit authorization. Keep PR #128 separate and unmerged. Continue to treat live backup/restore (P2-BK-03/04), live schema baseline/expiry (P1-DB-01/04), hosted authenticated tenant-isolation smoke (P4-AUTH-02), and hosted logging/error validation as owner-dependent or NOT VERIFIED until executed with approved access.
 
 - **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
@@ -28,13 +28,13 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `06fd634a448de3b23c4fe5e82ef68c93f605cc8f` passed Run #631; this checkpoint update is documentation-only and will be validated by the next PR run. PR #128 remains open and untouched. No production database operations or deployments were performed.
+- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793` passed Run #648 (`38277498580`), all five jobs. This control-document reconciliation is a documentation-only follow-up within PR #129 and requires its own exact-head CI verification before task closure. PRs #128, #130, and #131 remain open/unmerged and untouched. No production database operations or deployments were performed.
 
 ## Test and CI evidence
 
-- No local repository shell/test runner was available for P5-SEC-04; GitHub Actions is the execution evidence.
+- No local repository shell/test runner was available for T24-R9; GitHub Actions is the execution evidence.
 - Main CI Run #624 passed on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
-- PR #129 code/test Run #631 (`38261693474`) passed all five jobs on `06fd634a448de3b23c4fe5e82ef68c93f605cc8f`. The documentation checkpoint commit is intentionally separate from application behavior and requires its own current-head CI verification.
+- PR #129 code/test Run #648 (`38277498580`) passed all five jobs on `179257b9777285b11f1ede73b27beef0df710793`. The documentation checkpoint commit is intentionally separate from application behavior and requires its own current-head CI verification.
 
 ## Unresolved risks and owner-controlled dependencies
 
@@ -77,10 +77,12 @@ is active. Update this file at the end of every meaningful work cycle.
 > Continue the Industrial RFQ Intelligence launch work from the repository
 > checkpoint. Verify the current main SHA, latest main CI, open PRs, and exact
 > PR heads before acting. PR #128 is the synthetic source-document pilot and
-> remains open/unmerged. P5-SEC-04 is implemented in PR #129; its code/test
-> revision passed CI Run #631, while the control-document refresh is pending
-> verification on the new PR head. Do not merge either PR without explicit
-> authorization. Do not claim hosted logging/error handling, live backup/
+> remains open/unmerged. PR #129 contains the P5-SEC-04 exception-boundary
+> hardening and focused failure-path tests; code/test commit `179257b9777285b11f1ede73b27beef0df710793`
+> passed CI Run #648. The documentation refresh is in PR #129 and requires
+> exact-head CI on its resulting commit. PRs #128, #130, and #131 remain
+> open/unmerged; do not count their content as delivered or deployed. Do not
+> merge any PR without explicit authorization. Do not claim hosted logging/error handling, live backup/
 > restore, live database schema baseline, or hosted tenant-isolation tests
 > passed without their own execution evidence. Preserve all owner-controlled
 > safety constraints in this file.
