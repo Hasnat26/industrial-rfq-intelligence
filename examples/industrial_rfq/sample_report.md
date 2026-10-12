@@ -1,5 +1,8 @@
 # Industrial RFQ Engineering Review
 
+> **Illustrative example only — not a customer report.** All vendor names, prices, specifications, and quotation-page references are fictional placeholders. The source quotation files are not included in this main-branch example. The values and `VERIFIED` labels below do not establish verification of any real supplier claim.
+
+
 ## Executive summary
 
 - Requirements checked: **4**
@@ -13,7 +16,7 @@ This report is an evidence-aware engineering review. It does not select a suppli
 ## Technical compliance matrix
 
 | Requirement | Vendor | Parameter | Required | Offered | Status | Evidence |
-|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | R-01 | Vendor A | Rated voltage | 415 V | 0.415 kV | COMPLIANT | Quotation p.1 |
 | R-02 | Vendor A | Motor power | 75 kW | 75 kW | COMPLIANT | Quotation p.1 |
 | R-03 | Vendor A | Efficiency class | IE3 | IE3 | COMPLIANT | Quotation p.2 |
