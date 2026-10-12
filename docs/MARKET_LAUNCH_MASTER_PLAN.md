@@ -18,13 +18,10 @@ production.
 
 ## Verified baseline (2026-10-12)
 
-- `main` HEAD: `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
-- Main CI Run #612 (`38219830664`) SUCCESS on `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
-- PRs #116–#122 are merged except PR #119 (closed, superseded). P5-SEC-01 is implemented and CI-verified at PR head; main CI Run #612 is also green. Issues are disabled in repository settings.
-- Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
-  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
-  `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
-  tests and CI; PR #122 also changes runtime extraction in `src/freellmpool/industrial.py`. Latest confirmed Render deployment remains `2a31c00`, so deployment of the new runtime code is not yet verified.
+- `main` HEAD: `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
+- Main CI Run #624 (`38237349041`) SUCCESS on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38237349041>.
+- PR #119 is closed/superseded; PR #124 is listed open, and PRs #128, #129, #130, and #131 remain open/unmerged. PR #128 is independent of P5-SEC-04 and was not modified. P5-SEC-01 remains CI-verified. P5-SEC-04 exception-boundary hardening and synthetic failure-path regressions are in PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793`; Run #648 passed all five jobs. Hosted validation remains NOT VERIFIED. PRs #128, #130, and #131 were not merged or deployed. Issues are disabled in repository settings.
+- Last recorded Render deployment: `2a31c006a6e7e3174c6375c6f5226cb3430f373c` (deployment `dep-db5s11tckfvc73b8ief0`, recorded live 2026-10-11). Current hosted deployment was not re-verified during P5-SEC-04; do not infer deployment of PR #129 from CI.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
@@ -235,10 +232,21 @@ restore connection + live server identity guard
   exceptions validated by `scripts/security_exceptions.py`).
 
 ### P5-SEC-04 — Logging/secrets/error-handling review
-- Priority: P1. Status: **NOT VERIFIED** (no dedicated audit this cycle).
-- Action: confirm no secrets or tenant data leak into logs; confirm webhook
-  and database errors fail closed without internal detail exposure.
-- Autonomy: autonomous.
+- Priority: P1. Status: **PASS (repository-level)** — PR #129 code/test commit
+  `179257b9777285b11f1ede73b27beef0df710793`, CI Run #648
+  (`38277498580`) passed all five jobs.
+- Findings corrected: rejected provider URLs are not logged verbatim; reconciliation setup,
+  initial flush, and main work are inside the generic error boundary. Rollback and failure-record
+  persistence are best effort; records store only the exception class, while sanitized logs
+  identify exception classes without raw exception text. Failure-record persistence is not
+  claimed when its commit fails.
+- Regression tests cover initial flush failure, main reconciliation failure, failure-record
+  commit failure, initial rollback failure, and cleanup rollback failure, using synthetic
+  credential-bearing URL/error sentinels in outward errors and captured logs.
+- Boundary: no hosted log inspection, live production exception injection, provider calls,
+  production database operations, or deployment were performed. Hosted security validation remains
+  **NOT VERIFIED**.
+- Next: independent human review of PR #129; do not merge without explicit authorization.
 
 ---
 
@@ -275,9 +283,15 @@ restore connection + live server identity guard
   (`docs/RELEASE_CHECKLIST.md`), deployment runbook
   (`docs/PRODUCTION_DEPLOYMENT.md`), backup runbook
   (`docs/DB_BACKUP_RUNBOOK.md`).
-- Missing: customer-facing quickstart, sample RFQ + quotation package, example
-  report, known-limitations one-pager.
-- Autonomy: autonomous (documentation + sample data generation).
+- Present in the main branch: `examples/industrial_rfq/sample_input.json` and
+  `examples/industrial_rfq/sample_report.md`, alongside the existing pilot, release,
+  deployment, and backup documentation.
+- Still missing from the complete customer-facing package: a customer-facing quickstart,
+  a complete sample quotation/source package (PR #128 remains unmerged), and a
+  known-limitations one-pager. PR #130's onboarding document and PR #131's hosted
+  acceptance plan also remain open/unmerged and are not counted as delivered or deployed.
+- Autonomy: documentation and sample-data work is autonomous; acceptance of the complete
+  customer-facing package remains pending.
 
 ### P7-OPS-03 — Incident, support, and feedback triage
 - Priority: P1. Status: **PARTIAL** (feedback classification P0–P3 exists in

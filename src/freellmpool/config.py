@@ -417,7 +417,7 @@ def _parse_rows(rows: list, *, allow_local: bool | None = None) -> list[Provider
         else:
             safe_url = _safe_base_url(base_url, allow_local=allow_local)
         if not safe_url:
-            _log.warning("skipping provider %s: unsafe base_url %r", provider_id, base_url)
+            _log.warning("skipping provider %s: unsafe base_url", provider_id)
             continue
         models = []
         for m in row.get("models", []):

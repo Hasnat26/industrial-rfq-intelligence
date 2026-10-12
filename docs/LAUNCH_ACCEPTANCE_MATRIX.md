@@ -2,7 +2,7 @@
 
 Launch gates tracked independently from implementation work. A task can be
 implemented (repository evidence) while its live acceptance test remains
-unverified. Both facts are shown separately. Updated 2026-10-12 after PR #123.
+unverified. Both facts are shown separately. Updated 2026-10-12 after PR #129 exception-boundary hardening; repository evidence and hosted acceptance remain separate.
 
 Legend: PASS = verified with linked evidence. NOT VERIFIED = no execution
 evidence. BLOCKED = owner action required. PARTIAL = partially verified.
@@ -11,7 +11,7 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 
 | # | Gate | Implementation | Live/acceptance evidence | Result |
 |---|------|----------------|--------------------------|--------|
-| G1 | Main CI green on release commit | CI workflow complete | Run #612 (`38219830664`) passed all jobs on `656781d` | PASS |
+| G1 | Main CI green on release commit | CI workflow complete | Run #624 (`38237349041`) passed all jobs on main SHA `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` | PASS |
 | G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; PR #122 adds runtime extraction hardening in `src/freellmpool/industrial.py`; latest confirmed deployment remains `2a31c00`, so deploy state must be checked separately | PASS |
 | G3 | Migration chain valid | Alembic chain + `p9meta001` index alignment | `postgres-migrations` CI job green (clean PostgreSQL 16, `upgrade head` + `check`) | PASS |
 | G4 | Live schema baseline established | N/A (live-state gate) | Requires owner laptop + allowlisted connection; no live `alembic_version` verified | BLOCKED (P1-DB-01) |
@@ -28,9 +28,10 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | G15 | Security scanning | Bandit/pip-audit/zizmor in CI; exceptions file validated | Every CI run; standalone Security + CodeQL workflows disabled (`disabled_fork`) | PARTIAL (P0-CI-02) |
 | G16 | Prompt-injection resistance for RFQ docs | Explicit untrusted-data delimiters, instruction hierarchy, input/output caps | PR #122 CI Run #611 passed synthetic adversarial/size-limit regression tests; hosted attack test not run | PASS (repository tests); hosted NOT VERIFIED |
 | G17 | Core RFQ workflow (intake→export) | Implemented | Broad automated coverage; hosted run not recorded | PARTIAL |
-| G18 | Pilot onboarding package | Partial docs exist | Quickstart/sample RFQ/example report missing | PARTIAL (P7-OPS-02) |
+| G18 | Pilot onboarding package | Partial docs and sample artifacts exist | `examples/industrial_rfq/sample_input.json` and `sample_report.md` are already on main; customer-facing quickstart, complete quotation/source package, and known-limitations one-pager remain pending. PRs #128, #130, and #131 are open/unmerged and are not counted as delivered/deployed | PARTIAL (P7-OPS-02) |
 | G19 | Incident & support procedure | Feedback triage classified | Contact procedure needs owner input | PARTIAL (P7-OPS-03) |
 | G20 | Backup/restore runbook matches tooling | `docs/DB_BACKUP_RUNBOOK.md` | PR #117 runbook matches script parameters; Run #598 passed | PASS (documentation/code consistency; live recovery still unverified) |
+| G21 | Logging/secrets/error handling (repository-level) | Rejected provider URLs are not logged verbatim; reconciliation errors use a generic client response and failure-record persistence is best effort | PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793`; Run #648 passed all five jobs. No hosted log review or live failure injection was performed | PASS (repository tests); hosted NOT VERIFIED |
 
 ## Commercial-production gates (additional)
 

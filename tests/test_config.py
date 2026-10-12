@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from freellmpool.config import (
+    _parse_rows,
     configured_providers,
     known_aliases,
     load_catalog,
@@ -792,3 +793,22 @@ def test_catalog_cache_invalidates_on_local_opt_in_and_same_size_replace(
     path.write_text(second)
     os.utime(path, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
     assert load_catalog(path)[0].models[0].name == "model-b"
+
+
+def test_unsafe_provider_url_credentials_are_not_written_to_logs(caplog) -> None:
+    synthetic_password = "SYNTHETIC_FAKE_PROVIDER_PASSWORD"
+    unsafe_url = (
+        "https://synthetic-user:"
+        f"{synthetic_password}@provider.example.invalid/v1"
+    )
+
+    with caplog.at_level("WARNING", logger="freellmpool"):
+        providers = _parse_rows(
+            [{"id": "synthetic-provider", "base_url": unsafe_url, "models": []}]
+        )
+
+    assert providers == []
+    assert "unsafe base_url" in caplog.text
+    assert synthetic_password not in caplog.text
+    assert "synthetic-user" not in caplog.text
+    assert "provider.example.invalid" not in caplog.text
