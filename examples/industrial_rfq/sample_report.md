@@ -2,7 +2,6 @@
 
 > **Illustrative example only — not a customer report.** All vendor names, prices, specifications, and quotation-page references are fictional placeholders. The source quotation files are not included in this main-branch example. The values and `VERIFIED` labels below do not establish verification of any real supplier claim.
 
-
 ## Executive summary
 
 - Requirements checked: **4**

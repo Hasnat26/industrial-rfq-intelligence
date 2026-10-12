@@ -6,9 +6,16 @@
 
 ## 1. Before you start
 
-You need Python 3.11 or later, a terminal, and a copy of this repository. The structured example uses synthetic data and **does not require an LLM provider key or make provider calls**. Do not put customer quotations, credentials, or confidential specifications in a public repository.
+You need Python 3.11 or later and a terminal. The structured example uses synthetic data and **does not require an LLM provider key or make provider calls**. Do not put customer quotations, credentials, or confidential specifications in a public repository.
 
-From the repository root:
+Clone the repository and enter its directory:
+
+```bash
+git clone https://github.com/Hasnat26/industrial-rfq-intelligence.git
+cd industrial-rfq-intelligence
+```
+
+From the repository root, create a virtual environment:
 
 ```bash
 python -m venv .venv
@@ -101,7 +108,7 @@ The engine calculates deterministic comparison statuses from structured claims. 
 ## 5. Supported inputs and known limitations
 
 - **Structured CLI input:** JSON schema version 1.0; `requirements` and `vendor_data` are required non-empty arrays. See `docs/RFQ_INPUT_SCHEMA.md`. Evidence can be omitted by the schema, but missing evidence forces a claim to `UNVERIFIED`.
-- **Local document normalization:** uses MarkItDown for supported formats. PDF pages retain page markers. OCR fallback for sparse/scanned PDFs and images depends on the required OCR packages and Tesseract runtime being installed and configured.
+- **Local document normalization:** the configured MarkItDown dependencies cover PDF, TXT, Markdown, DOCX, PPTX, and XLSX inputs; common image formats can use the local OCR path. PDF pages retain page markers. Actual parsing/OCR quality depends on file content, installed parsers, OCR packages, and Tesseract language data; validate each format on a non-sensitive sample before the pilot.
 - **Hosted API uploads:** the current batch-quotation upload route accepts PDF, TXT, and Markdown files, with a 10 MB maximum per file. This is distinct from the broader local normalization path.
 - **Manual handoff:** document normalization, claim validation, structured JSON creation, comparison, and human review are separate steps. Do not assume that dropping a folder of files automatically produces an accepted report.
 - **Retention:** the current application stores extracted text/pages and provenance, not a durable archive of original binary uploads. Keep originals in the customer's approved document system and apply its access/retention rules.
@@ -127,7 +134,7 @@ Record the pilot ID, repository/application commit, input-file identifiers, repo
 | Step | Acceptance test | Evidence to retain | Result |
 |---|---|---|---|
 | 1. Environment | Install on a clean Python 3.11+ environment and run the structured demo | Python version, install command/result, commit SHA | NOT VERIFIED until run |
-| 2. Repeatability | Run both report commands twice against the same unchanged input | Both outputs and a recorded comparison; explain any expected metadata differences | NOT VERIFIED until run |
+| 2. Repeatability | Run both report commands twice against the same unchanged input | Both outputs and a recorded comparison; investigate and document any differences | NOT VERIFIED until run |
 | 3. Requirements | Confirm R-01 through R-04 appear with the expected required values | Input and report excerpts | NOT VERIFIED until reviewed |
 | 4. Deviation | Confirm Vendor B's IE2/IE3 mismatch is shown as a deviation | Technical matrix row and reviewer confirmation | NOT VERIFIED until reviewed |
 | 5. Commercial review | Confirm price, currency, lead time, warranty, and payment terms are presented separately from technical status | Report excerpt plus commercial reviewer confirmation | NOT VERIFIED until reviewed |
