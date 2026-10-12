@@ -64,7 +64,9 @@ def run_commercial_reconciliation(db: Session) -> CommercialReconciliationRespon
         )
     except Exception as exc:
         db.rollback()
-        failed = CommercialReconciliationRun(status="FAILED", error=str(exc)[:2000])
+        failed = CommercialReconciliationRun(
+            status="FAILED", error=f"reconciliation failed ({type(exc).__name__})"
+        )
         db.add(failed)
         db.commit()
         raise HTTPException(status_code=500, detail="commercial reconciliation failed") from exc

@@ -774,3 +774,52 @@ def test_quotation_batch_is_blocked_by_document_entitlement_before_persistence()
     summary = client.get(f"/organizations/{organization['id']}/usage")
     assert summary.status_code == 200
     assert summary.json()["usage"].get("documents", 0) == 100
+
+def test_reconciliation_failure_persists_only_safe_error_type() -> None:
+    from fastapi import HTTPException
+
+    from freellmpool.api.db import CommercialReconciliationRun
+    from freellmpool.api.reconciliation import run_commercial_reconciliation
+
+    synthetic_sensitive_detail = (
+        "connection failed: postgresql://synthetic_user:"
+        "SYNTHETIC_FAKE_PASSWORD@db.example.invalid/tenant"
+    )
+
+    class FailingSession:
+        def __init__(self) -> None:
+            self.added: list[object] = []
+            self.rolled_back = False
+            self.committed = False
+
+        def add(self, value: object) -> None:
+            self.added.append(value)
+
+        def flush(self) -> None:
+            return None
+
+        def scalars(self, _statement: object) -> object:
+            raise RuntimeError(synthetic_sensitive_detail)
+
+        def rollback(self) -> None:
+            self.rolled_back = True
+
+        def commit(self) -> None:
+            self.committed = True
+
+    db = FailingSession()
+    with pytest.raises(HTTPException) as exc_info:
+        run_commercial_reconciliation(db)  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "commercial reconciliation failed"
+    assert db.rolled_back is True
+    assert db.committed is True
+    failed_runs = [
+        item
+        for item in db.added
+        if isinstance(item, CommercialReconciliationRun) and item.status == "FAILED"
+    ]
+    assert len(failed_runs) == 1
+    assert failed_runs[0].error == "reconciliation failed (RuntimeError)"
+    assert synthetic_sensitive_detail not in str(failed_runs[0].error)
