@@ -775,6 +775,7 @@ def test_quotation_batch_is_blocked_by_document_entitlement_before_persistence()
     assert summary.status_code == 200
     assert summary.json()["usage"].get("documents", 0) == 100
 
+
 def test_reconciliation_failure_persists_only_safe_error_type() -> None:
     from fastapi import HTTPException
 

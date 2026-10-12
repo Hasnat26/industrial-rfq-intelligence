@@ -794,6 +794,7 @@ def test_catalog_cache_invalidates_on_local_opt_in_and_same_size_replace(
     os.utime(path, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
     assert load_catalog(path)[0].models[0].name == "model-b"
 
+
 def test_unsafe_provider_url_credentials_are_not_written_to_logs(caplog) -> None:
     synthetic_password = "SYNTHETIC_FAKE_PROVIDER_PASSWORD"
     unsafe_url = (
