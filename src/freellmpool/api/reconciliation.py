@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import UTC, datetime, timedelta
 
@@ -11,6 +12,9 @@ from sqlalchemy.orm import Session
 
 from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscription
 from freellmpool.api.schemas import CommercialReconciliationResponse
+
+
+_logger = logging.getLogger(__name__)
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -40,9 +44,9 @@ def rollover_if_expired(subscription: OrganizationSubscription, now: datetime) -
 
 def run_commercial_reconciliation(db: Session) -> CommercialReconciliationResponse:
     run = CommercialReconciliationRun(status="RUNNING")
-    db.add(run)
-    db.flush()
     try:
+        db.add(run)
+        db.flush()
         subscriptions = db.scalars(select(OrganizationSubscription)).all()
         processed = 0
         rolled_over = 0
@@ -63,13 +67,64 @@ def run_commercial_reconciliation(db: Session) -> CommercialReconciliationRespon
             unchanged=processed - rolled_over,
         )
     except Exception as exc:
-        db.rollback()
-        failed = CommercialReconciliationRun(
-            status="FAILED", error=f"reconciliation failed ({type(exc).__name__})"
-        )
-        db.add(failed)
-        db.commit()
-        raise HTTPException(status_code=500, detail="commercial reconciliation failed") from exc
+        original_error_type = type(exc).__name__
+        rollback_error_type: str | None = None
+        try:
+            db.rollback()
+        except Exception as rollback_exc:
+            rollback_error_type = type(rollback_exc).__name__
+
+        persistence_error_type: str | None = None
+        cleanup_rollback_error_type: str | None = None
+        try:
+            failed = CommercialReconciliationRun(
+                status="FAILED",
+                error=f"reconciliation failed ({original_error_type})",
+            )
+            db.add(failed)
+            db.commit()
+        except Exception as persistence_exc:
+            persistence_error_type = type(persistence_exc).__name__
+            try:
+                db.rollback()
+            except Exception as cleanup_rollback_exc:
+                cleanup_rollback_error_type = type(cleanup_rollback_exc).__name__
+
+        if persistence_error_type is None:
+            if rollback_error_type:
+                _logger.error(
+                    "commercial reconciliation failed (%s); rollback failed (%s); "
+                    "failure record persistence succeeded",
+                    original_error_type,
+                    rollback_error_type,
+                )
+            else:
+                _logger.error(
+                    "commercial reconciliation failed (%s); failure record persisted",
+                    original_error_type,
+                )
+        elif cleanup_rollback_error_type:
+            _logger.error(
+                "commercial reconciliation failed (%s); rollback failed (%s); "
+                "failure-record persistence failed (%s); cleanup rollback failed (%s); "
+                "failure record was not persisted",
+                original_error_type,
+                rollback_error_type or "none",
+                persistence_error_type,
+                cleanup_rollback_error_type,
+            )
+        else:
+            _logger.error(
+                "commercial reconciliation failed (%s); rollback failed (%s); "
+                "failure-record persistence failed (%s); failure record was not persisted",
+                original_error_type,
+                rollback_error_type or "none",
+                persistence_error_type,
+            )
+
+        raise HTTPException(
+            status_code=500, detail="commercial reconciliation failed"
+        ) from None
 
 
 def scheduler_secret_configured() -> bool:
