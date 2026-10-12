@@ -29,7 +29,7 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** PR #118 merged as `0e9ce94a427f3006dd01c03eda974c64567e5197`; current Main CI Run #604 is green. No live database operations were performed.
+- **Latest repository change:** PR #118 merged as `0e9ce94a427f3006dd01c03eda974c64567e5197`; Main CI Run #604 succeeded. No live database operations were performed.
 
 ## Test and CI evidence
 
