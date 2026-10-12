@@ -19,13 +19,12 @@ production.
 ## Verified baseline (2026-10-12)
 
 - `main` HEAD: `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
-- Main CI Run #604 (`38216301893`): SUCCESS on `0e9ce94`; Main Run #607 (`38217619027`) for current HEAD is still running — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38217619027>.
-- PRs #116–#122 are merged except PR #119 (closed, superseded). P5-SEC-01 is now implemented and CI-verified at PR head; main merge CI pending. Issues are disabled in repository settings.
+- Main CI Run #612 (`38219830664`) SUCCESS on `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
+- PRs #116–#122 are merged except PR #119 (closed, superseded). P5-SEC-01 is implemented and CI-verified at PR head; main CI Run #612 is also green. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
   `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
-  tests, and CI only — no runtime-code delta under `src/`, `migrations/`, or
-  `Dockerfile*` through PR #120.
+  tests and CI; PR #122 also changes runtime extraction in `src/freellmpool/industrial.py`. Latest confirmed Render deployment remains `2a31c00`, so deployment of the new runtime code is not yet verified.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
