@@ -16,7 +16,7 @@ def test_posix_restore_guard_and_tls_requirement() -> None:
     assert 'RESTORE_TEST_DATABASE" = "$PGDATABASE' in script
     assert "pg_restore --exit-on-error" in script
     assert "information_schema.columns" in script
-    assert "viewname, definition" in script
+    assert "'definition', definition" in script
     assert "to_regclass('public.alembic_version')" in script
 
 
@@ -27,7 +27,7 @@ def test_powershell_restore_guard_and_tls_requirement() -> None:
     assert '$RestoreTestDatabase -eq $DatabaseName' in script
     assert "pg_restore --exit-on-error" in script
     assert "information_schema.columns" in script
-    assert "viewname, definition" in script
+    assert "'definition', definition" in script
     assert "to_regclass('public.alembic_version')" in script
 
 
