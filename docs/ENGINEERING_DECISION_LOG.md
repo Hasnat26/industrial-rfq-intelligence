@@ -6,6 +6,12 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-017 — Continuity checkpoint aligned with PR #120 (2026-10-12)
+
+- **Decision:** source-of-truth docs now point at PR #120 merge commit `1ac483116eee50f0ba8c17ca19ae62cd727abc00` and distinguish successful Run #604 from pending Run #607.
+- **Evidence:** PR #120 merged; Run #607 still in progress at checkpoint. PR #119 is conflicting and superseded; do not merge it.
+- **Boundary:** live Render backup/restore and hosted authenticated workflow remain NOT VERIFIED/BLOCKED until executed with synthetic/approved test identities and separate recovery target.
+
 ## D-016 — Launch records refreshed after PR #118 (2026-10-12)
 
 - **Decision:** continuity, master plan, acceptance matrix, and final acceptance now record PR #117 as merged and keep the live backup/restore as owner-controlled unresolved gates.
