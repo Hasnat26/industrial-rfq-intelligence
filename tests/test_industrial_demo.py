@@ -1155,3 +1155,40 @@ def test_llm_extraction_rejects_invalid_schema_version() -> None:
             [{"vendor": "Vendor X", "text": "Rated voltage: 400 V"}],
         )
 
+def test_load_rfq_input_ignores_unknown_fields_for_v1_compatibility(tmp_path) -> None:
+    import json
+
+    from freellmpool.industrial import load_rfq_input
+
+    payload = {
+        "schema_version": "1.0",
+        "future_metadata": {"source_system": "legacy-procurement"},
+        "requirements": [{
+            "tag": "R-01",
+            "parameter": "Rated voltage",
+            "required": "415 V",
+            "requirement_note": "harmless extension",
+        }],
+        "vendor_data": [{
+            "vendor": "Vendor X",
+            "parameter": "Rated voltage",
+            "value": "400 V",
+            "evidence": "Quotation p.1",
+            "claim_status": "UNVERIFIED",
+            "vendor_note": "harmless extension",
+        }],
+    }
+    path = tmp_path / "rfq-with-unknown-fields.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    requirements, vendor_data, commercial = load_rfq_input(path)
+
+    assert [(item.tag, item.parameter, item.required) for item in requirements] == [
+        ("R-01", "Rated voltage", "415 V")
+    ]
+    assert [
+        (item.vendor, item.parameter, item.value, item.evidence, item.claim_status)
+        for item in vendor_data
+    ] == [("Vendor X", "Rated voltage", "400 V", "Quotation p.1", "UNVERIFIED")]
+    assert commercial == []
+
