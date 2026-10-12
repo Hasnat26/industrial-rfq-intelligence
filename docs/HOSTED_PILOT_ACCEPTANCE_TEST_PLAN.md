@@ -78,11 +78,11 @@ Do not execute any stateful test below until all Section 1 prerequisites are app
 
 **Prerequisite:** H-02 passed; stateful writes and retention/cleanup explicitly approved.
 
-**Action:** With account A, create a uniquely named test organization using `POST /organizations`; create a project using `POST /projects` with that organization ID; create a package using `POST /packages` with the project ID and synthetic requirements. Use an unambiguous run label such as `PILOT-ACCEPTANCE-<run-id>-A`. Repeat separately with account B only as needed for the isolation test.
+**Action:** With account A, create a uniquely named test organization using `POST /organizations` with JSON `{name}`; create a project using `POST /projects` with JSON `{organization_id, name}` and optional `code`; create a package using `POST /packages` with JSON `{project_id, name, category, mode, requirements}`. Each requirement contains `tag`, `parameter`, and `required_value`, with optional `requirement_type` and `acceptance_rule`. Use an unambiguous run label such as `PILOT-ACCEPTANCE-<run-id>-A`. Repeat separately with account B only as needed for the isolation test.
 
-**Synthetic requirement set:** R-01 rated voltage 415 V; R-02 output 75 kW; R-03 efficiency class IE3; R-04 enclosure IP55. The package payload includes `project_id`, `name`, `category`, `mode` (`STANDARD` or `PROJECT_EPC`), and `requirements` objects with `tag`, `parameter`, `required_value`, and optional `requirement_type`/`acceptance_rule`.
+**Synthetic requirement set:** R-01 rated voltage 415 V; R-02 output 75 kW; R-03 efficiency class IE3; R-04 enclosure IP55. Allowed `mode` values are `STANDARD` and `PROJECT_EPC`.
 
-**Expected:** HTTP 201 for each create operation; returned IDs link the organization, project, package, and initial R1 RFQ revision. No other tenant IDs should appear in the response.
+**Expected:** HTTP 201 for each create operation. Use the returned organization, project, and package IDs for the next requests, then call `GET /packages/{package_id}/rfq` and expect HTTP 200 with the synthetic requirements. The package-create implementation initializes R1, but neither `PackageRead` nor `RfqResponse` exposes the revision ID/label; do not claim R1 is independently verified through the public API. Record R1 initialization as source-level evidence unless a supported API exposes it. No other tenant IDs should appear in the response.
 
 **Evidence:** Sanitized request bodies with synthetic values, status codes, returned object IDs, run label, and timestamp.
 
