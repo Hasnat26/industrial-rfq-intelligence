@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from freellmpool.api.db import CommercialReconciliationRun, OrganizationSubscription
 from freellmpool.api.schemas import CommercialReconciliationResponse
 
-
 _logger = logging.getLogger(__name__)
 
 
