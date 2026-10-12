@@ -6,6 +6,12 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-016 — Launch records refreshed after PR #118 (2026-10-12)
+
+- **Decision:** continuity, master plan, acceptance matrix, and final acceptance now record PR #117 as merged and keep the live backup/restore as owner-controlled unresolved gates.
+- **Evidence:** PR #118 merged as `0e9ce94a427f3006dd01c03eda974c64567e5197`; Main CI Run #604 succeeded for this commit.
+- **Boundary:** no live database operation was performed. Do not mark P2-BK-03/P2-BK-04 PASS until real Render backup and isolated restore evidence is recorded.
+
 ## D-015 — Backup-tooling P2-BK-02 closed at repository level (2026-10-12)
 
 - **Decision:** treat P2-BK-02 as PASS for repository implementation and scratch-drill evidence after PR #117; keep live Render backup/restore as separate blocked gates P2-BK-03/04.
