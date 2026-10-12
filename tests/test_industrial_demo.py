@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from freellmpool.industrial import (
     Requirement,
     VendorValue,
@@ -428,6 +430,7 @@ def test_malformed_json_is_rejected(tmp_path) -> None:
         assert "invalid RFQ JSON" in str(exc)
     else:
         raise AssertionError("malformed JSON was accepted")
+
 
 @pytest.mark.parametrize("json_text", ["[]", '"text"', "null"])
 def test_load_rfq_input_rejects_non_object_json_root(tmp_path, json_text: str) -> None:
