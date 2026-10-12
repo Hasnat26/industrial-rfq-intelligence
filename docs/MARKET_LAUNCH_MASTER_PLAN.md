@@ -270,9 +270,12 @@ restore connection + live server identity guard
 ## P7 — Deployment, pilot onboarding, and launch operations
 
 ### P7-OPS-01 — Hosted readiness verification
-- Priority: P0. Status: **PASS** (2026-10-12 external probes `/health` 200,
-  `/ready` `{"status":"ready","database":"ok"}` plus Render platform log
-  evidence).
+- Priority: P0. Status: **PASS (platform readiness evidence only)**. For Render
+  deployment `dep-db6j008n74is73a7thkg` on deployed SHA
+  `f363adc562a494de57cca58c530c99afdfba2818`, platform logs record application
+  startup completion and `GET /ready` HTTP 200. No independent external
+  `/health` or `/ready` probe is claimed. This does not establish hosted
+  security acceptance, which remains **NOT VERIFIED**.
 
 ### P7-OPS-02 — Pilot onboarding package
 - Priority: P1. Status: **PARTIAL**.
