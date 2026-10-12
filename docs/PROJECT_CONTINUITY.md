@@ -28,13 +28,13 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793` passed Run #648 (`38277498580`), all five jobs. This documentation-only follow-up is on PR #129 head `69e2bf0b7e1c953c6c229cac82d3fdf80e7aaefe`; exact-head CI Run #649 (`38278338666`) passed all five jobs. Independent human review remains pending; hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain open/unmerged and untouched. No production database operations or deployments were performed.
+- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793` passed Run #648 (`38277498580`), all five jobs. The current PR #129 head and latest exact-head CI result are tracked in the [live pull request](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [GitHub Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). The validated code/test revision is `179257b9777285b11f1ede73b27beef0df710793`, which passed Run #648 (`38277498580`), all five jobs. Independent human review remains pending; hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain open/unmerged and untouched. No production database operations or deployments were performed.
 
 ## Test and CI evidence
 
 - No local repository shell/test runner was available for T24-R9; GitHub Actions is the execution evidence.
 - Main CI Run #624 passed on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
-- PR #129 code/test Run #648 (`38277498580`) passed all five jobs on `179257b9777285b11f1ede73b27beef0df710793`. The current PR #129 head `69e2bf0b7e1c953c6c229cac82d3fdf80e7aaefe` passed exact-head CI Run #649 (`38278338666`) across all five jobs. This is repository-level evidence only; hosted security acceptance remains NOT VERIFIED.
+- PR #129 code/test Run #648 (`38277498580`) passed all five jobs on `179257b9777285b11f1ede73b27beef0df710793`. For the current PR head and its exact-head CI result, use the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). This is repository-level evidence only; hosted security acceptance remains NOT VERIFIED.
 
 ## Unresolved risks and owner-controlled dependencies
 
@@ -79,7 +79,7 @@ is active. Update this file at the end of every meaningful work cycle.
 > PR heads before acting. PR #128 is the synthetic source-document pilot and
 > remains open/unmerged. PR #129 contains the P5-SEC-04 exception-boundary
 > hardening and focused failure-path tests; code/test commit `179257b9777285b11f1ede73b27beef0df710793`
-> passed CI Run #648. The PR #129 documentation refresh at head `69e2bf0b7e1c953c6c229cac82d3fdf80e7aaefe` passed exact-head CI Run #649 (`38278338666`). Independent human review remains pending and hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain
+> passed CI Run #648. The current PR #129 head and latest exact-head CI result are available in the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending and hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain
 > open/unmerged; do not count their content as delivered or deployed. Do not
 > merge any PR without explicit authorization. Do not claim hosted logging/error handling, live backup/
 > restore, live database schema baseline, or hosted tenant-isolation tests
