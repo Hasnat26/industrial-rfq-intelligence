@@ -2,7 +2,7 @@
 
 Launch gates tracked independently from implementation work. A task can be
 implemented (repository evidence) while its live acceptance test remains
-unverified. Both facts are shown separately. Updated 2026-10-12 after PR #123.
+unverified. Both facts are shown separately. Updated 2026-10-12 after PR #123 and main Run #616 launch.
 
 Legend: PASS = verified with linked evidence. NOT VERIFIED = no execution
 evidence. BLOCKED = owner action required. PARTIAL = partially verified.
@@ -11,8 +11,8 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 
 | # | Gate | Implementation | Live/acceptance evidence | Result |
 |---|------|----------------|--------------------------|--------|
-| G1 | Main CI green on release commit | CI workflow complete | Run #612 (`38219830664`) passed all jobs on `656781d` | PASS |
-| G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; PR #122 adds runtime extraction hardening in `src/freellmpool/industrial.py`; latest confirmed deployment remains `2a31c00`, so deploy state must be checked separately | PASS |
+| G1 | Main CI green on release commit | CI workflow complete | Run #612 (`38219830664`) passed on parent `656781d`; current main Run #616 (`38221069809`) is in progress on `20c61a9` | NOT VERIFIED |
+| G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; PR #122 adds runtime extraction hardening in `src/freellmpool/industrial.py`; latest confirmed deployment remains `2a31c00` and does not include that runtime change | PASS (deployment SHA identified; new runtime deployment NOT VERIFIED) |
 | G3 | Migration chain valid | Alembic chain + `p9meta001` index alignment | `postgres-migrations` CI job green (clean PostgreSQL 16, `upgrade head` + `check`) | PASS |
 | G4 | Live schema baseline established | N/A (live-state gate) | Requires owner laptop + allowlisted connection; no live `alembic_version` verified | BLOCKED (P1-DB-01) |
 | G5 | Durable database secured before 2026-11-08 | N/A (provisioning gate) | Render Free instance expiry recorded; current provider state needs dashboard check | BLOCKED (P1-DB-04) |
