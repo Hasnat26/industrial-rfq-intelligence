@@ -6,6 +6,12 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-019 — Main CI Run #612 completed for PR #122 merge (2026-10-12)
+
+- **Decision:** use the exact merge-commit workflow run as validation, separate from PR-head CI.
+- **Evidence:** main SHA `656781d2f4761d4a77a43ee93be74d671f6a0b61`; Run #612 (`38219830664`) passed all five jobs.
+- **Boundary:** no production database operations and no hosted authenticated RFQ/tenant-isolation flow were executed.
+
 ## D-018 — RFQ extraction prompt-injection hardening merged (2026-10-12)
 
 - **Decision:** protect the deterministic extraction boundary from document-borne instruction override with explicit untrusted-data framing and hard character caps. Keep strict local schema validation as the authoritative control.
