@@ -16,17 +16,17 @@ production.
   database. Never widen the database allowlist to `0.0.0.0/0`. Never provision
   paid resources without explicit owner approval.
 
-## Verified baseline (2026-10-12)
+## Verified baseline (2026-10-12, refreshed after PR #118)
 
-- `main` HEAD: `57b63009e9d61c42d1849124382fe6217eceb983`.
-- Main CI Run #598 (`38214323218`): SUCCESS, all 5 jobs
-  (<https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38214323218>).
-- PRs #116 (launch-control docs) and #117 (laptop-ready backup tooling) are merged; current open-PR search returned none. Issues are disabled in repository settings.
+- `main` HEAD: `0e9ce94a427f3006dd01c03eda974c64567e5197`.
+- Main CI Run #598 (`38214323218`): SUCCESS on parent `57b6300`; new Run #604 (`38216301893`) is pending for current docs commit
+  (<https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38216301893>).
+- PRs #116 (launch-control docs), #117 (laptop-ready backup tooling), and #118 (evidence refresh) are merged; current open-PR search returned none. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
   `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
   tests, and CI only — no runtime-code delta under `src/`, `migrations/`, or
-  `Dockerfile*` through PR #117.
+  `Dockerfile*` through PR #118.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
