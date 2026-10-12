@@ -96,7 +96,7 @@ Do not execute any stateful test below until all Section 1 prerequisites are app
 
 Then perform negative validation checks with small synthetic requests: (a) an unsupported extension; (b) entries/files count mismatch; and (c) a duplicate vendor/revision. If explicitly approved and operationally safe, test the 10 MB boundary with synthetic data in a single isolated request.
 
-**Expected:** Valid batch returns HTTP 201 and matching offer/document ID counts. Unsupported extension returns HTTP 415; count/schema mismatch returns HTTP 422; duplicate vendor/revision returns HTTP 409; oversized file returns HTTP 413. After each rejected batch, re-read the package's offers and confirm no partial offer/document/usage rows were added by the rejected request. Do not assume a content type alone proves file validity.
+**Expected:** Valid batch returns HTTP 201 and matching offer/document ID counts. Unsupported extension returns HTTP 415; count/schema mismatch returns HTTP 422; duplicate vendor/revision returns HTTP 409; oversized file returns HTTP 413. After each rejected batch, capture before/after results from `GET /packages/{package_id}/offers`, `GET /packages/{package_id}/audit`, and `GET /organizations/{organization_id}/usage`; compare offer counts, audit events, and the usage summary. These checks establish API-visible non-mutation only. The public API has no endpoint to enumerate all document rows independently, so do not claim that these reads alone prove that no orphan document row exists. Source-level atomicity is supported by the route validating and extracting every file before adding rows, then committing offers, documents, audit, and usage in one transaction; an integrity failure calls `rollback()`. If independent document-row verification is required, arrange a separately approved isolated test/observability method—never use production SQL. Any unexpected API-visible change is a FAIL. Do not assume a content type alone proves file validity.
 
 **Evidence:** Synthetic input filenames and SHA-256 hashes, file sizes, sanitized request metadata, response status, offer/document IDs from the valid batch, and before/after counts for negative cases. Do not retain uploaded binaries outside the approved evidence location.
 
@@ -140,13 +140,21 @@ Then perform negative validation checks with small synthetic requests: (a) an un
 
 ### H-08 — Cross-tenant write denial and non-mutation proof
 
-**Prerequisite:** H-07 passed; owner specifically approves negative write requests.
+**Prerequisite:** H-07 passed; the owner specifically approves each schema-valid negative-write request and its possible impact if tenant authorization is defective. Prepare A-owned test fixtures so each targeted operation would pass its own business/workflow checks if A performed it. Use separate packages where preconditions conflict. In particular: a decision requires commercial evaluation open, an eligible selected offer, and commercial status COMPLETED; technical lock requires current offers with no blocking technical statuses or unresolved deviations/clarifications; commercial open requires the gate not already open (and, for PROJECT_EPC, technical lock already set); weighting requires commercial evaluation not open and weights totaling 100. If a route's preconditions are not met, skip that route and mark it BLOCKED/NOT VERIFIED; a business-rule 409 is not a tenant-isolation PASS.
 
-**Action:** Using B's token, attempt one request each against A-owned resources: batch quotation ingestion at `POST /packages/{A-package-id}/quotations/batch`; single document upload at `POST /offers/{A-offer-id}/documents`; claim creation at `POST /offers/{A-offer-id}/claims`; decision creation at `POST /packages/{A-package-id}/decision`; technical lock at `POST /packages/{A-package-id}/technical-lock`; commercial open at `POST /packages/{A-package-id}/commercial-open`; and evaluation-weight update at `PUT /packages/{A-package-id}/evaluation-weighting`. Use small synthetic payloads. Do not send a valid batch/file unless the owner has approved the test and its expected rejection.
+**Action:** Using B's token, submit schema-valid synthetic requests against A-owned resources:
+- POST `/packages/{A-package-id}/quotations/batch`: multipart `entries` JSON array with one object containing `vendor_name` = `PILOT-H08-UNAUTHORIZED` and `technical_revision` = `R1`, plus one small synthetic `.txt` file in `files`.
+- POST `/offers/{A-offer-id}/documents`: multipart field `file` with a small synthetic `.txt` file.
+- POST `/offers/{A-offer-id}/claims`: JSON object with `parameter`, `value`, and `evidence` set to synthetic test values.
+- POST `/packages/{A-decision-fixture-id}/decision`: JSON object with `selected_offer_id` set to an eligible A-owned offer ID and `rationale` set to a synthetic test rationale.
+- POST `/packages/{A-lock-fixture-id}/technical-lock` and POST `/packages/{A-commercial-fixture-id}/commercial-open`: no request body is required.
+- PUT `/packages/{A-weighting-fixture-id}/evaluation-weighting`: JSON object with `technical_weight` = 60 and `commercial_weight` = 40.
 
-**Expected:** Each cross-tenant mutation returns HTTP 404. Re-read A's package, offer count, documents, comparison, audit events, and relevant workflow state with A's token; none should reflect B's attempted mutation. Do not interpret a 404 alone as sufficient: verify no side effect.
+Malformed or incomplete payloads can be rejected with HTTP 422 before the route's tenant check executes, making the result inconclusive. These valid-shape requests could mutate A's data if authorization is broken; do not run them without explicit written approval for that risk.
 
-**Evidence:** Sanitized status codes, before/after object counts and relevant state, audit event comparison, timestamps, and request IDs.
+**Expected:** Each eligible cross-tenant mutation returns HTTP 404. Re-read A's offers, known original document, comparison, workflow, decision/weighting state, audit trail, and organization usage summary with A's token. Compare before/after values; none should reflect B's attempted mutation. Do not interpret a 404 alone as sufficient: verify all available non-mutation evidence. The public API cannot enumerate every document row, so record that limitation rather than claiming database-level proof from API reads alone.
+
+**Evidence:** Sanitized status codes, before/after API-visible object counts and state, audit and usage comparisons, timestamps, and request IDs.
 
 **Cleanup:** Any unexpected mutation is a **FAIL**; stop further tests, preserve sanitized evidence, and notify the owner. Do not attempt improvised rollback or direct database repair.
 
