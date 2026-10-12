@@ -43,8 +43,8 @@ def rollover_if_expired(subscription: OrganizationSubscription, now: datetime) -
 
 
 def run_commercial_reconciliation(db: Session) -> CommercialReconciliationResponse:
-    run = CommercialReconciliationRun(status="RUNNING")
     try:
+        run = CommercialReconciliationRun(status="RUNNING")
         db.add(run)
         db.flush()
         subscriptions = db.scalars(select(OrganizationSubscription)).all()
@@ -90,35 +90,33 @@ def run_commercial_reconciliation(db: Session) -> CommercialReconciliationRespon
             except Exception as cleanup_rollback_exc:
                 cleanup_rollback_error_type = type(cleanup_rollback_exc).__name__
 
+        rollback_diagnostic = (
+            f"initial rollback failed ({rollback_error_type})"
+            if rollback_error_type
+            else "initial rollback succeeded"
+        )
         if persistence_error_type is None:
-            if rollback_error_type:
-                _logger.error(
-                    "commercial reconciliation failed (%s); rollback failed (%s); "
-                    "failure record persistence succeeded",
-                    original_error_type,
-                    rollback_error_type,
-                )
-            else:
-                _logger.error(
-                    "commercial reconciliation failed (%s); failure record persisted",
-                    original_error_type,
-                )
+            _logger.error(
+                "commercial reconciliation failed (%s); %s; failure record persisted",
+                original_error_type,
+                rollback_diagnostic,
+            )
         elif cleanup_rollback_error_type:
             _logger.error(
-                "commercial reconciliation failed (%s); rollback failed (%s); "
+                "commercial reconciliation failed (%s); %s; "
                 "failure-record persistence failed (%s); cleanup rollback failed (%s); "
                 "failure record was not persisted",
                 original_error_type,
-                rollback_error_type or "none",
+                rollback_diagnostic,
                 persistence_error_type,
                 cleanup_rollback_error_type,
             )
         else:
             _logger.error(
-                "commercial reconciliation failed (%s); rollback failed (%s); "
+                "commercial reconciliation failed (%s); %s; "
                 "failure-record persistence failed (%s); failure record was not persisted",
                 original_error_type,
-                rollback_error_type or "none",
+                rollback_diagnostic,
                 persistence_error_type,
             )
 
