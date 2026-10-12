@@ -18,15 +18,14 @@ production.
 
 ## Verified baseline (2026-10-12)
 
-- `main` HEAD: `57b63009e9d61c42d1849124382fe6217eceb983`.
-- Main CI Run #598 (`38214323218`): SUCCESS, all 5 jobs
-  (<https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38214323218>).
+- `main` HEAD: `1ac483116eee50f0ba8c17ca19ae62cd727abc00`.
+- Main CI Run #604 (`38216301893`): SUCCESS on `0e9ce94`; Main Run #607 (`38217619027`) for current HEAD is still running — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38217619027>.
 - PRs #116 (launch-control docs) and #117 (laptop-ready backup tooling) are merged; current open-PR search returned none. Issues are disabled in repository settings.
 - Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
   `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
   tests, and CI only — no runtime-code delta under `src/`, `migrations/`, or
-  `Dockerfile*` through PR #117.
+  `Dockerfile*` through PR #120.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
