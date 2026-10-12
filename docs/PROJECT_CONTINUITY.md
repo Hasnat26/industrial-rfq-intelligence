@@ -3,26 +3,22 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
-## Resume state (2026-10-12, refreshed after PR #120)
+## Resume state (2026-10-12, refreshed after PR #123)
 
 - **Current main commit:** `656781d2f4761d4a77a43ee93be74d671f6a0b61`
-- **Latest verified main CI run before PR #122:** Run #609 (`38218450625`), SUCCESS for `39b749496ac9e7c518ebf904af8ead979971f756` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38218450625>.
-- **PR #122 validation:** Run #611 (`38219287584`), SUCCESS for `4e3e0420a815c9c3eec0e662f6be24e05e231925`; PR #122 merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`. Main CI for the merge commit must still complete.
+- **Current main CI:** Run #612 (`38219830664`) SUCCESS for `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
+- **PR #122 validation:** Run #611 (`38219287584`) SUCCESS for PR head `4e3e0420a815c9c3eec0e662f6be24e05e231925`; merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
 
 - **Latest deployed commit (Render):**
   `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
-  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). No runtime-code
-  delta between it and main HEAD (docs/scripts/CI only since).
+  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). PR #122 adds a runtime-code delta in `src/freellmpool/industrial.py` (prompt boundary and extraction-size limits). It is merged to main but is not yet shown as deployed; the latest confirmed Render deployment remains `2a31c006a6e7e3174c6375c6f5226cb3430f373c`.
 - **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
   `{"status":"ready","database":"ok"}`.
-- **Active branch / PR:** PR #122 merged. Main now includes prompt-injection boundary and extraction size-limit hardening.
+- **Active branch / PR:** PR #123 is open with all CI jobs green on its exact head; it updates the control documents after PR #122.
 
-- **Last completed task ID:** P0-CI-01/04, P0-CI-02 (verified FAIL:
-  Security+CodeQL workflows `disabled_fork`, cannot enable via App token 403),
-  P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P6-BILL-01, P7-OPS-01 (see
-  `docs/MARKET_LAUNCH_MASTER_PLAN.md`).
+- **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (Security/CodeQL workflows `disabled_fork`, owner admin needed), P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P6-BILL-01, P7-OPS-01.
 - **Last completed task ID:** P5-SEC-01 code and regression coverage merged (PR #122; CI Run #611 passed all five jobs). This is repository/test evidence; no live hosted prompt-injection exercise was run.
-- **Exact next action:** monitor main CI for merge commit, then continue P5-SEC-04 logging/secrets/error-handling review using source inspection and synthetic tests. Keep live backup/restore (P2-BK-03/04), database schema baseline/expiry (P1-DB-01/04), and hosted authenticated tenant-isolation smoke (P4-AUTH-02) in blocked/unverified states until owner-controlled operations are safely executed.
+- **Exact next action:** merge PR #123 after verified Run #613 passes all five jobs. Next autonomous engineering task: P5-SEC-04 logging/secrets/error-handling review using source inspection and synthetic tests. Keep live backup/restore (P2-BK-03/04), database schema baseline/expiry (P1-DB-01/04), and hosted authenticated tenant-isolation smoke (P4-AUTH-02) in blocked/unverified states until owner-controlled operations are safely executed.
 
 - **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
   `main` plus copies in `/tmp/preserve/` contain the pre-merge local versions
