@@ -5,21 +5,25 @@ is active. Update this file at the end of every meaningful work cycle.
 
 ## Resume state (2026-10-12, refreshed after PR #120)
 
-- **Current main commit:** `1ac483116eee50f0ba8c17ca19ae62cd727abc00`
-- **Last completed main CI run:** Run #604 (`38216301893`), SUCCESS for `0e9ce94a427f3006dd01c03eda974c64567e5197`. Main Run #607 (`38217619027`) for current main `1ac483116eee50f0ba8c17ca19ae62cd727abc00` is IN PROGRESS (PostgreSQL migration job passed; Python 3.11–3.14 jobs still running) — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38217619027>.
+- **Current main commit:** `656781d2f4761d4a77a43ee93be74d671f6a0b61`
+- **Latest verified main CI run before PR #122:** Run #609 (`38218450625`), SUCCESS for `39b749496ac9e7c518ebf904af8ead979971f756` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38218450625>.
+- **PR #122 validation:** Run #611 (`38219287584`), SUCCESS for `4e3e0420a815c9c3eec0e662f6be24e05e231925`; PR #122 merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`. Main CI for the merge commit must still complete.
+
 - **Latest deployed commit (Render):**
   `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). No runtime-code
   delta between it and main HEAD (docs/scripts/CI only since).
 - **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
   `{"status":"ready","database":"ok"}`.
-- **Active branch / PR:** `docs/continuity-final-main-run604-2026-10-12`, PR #120 is merged. PR #119 remains open but conflicts with main and is superseded; do not merge it.
+- **Active branch / PR:** PR #122 merged. Main now includes prompt-injection boundary and extraction size-limit hardening.
+
 - **Last completed task ID:** P0-CI-01/04, P0-CI-02 (verified FAIL:
   Security+CodeQL workflows `disabled_fork`, cannot enable via App token 403),
   P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P6-BILL-01, P7-OPS-01 (see
   `docs/MARKET_LAUNCH_MASTER_PLAN.md`).
-- **Current task ID:** P2-BK-02 PASS at repository/scratch-test level (PR #117 merged).
-- **Exact next action:** owner-controlled P2-BK-03/P2-BK-04: execute the live Render backup and isolated restore drill from `docs/DB_BACKUP_RUNBOOK.md`, with actual credentials and a separate empty target. No secrets in chat. Next autonomous engineering task: P5-SEC-01 adversarial prompt-injection regression tests using synthetic RFQ data, then fix any defects.
+- **Last completed task ID:** P5-SEC-01 code and regression coverage merged (PR #122; CI Run #611 passed all five jobs). This is repository/test evidence; no live hosted prompt-injection exercise was run.
+- **Exact next action:** monitor main CI for merge commit, then continue P5-SEC-04 logging/secrets/error-handling review using source inspection and synthetic tests. Keep live backup/restore (P2-BK-03/04), database schema baseline/expiry (P1-DB-01/04), and hosted authenticated tenant-isolation smoke (P4-AUTH-02) in blocked/unverified states until owner-controlled operations are safely executed.
+
 - **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
   `main` plus copies in `/tmp/preserve/` contain the pre-merge local versions
   of `scripts/backup_render_db.ps1`, `scripts/backup_render_db.sh`,
@@ -28,13 +32,13 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** PR #118 merged as `0e9ce94a427f3006dd01c03eda974c64567e5197`; Main CI Run #604 succeeded. No live database operations were performed.
+- **Latest repository change:** PR #122 merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`. Run #611 passed on its PR head `4e3e0420a815c9c3eec0e662f6be24e05e231925`; main merge-commit CI is the next required check. No live database operations were performed.
 
 ## Test and CI evidence
 
 - Local suite (this cycle, pre-docs): full `pytest` green in the workspace
   venv (`/tmp/ffp-venv`), `ruff` + `mypy` clean as of PR #107/#114 merges.
-- CI: latest main Run #598 for `57b63009e9d61c42d1849124382fe6217eceb983` passed all five jobs.
+- Main CI Run #609 passed for `39b749496ac9e7c518ebf904af8ead979971f756`. PR CI Run #611 passed all five jobs on `4e3e0420a815c9c3eec0e662f6be24e05e231925`. Main CI for the merge commit is pending at this checkpoint.
 
 ## Unresolved risks and owner-controlled dependencies
 
