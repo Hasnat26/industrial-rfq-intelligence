@@ -45,7 +45,7 @@ Generate both report formats from the existing sample:
 
 ```bash
 industrial-rfq-intelligence industrial-rfq --input examples/industrial_rfq/sample_input.json --markdown --output pilot-report.md
-industrial-rfq-intelligence industrial-rfq --input examples/industrial_rfq/sample_input.json --output pilot-report.json
+industrial-rfq-intelligence industrial-rfq --input examples/industrial_rfq/sample_input.json --json --output pilot-report.json
 ```
 
 The command prints a confirmation for each output file. The Markdown report is intended for reviewer reading; the JSON report is the machine-readable result. The checked-in [sample report](../examples/industrial_rfq/sample_report.md) is an **illustrative snapshot**, not proof that a customer document was processed during this task.
