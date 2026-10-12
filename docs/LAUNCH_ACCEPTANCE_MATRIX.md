@@ -2,7 +2,7 @@
 
 Launch gates tracked independently from implementation work. A task can be
 implemented (repository evidence) while its live acceptance test remains
-unverified. Both facts are shown separately. Updated 2026-10-12 after PR #123.
+unverified. Both facts are shown separately. Updated 2026-10-12 after P5-SEC-04 repository validation.
 
 Legend: PASS = verified with linked evidence. NOT VERIFIED = no execution
 evidence. BLOCKED = owner action required. PARTIAL = partially verified.
@@ -11,7 +11,7 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 
 | # | Gate | Implementation | Live/acceptance evidence | Result |
 |---|------|----------------|--------------------------|--------|
-| G1 | Main CI green on release commit | CI workflow complete | Run #612 (`38219830664`) passed all jobs on `656781d` | PASS |
+| G1 | Main CI green on release commit | CI workflow complete | Run #624 (`38237349041`) passed all jobs on main SHA `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` | PASS |
 | G2 | Deployed commit verified separately from code | Render auto-deploy | Deployment `dep-db5s11tckfvc73b8ief0` = `2a31c00`; PR #122 adds runtime extraction hardening in `src/freellmpool/industrial.py`; latest confirmed deployment remains `2a31c00`, so deploy state must be checked separately | PASS |
 | G3 | Migration chain valid | Alembic chain + `p9meta001` index alignment | `postgres-migrations` CI job green (clean PostgreSQL 16, `upgrade head` + `check`) | PASS |
 | G4 | Live schema baseline established | N/A (live-state gate) | Requires owner laptop + allowlisted connection; no live `alembic_version` verified | BLOCKED (P1-DB-01) |
@@ -31,6 +31,8 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | G18 | Pilot onboarding package | Partial docs exist | Quickstart/sample RFQ/example report missing | PARTIAL (P7-OPS-02) |
 | G19 | Incident & support procedure | Feedback triage classified | Contact procedure needs owner input | PARTIAL (P7-OPS-03) |
 | G20 | Backup/restore runbook matches tooling | `docs/DB_BACKUP_RUNBOOK.md` | PR #117 runbook matches script parameters; Run #598 passed | PASS (documentation/code consistency; live recovery still unverified) |
+
+| G21 | Logging/secrets/error handling (repository-level) | Rejected provider URLs are not logged verbatim; reconciliation failure records omit raw exception messages | PR #129 code/test revision `06fd634a448de3b23c4fe5e82ef68c93f605cc8f`; Run #631 passed all five jobs. No hosted log review or live failure injection was performed | PASS (repository tests); hosted NOT VERIFIED |
 
 ## Commercial-production gates (additional)
 

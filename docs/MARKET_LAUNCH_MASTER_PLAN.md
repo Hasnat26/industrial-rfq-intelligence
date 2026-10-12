@@ -18,13 +18,10 @@ production.
 
 ## Verified baseline (2026-10-12)
 
-- `main` HEAD: `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
-- Main CI Run #612 (`38219830664`) SUCCESS on `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
-- PRs #116–#122 are merged except PR #119 (closed, superseded). P5-SEC-01 is implemented and CI-verified at PR head; main CI Run #612 is also green. Issues are disabled in repository settings.
-- Deployed Render commit: `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
-  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). The later commits since deployed SHA `2a31c00` (`c2d21a6`, `f0cfea8`,
-  `9720631`, `2f26234`, `41fc290`, `57b6300`) touch docs, backup scripts,
-  tests and CI; PR #122 also changes runtime extraction in `src/freellmpool/industrial.py`. Latest confirmed Render deployment remains `2a31c00`, so deployment of the new runtime code is not yet verified.
+- `main` HEAD: `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
+- Main CI Run #624 (`38237349041`) SUCCESS on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38237349041>.
+- PR #119 is closed/superseded; PR #124 is listed open, and PRs #128 and #129 remain open/unmerged. PR #128 is independent of P5-SEC-04 and was not modified. P5-SEC-01 remains CI-verified. P5-SEC-04 has repository-level fixes and synthetic regression tests in PR #129; code/test Run #631 passed all five jobs. Hosted validation remains NOT VERIFIED. Issues are disabled in repository settings.
+- Last recorded Render deployment: `2a31c006a6e7e3174c6375c6f5226cb3430f373c` (deployment `dep-db5s11tckfvc73b8ief0`, recorded live 2026-10-11). Current hosted deployment was not re-verified during P5-SEC-04; do not infer deployment of PR #129 from CI.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
 
@@ -235,10 +232,17 @@ restore connection + live server identity guard
   exceptions validated by `scripts/security_exceptions.py`).
 
 ### P5-SEC-04 — Logging/secrets/error-handling review
-- Priority: P1. Status: **NOT VERIFIED** (no dedicated audit this cycle).
-- Action: confirm no secrets or tenant data leak into logs; confirm webhook
-  and database errors fail closed without internal detail exposure.
-- Autonomy: autonomous.
+- Priority: P1. Status: **PASS (repository-level)** — PR #129 code/test revision
+  `06fd634a448de3b23c4fe5e82ef68c93f605cc8f`, CI Run #631
+  (`38261693474`) passed all five jobs.
+- Findings corrected: rejected provider URLs are no longer written to warning
+  logs; reconciliation failures persist only the exception class rather than
+  raw exception text. Deterministic synthetic regressions cover both paths.
+- Boundary: no hosted log inspection, live production exception injection,
+  provider calls, production database operations, or deployment were performed.
+  Hosted security validation remains **NOT VERIFIED**.
+- Next: independent human review of PR #129; do not merge without explicit
+  authorization.
 
 ---
 

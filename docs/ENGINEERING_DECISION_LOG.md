@@ -6,6 +6,19 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-020 — P5-SEC-04 logging/secrets/error-handling fixes (2026-10-12)
+
+- **Decision:** never log a rejected provider URL verbatim, because URL userinfo
+  can contain credentials; never persist raw reconciliation exception messages
+  into records returned by internal reconciliation endpoints.
+- **Evidence:** PR #129 code/test revision
+  `06fd634a448de3b23c4fe5e82ef68c93f605cc8f`; CI Run #631
+  (`38261693474`) passed all five jobs. Synthetic regressions use fake
+  credentials and a fake database session.
+- **Boundary:** repository-level evidence only. No hosted log inspection,
+  production exception injection, provider calls, production DB operations,
+  or deployment were performed. Hosted validation remains NOT VERIFIED.
+
 ## D-019 — Main CI Run #612 completed for PR #122 merge (2026-10-12)
 
 - **Decision:** use the exact merge-commit workflow run as validation, separate from PR-head CI.
