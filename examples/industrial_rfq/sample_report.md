@@ -6,7 +6,7 @@
 - Vendors checked: **2**
 - Deviations: **1**
 - Unverified fields: **0**
-- Claims requiring review: **0**
+- Claims requiring review: **1**
 
 This report is an evidence-aware engineering review. It does not select a supplier or make an autonomous procurement decision.
 

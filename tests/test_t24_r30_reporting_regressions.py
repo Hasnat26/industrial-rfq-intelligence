@@ -99,3 +99,66 @@ def test_markdown_cell_escapes_literal_pipes_and_newlines() -> None:
     assert r"quote p.2 \| table A<br>continued evidence" in rendered
     row = next(line for line in rendered.splitlines() if line.startswith("| R-01 | Vendor X |"))
     assert _unescaped_pipe_cells(row) == 7
+
+
+def test_sample_verified_deviation_counts_as_one_review_obligation() -> None:
+    """A supported quotation claim can still require review when it deviates."""
+    root = Path(__file__).resolve().parents[1]
+    fixture = root / "examples" / "industrial_rfq" / "sample_input.json"
+    requirements, vendor_data, commercial_data = load_rfq_input(fixture)
+    report = build_report(requirements, vendor_data, commercial_data)
+
+    deviation = next(
+        row for row in report["matrix"]
+        if row["vendor"] == "Vendor B" and row["parameter"] == "Efficiency class"
+    )
+    evidence = next(
+        row for row in report["evidence_register"]
+        if row["source_type"] == "technical_quotation"
+        and row["vendor"] == "Vendor B"
+        and row["field"] == "Efficiency class"
+    )
+    action = next(
+        row for row in report["review_actions"]
+        if row["vendor"] == "Vendor B" and row["parameter"] == "Efficiency class"
+    )
+
+    assert deviation["status"] == "DEVIATION"
+    assert deviation["claim_status"] == "VERIFIED"
+    assert evidence["claim_status"] == "VERIFIED"
+    assert evidence["review_required"] == "NO"
+    assert action["status"] == "DEVIATION"
+    assert action["claim_status"] == "VERIFIED"
+    assert action["source"] == "Vendor quotation"
+    assert action["page"] == "2"
+    assert report["summary"]["claims_requiring_review"] == 1
+    assert len(report["review_actions"]) == 1
+
+
+def test_technical_matrix_and_evidence_review_are_deduplicated_and_commercial_review_is_counted() -> None:
+    from freellmpool.industrial import CommercialValue, Requirement, VendorValue
+
+    report = build_report(
+        [Requirement("R-01", "Efficiency class", "IE3")],
+        [VendorValue("Vendor X", "Efficiency class", "IE2", "Vendor X quotation p.2", "UNVERIFIED")],
+        [
+            CommercialValue(
+                "Vendor X", "9000", "USD", "14 weeks", "6 months",
+                "100% advance", "Vendor X commercial quotation p.3", "UNVERIFIED"
+            )
+        ],
+    )
+
+    technical_entry = next(
+        row for row in report["evidence_register"]
+        if row["source_type"] == "technical_quotation"
+    )
+    commercial_entry = next(
+        row for row in report["evidence_register"]
+        if row["source_type"] == "commercial_quotation"
+    )
+    assert technical_entry["review_required"] == "YES"
+    assert commercial_entry["review_required"] == "YES"
+    # The technical matrix and its evidence-register entry represent one claim;
+    # the separate commercial review obligation remains independently counted.
+    assert report["summary"]["claims_requiring_review"] == 2
