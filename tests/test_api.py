@@ -546,6 +546,119 @@ def test_vendor_offer_revision() -> None:
     assert rows[0]["status"] == "COMPLIANT"
 
 
+def test_legacy_offer_revision_preserves_commercial_fields() -> None:
+    """A legacy revision must not silently drop the vendor's commercial terms."""
+    organization = client.post("/organizations", json={"name": "Org Legacy Rev"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Legacy Rev Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
+        },
+    ).json()
+
+    # Offer with the full commercial terms.
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={
+            "vendor_name": "Vendor Legacy",
+            "technical_revision": "R1",
+            "price": "10000",
+            "currency": "USD",
+            "lead_time": "10 weeks",
+            "warranty": "24 months",
+        },
+    ).json()
+    assert client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    # Offer without any commercial terms (all optional).
+    bare = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Bare", "technical_revision": "R1"},
+    ).json()
+    assert client.post(
+        f"/offers/{bare['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    created = revision.json()
+    assert created["parent_offer_id"] == offer["id"]
+    assert created["price"] == "10000"
+    assert created["currency"] == "USD"
+    assert created["lead_time"] == "10 weeks"
+    assert created["warranty"] == "24 months"
+
+    bare_revision = client.post(
+        f"/offers/{bare['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert bare_revision.status_code == 201
+    # Absent optional fields stay absent; nothing is fabricated.
+    assert bare_revision.json()["price"] is None
+    assert bare_revision.json()["currency"] is None
+    assert bare_revision.json()["lead_time"] is None
+    assert bare_revision.json()["warranty"] is None
+
+    # The superseded original is unchanged and traceable.
+    offers = client.get(f"/packages/{package['id']}/offers").json()
+    by_id = {item["id"]: item for item in offers}
+    assert by_id[offer["id"]]["price"] == "10000"
+    assert by_id[offer["id"]]["currency"] == "USD"
+    assert by_id[offer["id"]]["lead_time"] == "10 weeks"
+    assert by_id[offer["id"]]["warranty"] == "24 months"
+    assert by_id[created["id"]]["parent_offer_id"] == offer["id"]
+
+    # The preserved terms survive into the commercial comparison for the active
+    # (leaf) revision after it is technically accepted and the gate opens.
+    assert client.post(
+        f"/offers/{created['id']}/technical-status", json={"status": "ACCEPTED"}
+    ).status_code == 200
+    assert client.post(
+        f"/offers/{bare_revision.json()['id']}/technical-status",
+        json={"status": "ACCEPTED"},
+    ).status_code == 200
+    assert client.post(f"/packages/{package['id']}/commercial-open").status_code == 200
+    commercial = client.get(f"/packages/{package['id']}/commercial-comparison")
+    assert commercial.status_code == 200
+    rows = {row["offer_id"]: row for row in commercial.json()["rows"]}
+    assert rows[created["id"]]["price"] == "10000"
+    assert rows[created["id"]]["currency"] == "USD"
+    assert rows[created["id"]]["lead_time"] == "10 weeks"
+    assert rows[created["id"]]["warranty"] == "24 months"
+    assert rows[bare_revision.json()["id"]]["price"] is None
+
+
 def _seed_package(mode: str = "STANDARD") -> dict:
     organization = client.post(
         "/organizations", json={"name": f"Org Batch {os.urandom(4).hex()}"}
