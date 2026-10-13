@@ -76,6 +76,33 @@ def test_image_input_uses_ocr_fallback_when_markitdown_is_sparse(
     assert "Motor power: 75 kW" in result.markdown
 
 
+def test_empty_normalized_rfq_is_rejected_before_model_call(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from freellmpool.industrial import extract_rfq_documents_with_llm
+
+    rfq = tmp_path / "empty-rfq.pdf"
+    quote = tmp_path / "quote.pdf"
+
+    def normalize(path: str | Path, **kwargs: object) -> NormalizedDocument:
+        if Path(path).name == "empty-rfq.pdf":
+            return NormalizedDocument(str(path), "", 1)
+        return NormalizedDocument(str(path), "Rated voltage: 415 V", 1)
+
+    class Pool:
+        def ask(self, prompt: str) -> object:
+            raise AssertionError("the model must not be called for an empty RFQ")
+
+    monkeypatch.setattr(
+        "freellmpool.document_normalizer.normalize_document", normalize
+    )
+
+    with pytest.raises(ValueError, match="RFQ document is empty"):
+        extract_rfq_documents_with_llm(
+            Pool(), rfq, [{"vendor": "Vendor A", "path": quote}]
+        )
+
+
 def test_markitdown_is_canonical_for_local_rfq_llm_ingestion(tmp_path: Path) -> None:
     from freellmpool.industrial import extract_rfq_documents_with_llm
 
