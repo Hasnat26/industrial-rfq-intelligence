@@ -847,12 +847,13 @@ def build_report(
     unverified = [row for row in matrix if row["status"] == "UNVERIFIED"]
     vendors = tuple(dict.fromkeys(item.vendor for item in values))
 
-    # Count unique reviewable claims across the matrix and evidence register.
-    # Matrix rows add missing fields and combined contradictions that cannot be
-    # represented as a single non-VERIFIED source claim in the evidence register.
+    # Count unique claims that require attention across the matrix and evidence register.
+    # Every row surfaced in review_actions must contribute, including VERIFIED claims
+    # whose offered value deviates from the requirement. Matrix keys also capture
+    # missing fields and combined contradictions that may not exist as source claims.
     review_keys: set[tuple[str, str, str]] = set()
     for row in matrix:
-        if row["status"] == "UNVERIFIED" or row["claim_status"] != "VERIFIED":
+        if row["status"] in {"DEVIATION", "UNVERIFIED"} or row["claim_status"] != "VERIFIED":
             review_keys.add(("technical_quotation", row["vendor"].casefold(), _normalise_parameter(row["parameter"])))
     for row in evidence_register:
         if row["review_required"] != "YES":

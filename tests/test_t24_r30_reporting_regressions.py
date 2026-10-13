@@ -35,10 +35,27 @@ def test_original_fixture_missing_and_conflicting_claims_are_actionable() -> Non
     actions = report["review_actions"]
     action_keys = {(row["vendor"], row["parameter"], row["status"]) for row in actions}
 
-    assert summary["claims_requiring_review"] == 2
+    # Two verified deviations and two unverified/contradictory obligations are
+    # surfaced for engineering review; the summary must count all four uniquely.
+    assert summary["claims_requiring_review"] == 4
     assert summary["unverified_fields"] == 2
-    assert ("Vendor B", "VFD overload rating", "UNVERIFIED") in action_keys
-    assert ("Vendor C", "Efficiency class", "UNVERIFIED") in action_keys
+    assert action_keys == {
+        ("Vendor B", "Efficiency class", "DEVIATION"),
+        ("Vendor B", "VFD overload rating", "UNVERIFIED"),
+        ("Vendor C", "Efficiency class", "UNVERIFIED"),
+        ("Vendor C", "VFD overload rating", "DEVIATION"),
+    }
+
+    b_efficiency = next(row for row in actions if row["vendor"] == "Vendor B" and row["parameter"] == "Efficiency class")
+    assert b_efficiency["claim_status"] == "VERIFIED"
+    assert b_efficiency["source"] == "Vendor B quotation"
+    assert b_efficiency["page"] == "2"
+    assert b_efficiency["section"] == "Technical Datasheet"
+
+    c_vfd = next(row for row in actions if row["vendor"] == "Vendor C" and row["parameter"] == "VFD overload rating")
+    assert c_vfd["claim_status"] == "VERIFIED"
+    assert c_vfd["source"] == "Vendor C quotation"
+    assert c_vfd["page"] == "2"
 
     missing = next(row for row in actions if row["vendor"] == "Vendor B" and row["parameter"] == "VFD overload rating")
     conflict = next(row for row in actions if row["vendor"] == "Vendor C" and row["parameter"] == "Efficiency class")
@@ -47,7 +64,7 @@ def test_original_fixture_missing_and_conflicting_claims_are_actionable() -> Non
     assert conflict["requirement"]
     assert conflict["claim_status"] == "CONTRADICTED"
     assert conflict["source"] == "Vendor C quotation"
-    assert "2" in conflict["page"]
+    assert conflict["page"] == "2"
 
 
 def test_markdown_tables_have_consistent_cells_for_original_fixture() -> None:

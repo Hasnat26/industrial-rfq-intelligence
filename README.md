@@ -80,6 +80,10 @@ If multiple quotation claims for the same vendor/parameter materially conflict, 
 
 For document-based extraction, source and page markers are preserved so an extracted vendor value can be traced back to the originating document page.
 
+### Review obligation accounting
+
+`summary.claims_requiring_review` counts unique claims flagged for attention by either the technical matrix or the evidence register. Every matrix row surfaced in `review_actions` contributes, including a `VERIFIED` claim whose offered value is a `DEVIATION` from the requirement. Missing fields and combined contradictory claims are counted from the matrix; evidence-register entries marked `review_required == YES` are also counted, with technical claims deduplicated by vendor and normalized field. The metric therefore is not limited to unverified evidence and may exceed the number of technical `review_actions` when commercial evidence-register claims also require review.
+
 ## Example
 
 The included sample demonstrates a two-vendor motor evaluation.
