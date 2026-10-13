@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from freellmpool.industrial import build_report, load_rfq_input
@@ -22,6 +23,8 @@ def _unescaped_pipe_cells(line: str) -> int:
 
 def _original_fixture_report():
     fixture = Path(__file__).parent / "fixtures" / "t24_r30_original_rfq.json"
+    expected_sha256 = "4391ace61123e12f766ac8633d1860026e7a173cd9c5de47a38b7ea352a9930e"
+    assert hashlib.sha256(fixture.read_bytes()).hexdigest() == expected_sha256
     requirements, vendor_data, commercial_data = load_rfq_input(fixture)
     return build_report(requirements, vendor_data, commercial_data)
 
