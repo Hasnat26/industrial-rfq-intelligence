@@ -2,36 +2,27 @@
 
 ## Repository merge controls
 
-The repository-level workflows are only gates when GitHub requires their
-results. The live `main` protection must retain the existing CI contexts and
-also require these GitHub Actions check contexts:
+Security workflow definitions and GitHub-enforced merge requirements are separate things. The workflows currently define these jobs:
 
-- `High-severity Python source audit`
-- `Python dependency audit`
-- `GitHub Actions audit`
-- `Container vulnerability audit`
-- `Analyze Python`
+- `.github/workflows/security.yml`: `High-severity Python source audit`, `Python dependency audit`, `GitHub Actions audit`, and `Container vulnerability audit`.
+- `.github/workflows/codeql.yml`: `Analyze Python`.
+- `.github/workflows/ci.yml`: the `Security gate` step runs Bandit, pip-audit, and zizmor as part of the `industrial` matrix job. It also builds and smoke-tests the SaaS container; that is not the same as the Trivy container vulnerability audit.
 
-The repository also has active ruleset `19967943`, named `CodeQL high-severity
-merge protection`. It targets the default branch, requires the `CodeQL` tool,
-uses `high_or_higher` for security alerts, and uses `errors` for non-security
-alerts. There are no bypass actors.
+The workflow files trigger on pull requests targeting `main`, but a workflow or job existing in the repository does not by itself make it a mandatory merge check. Before relying on a required status check or CodeQL ruleset, verify the effective GitHub settings for this repository. This document does not assert that any particular context is required or that a particular ruleset ID is active; those settings must be confirmed from live repository policy.
 
-Administrators can verify the live controls without changing them:
+Administrators can inspect the repository's current controls without changing them:
 
 ```bash
-gh api repos/0xzr/freellmpool/branches/main/protection/required_status_checks \
+REPO=Hasnat26/industrial-rfq-intelligence
+
+gh api "repos/$REPO/branches/main/protection/required_status_checks" \
   --jq '{strict, contexts}'
-gh api repos/0xzr/freellmpool/rulesets \
-  --jq '.[] | select(.name == "CodeQL high-severity merge protection") | .id'
-gh api repos/0xzr/freellmpool/rules/branches/main
+gh api "repos/$REPO/rulesets" \
+  --jq '.[] | {id, name, target, enforcement, source}'
+gh api "repos/$REPO/rules/branches/main"
 ```
 
-After changing workflow job names, update branch protection in the same pull
-request and verify the exact PR head reports every replacement context before
-merging. Never remove an existing required context merely to unblock a merge.
-The CodeQL ruleset should remain active; use GitHub's code-scanning dismissal
-workflow with a linked issue for reviewed false positives.
+These commands must be run with an identity authorized to read the relevant settings. An authorization error or an empty result is not proof that all other applicable restrictions are absent. Compare required context names with the check runs for the exact pull-request head. After changing workflow job names, update any verified required-check configuration through the approved repository governance process; never remove a required context merely to unblock a merge. Review CodeQL alerts using the applicable GitHub code-scanning workflow and record the rationale for any reviewed false positives.
 
 ## Runtime security boundaries
 
