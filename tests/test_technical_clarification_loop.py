@@ -549,3 +549,97 @@ def test_technical_deviation_lifecycle_is_audited() -> None:
     ]
     assert all(item["offer_id"] == offer["id"] for item in events)
     assert all(item["actor_user_id"] is not None for item in events)
+
+
+def test_revision_cannot_orphan_open_issues_across_the_chain() -> None:
+    """A technical revision must not bypass issue gates via its parent offer.
+
+    Open clarifications/deviations on the parent must keep blocking the
+    technical lock, keep counting in the workflow gate, and keep deduplicating
+    clarification requests on the new leaf — until they are actually closed.
+    """
+    package = _package()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor A", "technical_revision": "R1"},
+    ).json()
+    assert client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    # Auto-created gap clarification (Motor power) stays OPEN on R1.
+    requested = client.post(f"/offers/{offer['id']}/technical-clarification-request")
+    assert requested.status_code == 201
+    assert len(requested.json()["clarification_ids"]) == 1
+    clarification_id = requested.json()["clarification_ids"][0]
+
+    # An open deviation also lives on R1.
+    deviation = client.post(
+        f"/offers/{offer['id']}/deviations",
+        json={
+            "parameter": "Motor power",
+            "severity": "MAJOR",
+            "description": "Quotation lists 55 kW.",
+            "status": "OPEN",
+        },
+    )
+    assert deviation.status_code == 201
+
+    # Vendor resubmits R2 restating only the voltage parameter.
+    resubmission = client.post(
+        f"/offers/{offer['id']}/technical-resubmission",
+        data={"technical_revision": "R2"},
+        files={
+            "file": ("VendorA_R2.txt", b"Rated voltage: 415 V\n", "text/plain")
+        },
+    )
+    assert resubmission.status_code == 201
+    leaf = resubmission.json()
+
+    # The workflow gate still sees the chain's open issues after the revision.
+    workflow = client.get(f"/packages/{package['id']}/workflow")
+    assert workflow.status_code == 200
+    assert workflow.json()["open_clarification_count"] == 1
+    assert workflow.json()["open_deviation_count"] == 1
+
+    # Re-requesting on the leaf must not duplicate the parent's open question.
+    rerequest = client.post(f"/offers/{leaf['id']}/technical-clarification-request")
+    assert rerequest.status_code == 201
+    assert rerequest.json()["clarification_ids"] == []
+    assert len(client.get(f"/offers/{offer['id']}/clarifications").json()) == 1
+    assert len(client.get(f"/offers/{leaf['id']}/clarifications").json()) == 0
+
+    # A technically accepted leaf must still not lock while the chain is open.
+    assert client.post(
+        f"/offers/{leaf['id']}/technical-status", json={"status": "ACCEPTED"}
+    ).status_code == 200
+    blocked = client.post(f"/packages/{package['id']}/technical-lock")
+    assert blocked.status_code == 409
+    assert "unresolved technical issue" in blocked.json()["detail"]
+    assert "Vendor A" in blocked.json()["detail"]
+
+    # Answering/closing the parent's issues unblocks the lock: no deadlock.
+    answered = client.post(
+        f"/clarifications/{clarification_id}/answer",
+        json={"response": "Motor power is 75 kW per the revised offer."},
+    )
+    assert answered.status_code == 200
+    closed = client.post(
+        f"/clarifications/{clarification_id}/close",
+        json={"note": "Chain issue reviewed against the revision."},
+    )
+    assert closed.status_code == 200
+    resolved = client.post(
+        f"/deviations/{deviation.json()['id']}/resolve",
+        json={"note": "Confirmed 75 kW in the revision."},
+    )
+    assert resolved.status_code == 200
+
+    assert client.post(f"/packages/{package['id']}/technical-lock").status_code == 200
+    assert client.get(f"/packages/{package['id']}/workflow").status_code == 409

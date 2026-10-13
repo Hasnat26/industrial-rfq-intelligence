@@ -1423,6 +1423,24 @@ def add_claim(
     return claim
 
 
+def _offer_chain(offer: VendorOffer) -> list[VendorOffer]:
+    """The offer plus its ancestors, oldest first.
+
+    Issues (clarifications/deviations) and gate obligations follow the vendor's
+    revision chain: a technical revision must never orphan open issues that
+    live on a parent offer.
+    """
+    chain: list[VendorOffer] = []
+    seen: set[int] = set()
+    current: VendorOffer | None = offer
+    while current is not None and current.id not in seen:
+        seen.add(current.id)
+        chain.append(current)
+        current = current.parent_offer
+    chain.reverse()
+    return chain
+
+
 @app.get(
     "/offers/{offer_id}/technical-clarification-package",
     response_model=TechnicalClarificationPackageRead,
@@ -1452,7 +1470,15 @@ def preview_technical_clarification(
         vendor=package.vendor,
         technical_revision=package.technical_revision,
         clarification_ids=[
-            item.id for item in sorted(offer.clarifications, key=lambda item: item.id)
+            item.id
+            for item in sorted(
+                (
+                    clarification
+                    for ancestor in _offer_chain(offer)
+                    for clarification in ancestor.clarifications
+                ),
+                key=lambda item: item.id,
+            )
             if item.status != "CLOSED"
         ],
         gaps=[
@@ -1505,7 +1531,12 @@ def create_technical_clarification_request(
     package = build_technical_clarification_package(offer.vendor_name, offer.technical_revision, rows)
     if not package.gaps:
         raise HTTPException(status_code=409, detail="no technical clarification is required for this offer")
-    existing = {item.question.strip() for item in offer.clarifications if item.status != "CLOSED"}
+    existing = {
+        item.question.strip()
+        for ancestor in _offer_chain(offer)
+        for item in ancestor.clarifications
+        if item.status != "CLOSED"
+    }
     clarification_ids: list[int] = []
     for gap in package.gaps:
         if gap.request in existing:
@@ -1955,10 +1986,16 @@ def package_workflow(
         offer_count=len(active_offers),
         technical_status_counts=status_counts,
         open_deviation_count=sum(
-            item.status == "OPEN" for offer in active_offers for item in offer.deviations
+            item.status == "OPEN"
+            for offer in active_offers
+            for ancestor in _offer_chain(offer)
+            for item in ancestor.deviations
         ),
         open_clarification_count=sum(
-            item.status == "OPEN" for offer in active_offers for item in offer.clarifications
+            item.status == "OPEN"
+            for offer in active_offers
+            for ancestor in _offer_chain(offer)
+            for item in ancestor.clarifications
         ),
     )
 
@@ -2037,8 +2074,16 @@ def lock_technical_bid(
     unresolved = [
         f"{offer.vendor_name}: unresolved technical issue"
         for offer in active_offers
-        if any(item.status != "RESOLVED" for item in offer.deviations)
-        or any(item.status != "CLOSED" for item in offer.clarifications)
+        if any(
+            item.status != "RESOLVED"
+            for ancestor in _offer_chain(offer)
+            for item in ancestor.deviations
+        )
+        or any(
+            item.status != "CLOSED"
+            for ancestor in _offer_chain(offer)
+            for item in ancestor.clarifications
+        )
     ]
     if unresolved:
         raise HTTPException(
