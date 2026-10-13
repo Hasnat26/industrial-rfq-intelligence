@@ -139,7 +139,12 @@ def normalize_document(
             page_path = Path(temp_dir) / f"page-{number}.pdf"
             with page_path.open("wb") as handle:
                 writer.write(handle)
-            markdown = converter.convert(str(page_path)).markdown
+            try:
+                markdown = converter.convert(str(page_path)).markdown
+            except Exception as exc:
+                raise ValueError(
+                    f"MarkItDown conversion failed for PDF page {number} of '{document}'"
+                ) from exc
             if not isinstance(markdown, str):
                 raise ValueError(f"MarkItDown returned no Markdown for PDF page {number}")
             content = markdown.strip()
