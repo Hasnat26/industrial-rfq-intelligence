@@ -6,14 +6,14 @@
 - Vendors checked: **2**
 - Deviations: **1**
 - Unverified fields: **0**
-- Claims requiring review: **0**
+- Claims requiring review: **1**
 
 This report is an evidence-aware engineering review. It does not select a supplier or make an autonomous procurement decision.
 
 ## Technical compliance matrix
 
 | Requirement | Vendor | Parameter | Required | Offered | Status | Evidence |
-|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | R-01 | Vendor A | Rated voltage | 415 V | 0.415 kV | COMPLIANT | Quotation p.1 |
 | R-02 | Vendor A | Motor power | 75 kW | 75 kW | COMPLIANT | Quotation p.1 |
 | R-03 | Vendor A | Efficiency class | IE3 | IE3 | COMPLIANT | Quotation p.2 |
