@@ -201,8 +201,6 @@ def test_unauthenticated_requests_rejected() -> None:
         "WWW-Authenticate"
     ) is not None
 
-
-
 def test_product_category_detail_requires_auth_and_handles_lookup_boundaries() -> None:
     """The shared category catalogue is authenticated, not tenant-owned data."""
     anonymous = client.get("/product-categories/MOTOR")
@@ -218,8 +216,6 @@ def test_product_category_detail_requires_auth_and_handles_lookup_boundaries() -
     missing = client.get("/product-categories/UNKNOWN", headers=headers)
     assert missing.status_code == 404
     assert missing.json()["detail"] == "product category not found"
-
-
 
 def test_invalid_bearer_token_rejected() -> None:
     forged = {"Authorization": "Bearer not-a-real-token"}
