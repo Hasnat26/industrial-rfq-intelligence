@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from freellmpool.document_normalizer import NormalizedDocument, normalize_document
 
 
@@ -76,6 +78,33 @@ def test_image_input_uses_ocr_fallback_when_markitdown_is_sparse(
     assert "Motor power: 75 kW" in result.markdown
 
 
+def test_empty_normalized_rfq_is_rejected_before_model_call(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from freellmpool.industrial import extract_rfq_documents_with_llm
+
+    rfq = tmp_path / "empty-rfq.pdf"
+    quote = tmp_path / "quote.pdf"
+
+    def normalize(path: str | Path, **kwargs: object) -> NormalizedDocument:
+        if Path(path).name == "empty-rfq.pdf":
+            return NormalizedDocument(str(path), "", 1)
+        return NormalizedDocument(str(path), "Rated voltage: 415 V", 1)
+
+    class Pool:
+        def ask(self, prompt: str) -> object:
+            raise AssertionError("the model must not be called for an empty RFQ")
+
+    monkeypatch.setattr(
+        "freellmpool.document_normalizer.normalize_document", normalize
+    )
+
+    with pytest.raises(ValueError, match="RFQ document is empty"):
+        extract_rfq_documents_with_llm(
+            Pool(), rfq, [{"vendor": "Vendor A", "path": quote}]
+        )
+
+
 def test_markitdown_is_canonical_for_local_rfq_llm_ingestion(tmp_path: Path) -> None:
     from freellmpool.industrial import extract_rfq_documents_with_llm
 
@@ -111,3 +140,113 @@ def test_markitdown_is_canonical_for_local_rfq_llm_ingestion(tmp_path: Path) -> 
     assert commercial == []
     assert "[SOURCE:" in pool.prompt
     assert "Rated voltage: 415 V" in pool.prompt
+
+
+@pytest.mark.parametrize(
+    ("source_name", "expected_fragments"),
+    [
+        (
+            "rfq_specification.md",
+            (
+                "SYN-RFQ-415V-001",
+                "Northbridge Process Systems",
+                "R-01",
+                "415 V AC, three-phase, 50 Hz",
+                "R-02",
+                "75 kW",
+                "R-03",
+                "IE3",
+                "R-04",
+                "IP55 minimum",
+                "Q-A-03",
+                "Q-B-03",
+            ),
+        ),
+        (
+            "quotation_asterion_motor_works.md",
+            (
+                "Asterion Motor Works",
+                "Q-A-001",
+                "SYN-RFQ-415V-001",
+                "Q-A-03",
+                "IE3",
+                "USD 10,000",
+                "8 weeks",
+                "24 months",
+                "30% advance, 70% before shipment",
+            ),
+        ),
+        (
+            "quotation_bluehaven_electromechanical.md",
+            (
+                "Bluehaven Electromechanical",
+                "Q-B-001",
+                "SYN-RFQ-415V-001",
+                "Q-B-03",
+                "IE2",
+                "IE3",
+                "USD 9,200",
+                "12 weeks",
+                "12 months",
+                "50% advance, 50% before shipment",
+            ),
+        ),
+    ],
+)
+def test_synthetic_rfq_source_documents_normalize_with_content_fidelity(
+    source_name: str, expected_fragments: tuple[str, ...]
+) -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    source = (
+        repository_root
+        / "examples"
+        / "industrial_rfq"
+        / "source_documents"
+        / source_name
+    )
+
+    result = normalize_document(source)
+
+    assert isinstance(result, NormalizedDocument)
+    assert result.source == str(source)
+    assert result.page_count == 1
+    assert result.markdown.strip()
+    for fragment in expected_fragments:
+        assert fragment in result.markdown
+
+
+def test_malformed_pdf_fails_with_actionable_error(tmp_path: Path) -> None:
+    source = tmp_path / "malformed.pdf"
+    source.write_bytes(b"not a PDF document")
+
+    with pytest.raises(ValueError, match="cannot read PDF:"):
+        normalize_document(source)
+
+
+def test_pdf_page_parser_failure_is_normalized_and_does_not_leak_parser_text(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pypdf import PdfWriter
+
+    source = tmp_path / "parser-failure.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    with source.open("wb") as handle:
+        writer.write(handle)
+
+    class FailingConverter:
+        def convert(self, path: str) -> object:
+            raise RuntimeError("parser sentinel with internal detail")
+
+    monkeypatch.setattr(
+        "freellmpool.document_normalizer._markitdown",
+        lambda: FailingConverter(),
+    )
+
+    with pytest.raises(
+        ValueError, match="MarkItDown conversion failed for PDF page 1"
+    ) as error:
+        normalize_document(source, ocr_fallback=False)
+
+    assert "parser sentinel" not in str(error.value)
+    assert isinstance(error.value.__cause__, RuntimeError)
