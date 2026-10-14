@@ -13,9 +13,15 @@ The repository currently defines these GitHub Actions workflows:
   smoke, and wheel/source-distribution smoke tests.
 - `.github/workflows/security.yml` — high-severity Bandit source audit,
   Python dependency audit, GitHub Actions workflow audit with zizmor, Trivy
-  container vulnerability audit, and security regression tests.
+  container vulnerability audit, and security regression tests. It defines
+  these jobs: `High-severity Python source audit`, `Python dependency audit`,
+  `GitHub Actions audit`, and `Container vulnerability audit`.
 - `.github/workflows/codeql.yml` — CodeQL security-extended analysis for
-  Python.
+  Python, via the `Analyze Python` job.
+- `.github/workflows/ci.yml` — the `Security gate` step runs Bandit,
+  pip-audit, and zizmor as part of the `industrial` matrix job. It also builds
+  and smoke-tests the SaaS container; that is not the same as the Trivy
+  container vulnerability audit.
 
 These workflows are configured to run on pull requests targeting `main` and
 on pushes to `main` (with scheduled and manual triggers where configured).
@@ -45,14 +51,28 @@ GitHub or with an authorized CLI session before making any merge-enforcement
 claim:
 
 ```bash
-gh api repos/Hasnat26/industrial-rfq-intelligence/branches/main
-gh api repos/Hasnat26/industrial-rfq-intelligence/branches/main/protection
-gh api repos/Hasnat26/industrial-rfq-intelligence/rulesets
+REPO=Hasnat26/industrial-rfq-intelligence
+
+gh api "repos/$REPO/branches/main"
+gh api "repos/$REPO/branches/main/protection"
+gh api "repos/$REPO/branches/main/protection/required_status_checks" \
+  --jq '{strict, contexts}'
+gh api "repos/$REPO/rulesets" \
+  --jq '.[] | {id, name, target, enforcement, source}'
+gh api "repos/$REPO/rules/branches/main"
 ```
 
-If access to the protection endpoint is denied, record the result as
-**NOT VERIFIED** rather than inferring that no controls exist. Do not change
-branch protection or rulesets merely to make a pull request mergeable.
+These commands must be run with an identity authorized to read the relevant
+settings. If access to the protection endpoint is denied, record the result as
+**NOT VERIFIED** rather than inferring that no controls exist; an authorization
+error or an empty result is not proof that all other applicable restrictions
+are absent. Compare required context names with the check runs for the exact
+pull-request head. After changing workflow job names, update any verified
+required-check configuration through the approved repository governance
+process; never remove a required context merely to unblock a merge. Review
+CodeQL alerts using the applicable GitHub code-scanning workflow and record
+the rationale for any reviewed false positives. Do not change branch
+protection or rulesets merely to make a pull request mergeable.
 
 ## Review and release boundaries
 
