@@ -3,6 +3,45 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
+## Resume state (2026-10-13, combined document-normalization integration PR #144)
+
+- **Verified main commit:** `f363adc562a494de57cca58c530c99afdfba2818`
+  (clean tree; fetched and compared this session).
+- **Delivered this session:** combined integration branch
+  `integration/doc-normalization-128-140-141` at
+  `d232b35c234f92ce9158d1bb02188aca3ee163c4` — **PR #144**
+  (<https://github.com/Hasnat26/industrial-rfq-intelligence/pull/144>),
+  MERGEABLE/CLEAN. It merges, in one executable tree, PR #128 (synthetic
+  415 V RFQ pilot source package), PR #140 (controlled PDF page-parser
+  failure handling with page/document context, `__cause__` retained, no
+  parser-text leak), and PR #141 (reject empty/whitespace-only normalized
+  RFQ content via `.strip()` before any model gateway call).
+- **Integration evidence:** #128 and #141 merged cleanly; #140 produced one
+  expected conflict in `tests/test_document_normalizer.py` (both PRs append
+  tests at EOF and add `import pytest`), resolved by keeping both test blocks
+  in full with a single `import pytest` — zero assertions removed or weakened.
+  Combined validation on the exact tree: `pytest` **285 passed** (exit 0;
+  main has 280), `ruff check .` clean, and both CI mypy targets
+  (`--follow-imports=skip` industrial pair; `api` + `procurement_domain`)
+  report success. GitHub CI run `38514070550` on the exact head: **5/5 pass**
+  (Python 3.11–3.14 + postgres-migrations). This is combined-tree evidence,
+  which the per-PR CI runs could not provide.
+- **Open PRs at session end (16):** #124 (CONFLICTING, docs — owner decides),
+  #128, #130, #131, #132, #133, #134, #135, #136, #137, #138, #139, #140,
+  #141, #142, #143 (all individually MERGEABLE/CLEAN). Note #142 and #143
+  both modify `docs/SECURITY_ENFORCEMENT.md`: whichever merges second will
+  conflict; both must preserve the accurate distinction between configured
+  workflows vs executed checks, and local vs hosted evidence. Do not resolve
+  by deleting valid runtime security-boundary documentation.
+- **Not performed:** no merge to `main`, no deployment, no production or
+  database operations. Hosted security acceptance remains **NOT VERIFIED**.
+- **Exact next actions:** (1) owner authorization to merge, suggested order
+  #144 → #133 → #134 → #136 → #137 → #139 → #138 → #140/#141 (superseded by
+  #144 once merged) → #128 (superseded by #144) → docs PRs #130/#131/#132 →
+  then reconcile #142 vs #143; #124 needs conflict resolution or owner
+  closure decision. (2) Next engineering story remains hosted tenant-isolation
+  smoke (P4-AUTH-02), blocked on owner-approved production test accounts.
+
 ## Resume state (2026-10-12, PR #129 exception-boundary hardening)
 
 - **Current main commit:** `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`
