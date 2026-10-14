@@ -5,6 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 
+def _escape_markdown_cell(value: object) -> str:
+    """Escape untrusted cell text so it cannot change Markdown table shape."""
+    text = str(value)
+    text = text.replace("\\", "\\\\")
+    text = text.replace("|", "\\|")
+    return text.replace("\r\n", "<br>").replace("\r", "<br>").replace("\n", "<br>")
+
+
 def render_engineering_report(report: dict[str, Any], title: str = "Industrial RFQ Engineering Review") -> str:
     """Render a concise Markdown report without ranking vendors or making procurement decisions."""
     summary = report["summary"]
@@ -24,13 +32,11 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
         "## Technical compliance matrix",
         "",
         "| Requirement | Vendor | Parameter | Required | Offered | Status | Evidence |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|",
     ]
     for row in report["matrix"]:
-        lines.append(
-            f"| {row['requirement']} | {row['vendor']} | {row['parameter']} | "
-            f"{row['required']} | {row['offered']} | {row['status']} | {row['evidence']} |"
-        )
+        cells = [row["requirement"], row["vendor"], row["parameter"], row["required"], row["offered"], row["status"], row["evidence"]]
+        lines.append("| " + " | ".join(_escape_markdown_cell(value) for value in cells) + " |")
 
     summary_data = report.get("engineering_decision_summary", {})
     if summary_data:
@@ -50,10 +56,7 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
         ]
         for row in summary_data["vendor_profiles"]:
             lines.append(
-                f"| {row['vendor']} | {row['disposition']} | {row['technical_score']:.2f} | "
-                f"{row['evidence_coverage_pct']:.2f}% | {row['compliant_count']} | "
-                f"{row['deviation_count']} | {row['major_deviation_count']} | "
-                f"{row['conflict_count']} | {row['missing_evidence_count']} |"
+                "| " + " | ".join(_escape_markdown_cell(value) for value in [row["vendor"], row["disposition"], f"{row['technical_score']:.2f}", f"{row['evidence_coverage_pct']:.2f}%", row["compliant_count"], row["deviation_count"], row["major_deviation_count"], row["conflict_count"], row["missing_evidence_count"]]) + " |"
             )
         if summary_data["review_actions"]:
             lines += ["", "### Required engineering review actions", ""]
@@ -74,12 +77,7 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
         ]
         for row in integrated["vendor_profiles"]:
             lines.append(
-                f"| {row['vendor']} | {row['technical_score']:.2f} | {row['commercial_score']:.2f} | "
-                f"{row['integrated_score']:.2f} | {row['technical_gate']} | {row['commercial_gate']} | "
-                f"{row['disposition']} | {row['price'] if row['price'] is not None else 'MISSING'} | "
-                f"{row['currency'] or 'MISSING'} | "
-                f"{row['lead_time_weeks'] if row['lead_time_weeks'] is not None else 'MISSING'} | "
-                f"{row['warranty_months'] if row['warranty_months'] is not None else 'MISSING'} |"
+                "| " + " | ".join(_escape_markdown_cell(value) for value in [row["vendor"], f"{row['technical_score']:.2f}", f"{row['commercial_score']:.2f}", f"{row['integrated_score']:.2f}", row["technical_gate"], row["commercial_gate"], row["disposition"], row["price"] if row["price"] is not None else "MISSING", row["currency"] or "MISSING", row["lead_time_weeks"] if row["lead_time_weeks"] is not None else "MISSING", row["warranty_months"] if row["warranty_months"] is not None else "MISSING"]) + " |"
             )
         if integrated["review_actions"]:
             lines += ["", "### Integrated evaluation review actions", ""]
@@ -97,8 +95,7 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
         ]
         for row in commercial:
             lines.append(
-                f"| {row['vendor']} | {row['price']} | {row['currency']} | {row['lead_time']} | "
-                f"{row['warranty']} | {row['payment_terms']} | {row['claim_status']} | {row['evidence']} |"
+                "| " + " | ".join(_escape_markdown_cell(value) for value in [row["vendor"], row["price"], row["currency"], row["lead_time"], row["warranty"], row["payment_terms"], row["claim_status"], row["evidence"]]) + " |"
             )
 
     risk_review = report.get("commercial_risk_review", [])
@@ -115,19 +112,14 @@ def render_engineering_report(report: dict[str, Any], title: str = "Industrial R
         for row in risk_review:
             flags = ", ".join(row["flags"]) if row["flags"] else "None"
             lines.append(
-                f"| {row['vendor']} | {row['price']} | {row['currency']} | "
-                f"{row['lead_time_weeks']} | {row['warranty_months']} | "
-                f"{row['claim_status']} | {flags} | "
-                f"{'YES' if row['review_required'] else 'NO'} |"
+                "| " + " | ".join(_escape_markdown_cell(value) for value in [row["vendor"], row["price"], row["currency"], row["lead_time_weeks"], row["warranty_months"], row["claim_status"], flags, "YES" if row["review_required"] else "NO"]) + " |"
             )
 
     lines += ["", "## Evidence register", "", "| Source | Vendor | Field | Value | Claim status | Review | Evidence | Source file | Page | Section | Table | Cell |",
               "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for row in report["evidence_register"]:
-        lines.append(
-            f"| {row['source_type']} | {row['vendor']} | {row['field']} | {row['value']} | "
-            f"{row['claim_status']} | {row['review_required']} | {row['evidence']} | {row['source']} | {row['page']} | {row['section']} | {row['table']} | {row['cell']} |"
-        )
+        cells = [row["source_type"], row["vendor"], row["field"], row["value"], row["claim_status"], row["review_required"], row["evidence"], row["source"], row["page"], row["section"], row["table"], row["cell"]]
+        lines.append("| " + " | ".join(_escape_markdown_cell(value) for value in cells) + " |")
 
     actions = report.get("review_actions", [])
     lines += ["", "## Engineer review actions", ""]

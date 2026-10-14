@@ -1,0 +1,295 @@
+{
+  "schema_version": "1.0",
+  "requirements": [
+    {
+      "tag": "R-01",
+      "parameter": "Rated voltage",
+      "required": "415 V"
+    },
+    {
+      "tag": "R-02",
+      "parameter": "Motor power",
+      "required": "75 kW"
+    },
+    {
+      "tag": "R-03",
+      "parameter": "Efficiency class",
+      "required": "IE3"
+    },
+    {
+      "tag": "R-04",
+      "parameter": "Ingress protection",
+      "required": "IP55"
+    },
+    {
+      "tag": "R-05",
+      "parameter": "VFD overload rating",
+      "required": "110% for 60 seconds"
+    }
+  ],
+  "vendor_data": [
+    {
+      "vendor": "Vendor A",
+      "parameter": "Rated voltage",
+      "value": "415 V",
+      "evidence": "Vendor A quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor A quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor A",
+      "parameter": "Motor power",
+      "value": "75 kW",
+      "evidence": "Vendor A quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor A quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor A",
+      "parameter": "Efficiency class",
+      "value": "IE3",
+      "evidence": "Vendor A quotation p.2",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor A quotation",
+        "page": 2,
+        "section": "Technical Datasheet",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor A",
+      "parameter": "Ingress protection",
+      "value": "IP55",
+      "evidence": "Vendor A quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor A quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor A",
+      "parameter": "VFD overload rating",
+      "value": "110% for 60 seconds",
+      "evidence": "Vendor A quotation p.2",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor A quotation",
+        "page": 2,
+        "section": "Technical Datasheet",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor B",
+      "parameter": "Rated voltage",
+      "value": "415 V",
+      "evidence": "Vendor B quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor B quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor B",
+      "parameter": "Motor power",
+      "value": "75 kW",
+      "evidence": "Vendor B quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor B quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor B",
+      "parameter": "Efficiency class",
+      "value": "IE2",
+      "evidence": "Vendor B quotation p.2",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor B quotation",
+        "page": 2,
+        "section": "Technical Datasheet",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor B",
+      "parameter": "Ingress protection",
+      "value": "IP55",
+      "evidence": "Vendor B quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor B quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "parameter": "Rated voltage",
+      "value": "415 V",
+      "evidence": "Vendor C quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "parameter": "Motor power",
+      "value": "75 kW",
+      "evidence": "Vendor C quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "parameter": "Efficiency class",
+      "value": "IE3",
+      "evidence": "Vendor C quotation p.2",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 2,
+        "section": "Technical Datasheet",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "parameter": "Ingress protection",
+      "value": "IP55",
+      "evidence": "Vendor C quotation p.1",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 1,
+        "section": "Technical Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "parameter": "VFD overload rating",
+      "value": "120% for 60 seconds",
+      "evidence": "Vendor C quotation p.2",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 2,
+        "section": "Technical Datasheet",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "parameter": "Efficiency class",
+      "value": "IE2",
+      "evidence": "Vendor C quotation p.2",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 2,
+        "section": "Technical Datasheet",
+        "table": null,
+        "cell": null
+      }
+    }
+  ],
+  "commercial_data": [
+    {
+      "vendor": "Vendor A",
+      "price": "10000",
+      "currency": "USD",
+      "lead_time": "8 weeks",
+      "warranty": "24 months",
+      "payment_terms": "30% advance, 70% before shipment",
+      "evidence": "Vendor A quotation p.3",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor A quotation",
+        "page": 3,
+        "section": "Commercial Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor B",
+      "price": "9200",
+      "currency": "USD",
+      "lead_time": "12 weeks",
+      "warranty": "12 months",
+      "payment_terms": "50% advance, 50% before shipment",
+      "evidence": "Vendor B quotation p.3",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor B quotation",
+        "page": 3,
+        "section": "Commercial Offer",
+        "table": null,
+        "cell": null
+      }
+    },
+    {
+      "vendor": "Vendor C",
+      "price": "10600",
+      "currency": "USD",
+      "lead_time": "10 weeks",
+      "warranty": "18 months",
+      "payment_terms": "20% advance, 80% before shipment",
+      "evidence": "Vendor C quotation p.3",
+      "claim_status": "VERIFIED",
+      "provenance": {
+        "source": "Vendor C quotation",
+        "page": 3,
+        "section": "Commercial Offer",
+        "table": null,
+        "cell": null
+      }
+    }
+  ]
+}
