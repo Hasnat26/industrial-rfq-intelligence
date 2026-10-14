@@ -42,10 +42,10 @@ is active. Update this file at the end of every meaningful work cycle.
   closure decision. (2) Next engineering story remains hosted tenant-isolation
   smoke (P4-AUTH-02), blocked on owner-approved production test accounts.
 
-## Resume state (2026-10-12, PR #129 exception-boundary hardening)
+## Resume state (2026-10-13, T6 pilot end-to-end acceptance)
 
-- **Current main commit:** `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`
-- **Current main CI:** Run #624 (`38237349041`) SUCCESS for `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38237349041>.
+- **Current main commit:** `f363adc562a494de57cca58c530c99afdfba2818`
+- **Current main CI:** Run `38288890112` SUCCESS for `f363adc562a494de57cca58c530c99afdfba2818` (merge of PR #129) — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38288890112>.
 - **PR #122 validation:** Run #611 (`38219287584`) SUCCESS for PR head `4e3e0420a815c9c3eec0e662f6be24e05e231925`; merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
 
 - **Latest deployed commit (Render):**
@@ -53,11 +53,39 @@ is active. Update this file at the end of every meaningful work cycle.
   (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). PR #122 adds a runtime-code delta in `src/freellmpool/industrial.py` (prompt boundary and extraction-size limits). It is merged to main but is not yet shown as deployed; the latest confirmed Render deployment remains `2a31c006a6e7e3174c6375c6f5226cb3430f373c`.
 - **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
   `{"status":"ready","database":"ok"}`.
-- **Open PRs verified this cycle:** PR #128 remains open/unmerged at head `fe72dffcd54343530da229c26d0beb7b92ae78e8`; PR #129 remains open/unmerged, with reconciliation exception-boundary hardening and regression tests in code/test commit `179257b9777285b11f1ede73b27beef0df710793`; PR #130 remains open/unmerged at head `d9e3bd3223a75b5869a688807530af45a583092f`; PR #131 remains open/unmerged at head `aac1fb1e79d5fa0ec56e58e3b79e825e5f8a42c2`. PR #124 also appears open in GitHub; it was not modified. PRs #128, #130, and #131 were not modified, merged, or deployed.
+- **Open PRs verified 2026-10-13:** #124 (docs/runtime state), #128
+  (synthetic pilot source), #130 (pilot onboarding), #131 (hosted acceptance
+  plan), #132 (Render recovery), and **#133** (`fix/t24-r30-review-accounting-markdown`,
+  head `178ffae710a06763ca4db824e9665bb6c7122ab4`, MERGEABLE, latest CI green).
+  PR #129 merged as `f363adc562a494de57cca58c530c99afdfba2818`. None of the
+  open PRs were modified, approved, or merged this cycle; merges remain
+  owner-authorized only.
 
 - **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (standalone security workflows remain owner-dependent), P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P5-SEC-04 (repository-level fix and regression coverage CI-verified; hosted validation NOT VERIFIED), P6-BILL-01, P7-OPS-01.
-- **Last completed task ID:** T24-R9 — PR #129 reconciliation exception-boundary hardening. PR #129 code/test revision `179257b9777285b11f1ede73b27beef0df710793` passed CI Run #648 (`38277498580`), all five jobs. This is repository-level evidence only; hosted logs and live runtime failure behavior were not tested.
-- **Exact next action:** obtain independent human review for PR #129; do not merge without explicit authorization. Keep PR #128 separate and unmerged. Continue to treat live backup/restore (P2-BK-03/04), live schema baseline/expiry (P1-DB-01/04), hosted authenticated tenant-isolation smoke (P4-AUTH-02), and hosted logging/error validation as owner-dependent or NOT VERIFIED until executed with approved access.
+- **Previously completed task ID:** T24-R9 — PR #129 reconciliation
+  exception-boundary hardening (merged as `f363adc562a494de57cca58c530c99afdfba2818`).
+- **Last completed task ID:** **T6 — end-to-end pilot acceptance**, on branch
+  `story/t6-pilot-end-to-end-acceptance` (based on `f363adc5...`, local commit
+  only; not pushed). Delivers `tests/test_pilot_end_to_end.py` (wired into
+  `pyproject.toml` testpaths) and a genuine defect fix in
+  `src/freellmpool/api/app.py`: `POST /offers/{id}/technical-resubmission` now
+  carries `price`/`currency`/`lead_time`/`warranty` onto the revision offer.
+  Before the fix, any technical resubmission silently dropped the vendor's
+  commercial terms from every commercial view (no endpoint can re-enter them),
+  so a clarified vendor had no price at commercial comparison. T1-T5 were
+  reconciled against source and tests this cycle and are DONE (no code change).
+- **Exact next action:** push `story/t6-pilot-end-to-end-acceptance`, open a
+  PR, wait for green CI, and hand merge approval to the owner (do not merge
+  without explicit authorization). Keep PR #133 separate and unmerged; T6 does
+  not touch its files (`src/freellmpool/industrial.py`,
+  `industrial_report.py`, `tests/test_industrial_demo.py`,
+  `tests/test_t24_r30_reporting_regressions.py`); the only shared file is
+  `pyproject.toml`, where T6 appends to the end of `testpaths` while PR #133
+  inserts near the top, so the two edits merge cleanly. Continue to treat live
+  backup/restore (P2-BK-03/04), live schema baseline/expiry (P1-DB-01/04),
+  hosted authenticated tenant-isolation smoke (P4-AUTH-02), and hosted
+  logging/error validation as owner-dependent or NOT VERIFIED until executed
+  with approved access.
 
 - **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
   `main` plus copies in `/tmp/preserve/` contain the pre-merge local versions
@@ -67,10 +95,22 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793` passed Run #648 (`38277498580`), all five jobs. The current PR #129 head and latest exact-head CI result are tracked in the [live pull request](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [GitHub Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending; hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain open/unmerged and untouched. No production database operations or deployments were performed.
+- **Latest repository change:** main is `f363adc562a494de57cca58c530c99afdfba2818`
+  (PR #129 merge) with CI Run `38288890112` green. T6 is committed locally on
+  `story/t6-pilot-end-to-end-acceptance` and awaits push/PR/CI. PRs #124,
+  #128, #130, #131, #132, and #133 remain open/unmerged and untouched. No
+  production database operations or deployments were performed.
 
 ## Test and CI evidence
 
+- **T6 local verification (2026-10-13, workspace venv `/tmp/ffp-venv`, branch
+  `story/t6-pilot-end-to-end-acceptance` on top of `f363adc5...`):**
+  `pytest` → **281 passed in 66.84s** (bare `pytest` uses the `testpaths`
+  list, which now includes `tests/test_pilot_end_to_end.py`);
+  `ruff check .` → All checks passed;
+  `mypy src/freellmpool/api src/freellmpool/procurement_domain.py` →
+  Success, no issues in 17 files. No CI run exists for this branch because it
+  has not been pushed yet.
 - No local repository shell/test runner was available for T24-R9; GitHub Actions is the execution evidence.
 - Main CI Run #624 passed on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
 - PR #129 code/test Run #648 (`38277498580`) passed all five jobs on `179257b9777285b11f1ede73b27beef0df710793`. For the current PR head and its exact-head CI result, use the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). This is repository-level evidence only; hosted security acceptance remains NOT VERIFIED.
@@ -113,14 +153,22 @@ is active. Update this file at the end of every meaningful work cycle.
 
 ## ChatGPT continuation prompt (ready to copy)
 
-> Continue the Industrial RFQ Intelligence launch work from the repository
+> Continue the Industrial RFQ Intelligence delivery work from the repository
 > checkpoint. Verify the current main SHA, latest main CI, open PRs, and exact
-> PR heads before acting. PR #128 is the synthetic source-document pilot and
-> remains open/unmerged. PR #129 contains the P5-SEC-04 exception-boundary
-> hardening and focused failure-path tests; code/test commit `179257b9777285b11f1ede73b27beef0df710793`
-> passed CI Run #648. The current PR #129 head and latest exact-head CI result are available in the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending and hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain
-> open/unmerged; do not count their content as delivered or deployed. Do not
-> merge any PR without explicit authorization. Do not claim hosted logging/error handling, live backup/
+> PR heads before acting. Main is `f363adc562a494de57cca58c530c99afdfba2818`
+> with CI green. Stories T1-T5 (clarification read schema, clarification
+> lifecycle, revised offers/RFQ revisions, technical qualification gate,
+> commercial normalization) are reconciled as DONE against source and tests.
+> T6 (end-to-end pilot acceptance) is complete on branch
+> `story/t6-pilot-end-to-end-acceptance`: new `tests/test_pilot_end_to_end.py`
+> plus the resubmission commercial-field preservation fix in
+> `src/freellmpool/api/app.py`; local `pytest` 281 passed, `ruff` and `mypy`
+> clean; the branch is not pushed. Push it, open a PR, wait for green CI, and
+> let the owner merge. PR #133
+> (`fix/t24-r30-review-accounting-markdown`, head `178ffae710a06763ca4db824e9665bb6c7122ab4`)
+> and PRs #124/#128/#130/#131/#132 remain open/unmerged; do not count their
+> content as delivered, and do not merge any PR without explicit
+> authorization. Do not claim hosted logging/error handling, live backup/
 > restore, live database schema baseline, or hosted tenant-isolation tests
 > passed without their own execution evidence. Preserve all owner-controlled
 > safety constraints in this file.
