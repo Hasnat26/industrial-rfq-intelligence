@@ -53,32 +53,32 @@ The legacy `freellmpool` runtime modules remain in the repository only where nee
 
 The next phase is tracked as one master milestone with sequential sub-milestones. Each sub-milestone should be completed and reported before starting the next.
 
-### P3-M14 — CI execution evidence
-- [ ] Determine why GitHub Actions reports zero workflow runs.
-- [ ] Confirm workflow execution on push/PR.
-- [ ] Capture the first real green run before claiming CI success.
+### P3-M14 — CI execution evidence — DONE
+- [x] Determine why GitHub Actions reports zero workflow runs. *(Resolved: the "zero runs" observation was stale. CI executes on push/PR.)*
+- [x] Confirm workflow execution on push/PR. *(main CI Run #653 `38288890112` green on `f363adc5`; per-PR runs green.)*
+- [x] Capture the first real green run before claiming CI success. *(Run #653 — all five jobs pass: Python 3.11–3.14 + postgres-migrations.)*
 
-### P3-M15 — CI/test configuration reconciliation
-- [ ] Audit stale tests asserting deleted legacy workflows.
-- [ ] Remove, rewrite, or quarantine obsolete assertions.
-- [ ] Ensure active product validation cannot be masked by stale tests.
+### P3-M15 — CI/test configuration reconciliation — DONE
+- [x] Audit stale tests asserting deleted legacy workflows. *(Found `tests/test_supply_chain.py`: 10/25 failing, excluded from `testpaths`, asserting deleted `docker.yml`/`promote-latest.yml`/`release-evidence.yml` and the old `0xzr/freellmpool` identity.)*
+- [x] Remove, rewrite, or quarantine obsolete assertions. *(Removed the 8 dead legacy docker/release/`0xzr`-checklist assertions; ported the still-active coverage — repo-wide action commit-pinning, Dockerfile digest pinning, PR security gates, and `scripts/security_exceptions.py` fail-closed policy validation — into the collected `tests/test_security_config.py`, with the two stale `0xzr/freellmpool` issue-URL fixtures corrected to the current repository.)*
+- [x] Ensure active product validation cannot be masked by stale tests. *(Active security-exception + action-pinning validation now runs inside the `pytest` gate; the misleading excluded failing suite is gone.)*
 
-### P3-M16 — Industrial core API cleanup
-- [ ] Audit legacy `freellmpool` identity leakage from product-facing output/API.
-- [ ] Replace misleading legacy product strings where safe.
-- [ ] Preserve the compatibility namespace only where required and documented.
+### P3-M16 — Industrial core API cleanup — DONE
+- [x] Audit legacy `freellmpool` identity leakage from product-facing output/API. *(Product-facing surfaces return the industrial identity, e.g. `build_report` reports `product: industrial-rfq-intelligence`; the remaining leakage was stale test fixtures pointing at `0xzr/freellmpool`, removed in P3-M15.)*
+- [x] Replace misleading legacy product strings where safe.
+- [x] Preserve the compatibility namespace only where required and documented. *(The `freellmpool` Python package namespace is retained deliberately as the documented compatibility namespace — see "Explicit non-goals"; it is not product roadmap surface.)*
 
-### P3-M17 — Input/schema contract hardening
-- [ ] Define a versioned Industrial RFQ input schema.
-- [ ] Harden type/required-field validation.
-- [ ] Add duplicate, malformed-value, and compatibility cases.
-- [ ] Document schema compatibility expectations.
+### P3-M17 — Input/schema contract hardening — DONE
+- [x] Define a versioned Industrial RFQ input schema. *(`docs/RFQ_INPUT_SCHEMA.md`, current version `1.0`; `RFQ_SCHEMA_VERSION` in `src/freellmpool/industrial.py`.)*
+- [x] Harden type/required-field validation. *(`load_rfq_input` fails closed with `ValueError` on malformed JSON, wrong types, empty required collections, duplicate requirement tags, invalid claim statuses, unsupported versions.)*
+- [x] Add duplicate, malformed-value, and compatibility cases.
+- [x] Document schema compatibility expectations. *(Missing `schema_version` is treated as `1.0`; unsupported versions rejected — documented in the schema doc.)*
 
-### P3-M18 — Evidence/provenance hardening
-- [ ] Standardize source/page/section/table/cell provenance.
-- [ ] Require explicit evidence for VERIFIED claims.
-- [ ] Add provenance fixtures and regression tests.
-- [ ] Preserve contradiction/review states end-to-end.
+### P3-M18 — Evidence/provenance hardening — DONE
+- [x] Standardize source/page/section/table/cell provenance. *(`docs/EVIDENCE_POLICY.md`; structured provenance carried end-to-end, including table/cell — see `examples/industrial_rfq/benchmark.json` TABLE-03.)*
+- [x] Require explicit evidence for VERIFIED claims. *(`load_rfq_input` rejects VERIFIED claims without provenance — covered by `tests/test_security_config.py::test_verified_commercial_claim_requires_provenance` and the LLM-boundary test.)*
+- [x] Add provenance fixtures and regression tests.
+- [x] Preserve contradiction/review states end-to-end. *(CON-05 benchmark case → `CONTRADICTED`/`UNVERIFIED`; contradictory claims are never silently resolved.)*
 
 ### P3-M19 — Engineering comparison expansion — DONE
 - [x] Add parameter-specific engineering semantics.
