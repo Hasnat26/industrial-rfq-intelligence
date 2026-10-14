@@ -74,6 +74,28 @@ CodeQL alerts using the applicable GitHub code-scanning workflow and record
 the rationale for any reviewed false positives. Do not change branch
 protection or rulesets merely to make a pull request mergeable.
 
+## Runtime security boundaries
+
+- `/dashboard` and `/playground` are public only as a self-contained, data-free
+  browser shell. Usage, provider inventory, ready models, and battle requests
+  stay behind bearer-header authentication when proxy auth is configured.
+  After form submission the token input is cleared and the token remains only
+  in a JavaScript closure. It is never copied into a URL, cookie, Web Storage,
+  rendered DOM, global, log, or HTML response, and a reload requires re-entry.
+- `freellmpool local discover` probes only the fixed LM Studio, Ollama, and
+  llama.cpp literal-loopback endpoints, or one explicit canonical
+  literal-loopback URL. Requests have strict time/body/model bounds, send no
+  credentials, and follow no redirects. Discovery never performs DNS, LAN, or
+  process scanning. Import requires `--yes`, creates pin-only routes, and is
+  reversible with `local remove --yes`.
+- Streaming failover stops at downstream commit. Text-only Responses and
+  Anthropic Messages content is delivered incrementally; tool and rich-content
+  translation remains buffered. A post-commit upstream failure is never
+  retried elsewhere and never ends with a successful terminal event.
+- `freellmpool doctor` reports strict config syntax/table errors with sanitized
+  line, column, and type metadata. It does not echo malformed values, API keys,
+  bearer tokens, or other configuration secrets.
+
 ## Review and release boundaries
 
 - AI-assisted analysis is not independent human approval.
