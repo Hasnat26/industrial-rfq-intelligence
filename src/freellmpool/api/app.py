@@ -229,21 +229,22 @@ def _active_vendor_offers(package: ProcurementPackage) -> list[VendorOffer]:
     ]
 
 
-def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
-    """Build the canonical vendor/requirement comparison with revision carry-forward."""
-    requirements = [
-        EngineRequirement(item.tag, item.parameter, item.required_value)
-        for item in package.requirements
-        if item.rfq_revision_id == package.current_rfq_revision_id
-    ]
+def _canonical_vendor_claims(
+    package: ProcurementPackage,
+) -> tuple[list[tuple[str, VendorClaim]], list[str]]:
+    """Canonical claims across each vendor's revision chain for the current RFQ.
+
+    Offers of one vendor are merged oldest-to-newest; for each parameter the
+    newest claim-set wins, so parameters the vendor did not restate carry
+    forward unchanged. This is the single source of truth every comparison,
+    report, and decision-support surface must use.
+    """
     grouped: dict[str, list[VendorOffer]] = {}
     for offer in package.offers:
         if offer.rfq_revision_id == package.current_rfq_revision_id:
             grouped.setdefault(offer.vendor_key, []).append(offer)
-
-    vendor_values: list[VendorValue] = []
+    canonical: list[tuple[str, VendorClaim]] = []
     vendor_names: list[str] = []
-    claim_parameters_by_vendor: dict[str, set[str]] = {}
     for _vendor_key, chain in grouped.items():
         ordered = sorted(chain, key=lambda item: item.id)
         latest = ordered[-1]
@@ -255,19 +256,35 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
                 claims_this_revision.setdefault(claim.parameter.casefold().strip(), []).append(claim)
             for parameter, claims in claims_this_revision.items():
                 claims_by_parameter[parameter] = claims
-        parameters = claim_parameters_by_vendor.setdefault(latest.vendor_name, set())
         for claims in claims_by_parameter.values():
             for claim in claims:
-                vendor_values.append(
-                    VendorValue(
-                        latest.vendor_name,
-                        claim.parameter,
-                        claim.value,
-                        claim.evidence,
-                        _claim_status(claim.claim_status),
-                    )
-                )
-                parameters.add(claim.parameter.casefold().strip())
+                canonical.append((latest.vendor_name, claim))
+    return canonical, vendor_names
+
+
+def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, object]]:
+    """Build the canonical vendor/requirement comparison with revision carry-forward."""
+    requirements = [
+        EngineRequirement(item.tag, item.parameter, item.required_value)
+        for item in package.requirements
+        if item.rfq_revision_id == package.current_rfq_revision_id
+    ]
+    canonical, vendor_names = _canonical_vendor_claims(package)
+    vendor_values: list[VendorValue] = [
+        VendorValue(
+            vendor,
+            claim.parameter,
+            claim.value,
+            claim.evidence,
+            _claim_status(claim.claim_status),
+        )
+        for vendor, claim in canonical
+    ]
+    claim_parameters_by_vendor: dict[str, set[str]] = {}
+    for vendor, claim in canonical:
+        claim_parameters_by_vendor.setdefault(vendor, set()).add(
+            claim.parameter.casefold().strip()
+        )
 
     matrix = build_matrix(requirements, vendor_values, vendors=vendor_names)
     rows: list[dict[str, object]] = []
@@ -2324,16 +2341,16 @@ def package_decision_support(
         item.tag: item.requirement_type
         for item in revision.requirements
     }
+    canonical, _ = _canonical_vendor_claims(package)
     vendor_values = [
         VendorValue(
-            offer.vendor_name,
+            vendor,
             claim.parameter,
             claim.value,
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in active_offers
-        for claim in offer.claims
+        for vendor, claim in canonical
     ]
     result = build_decision_support(
         requirements,
@@ -2457,16 +2474,16 @@ def package_integrated_evaluation(
         for item in revision.requirements
     ]
     requirement_types = {item.tag: item.requirement_type for item in revision.requirements}
+    canonical, _ = _canonical_vendor_claims(package)
     vendor_values = [
         VendorValue(
-            offer.vendor_name,
+            vendor,
             claim.parameter,
             claim.value,
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in active_offers
-        for claim in offer.claims
+        for vendor, claim in canonical
     ]
     technical = build_decision_support(
         requirements,
@@ -2534,16 +2551,16 @@ def package_engineering_decision_summary(
         item.tag: item.requirement_type
         for item in revision.requirements
     }
+    canonical, _ = _canonical_vendor_claims(package)
     vendor_values = [
         VendorValue(
-            offer.vendor_name,
+            vendor,
             claim.parameter,
             claim.value,
             claim.evidence,
             _claim_status(claim.claim_status),
         )
-        for offer in active_offers
-        for claim in offer.claims
+        for vendor, claim in canonical
     ]
     result = build_decision_support(
         requirements,
@@ -2669,30 +2686,30 @@ def package_report(
         EngineRequirement(item.tag, item.parameter, item.required_value)
         for item in revision.requirements
     ]
+    canonical, _ = _canonical_vendor_claims(package)
     vendor_values: list[VendorValue] = []
-    for offer in active_offers:
-        for claim in offer.claims:
-            provenance = (
-                EvidenceProvenance(
-                    source=claim.source_document.filename,
-                    page=claim.source_page,
-                    section=claim.source_section,
-                    table=claim.source_table,
-                    cell=claim.source_cell,
-                )
-                if claim.source_document is not None
-                else None
+    for vendor, claim in canonical:
+        provenance = (
+            EvidenceProvenance(
+                source=claim.source_document.filename,
+                page=claim.source_page,
+                section=claim.source_section,
+                table=claim.source_table,
+                cell=claim.source_cell,
             )
-            vendor_values.append(
-                VendorValue(
-                    offer.vendor_name,
-                    claim.parameter,
-                    claim.value,
-                    claim.evidence,
-                    _claim_status(claim.claim_status),
-                    provenance,
-                )
+            if claim.source_document is not None
+            else None
+        )
+        vendor_values.append(
+            VendorValue(
+                vendor,
+                claim.parameter,
+                claim.value,
+                claim.evidence,
+                _claim_status(claim.claim_status),
+                provenance,
             )
+        )
 
     commercial_values = [
         CommercialValue(

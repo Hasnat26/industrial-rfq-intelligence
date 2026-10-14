@@ -201,6 +201,111 @@ def test_package_report_contains_engineering_decision_summary() -> None:
     assert data["engineering_decision_summary"]["status"] == "INSUFFICIENT_VENDOR_DATA"
 
 
+def test_partial_revision_keeps_decision_surfaces_in_sync_with_comparison() -> None:
+    """Report/decision support must use canonical revision carry-forward like /comparison.
+
+    After a partial revision (the leaf restates only one parameter), the
+    canonical comparison carries the parent's other claims forward. The
+    report, decision-support, integrated evaluation, and engineering summary
+    must agree with it instead of reverting to leaf-only claims.
+    """
+    organization = client.post("/organizations", json={"name": "Carry Forward"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Carry Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "75 kW"},
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Carry", "technical_revision": "R1"},
+    ).json()
+    for parameter, value in (("Rated voltage", "415 V"), ("Motor power", "75 kW")):
+        assert client.post(
+            f"/offers/{offer['id']}/claims",
+            json={
+                "parameter": parameter,
+                "value": value,
+                "evidence": "quotation p.1",
+                "claim_status": "VERIFIED",
+            },
+        ).status_code == 201
+
+    # Partial revision: the leaf restates only the voltage parameter.
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    leaf = revision.json()
+    assert client.post(
+        f"/offers/{leaf['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation r2 p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    api_rows = {
+        (row["vendor"], row["parameter"]): (row["status"], row["offered"])
+        for row in comparison.json()["rows"]
+    }
+    # The canonical comparison carries Motor power forward from R1.
+    assert api_rows == {
+        ("Vendor Carry", "Rated voltage"): ("COMPLIANT", "415 V"),
+        ("Vendor Carry", "Motor power"): ("COMPLIANT", "75 kW"),
+    }
+
+    report = client.get(f"/packages/{package['id']}/report")
+    assert report.status_code == 200
+    report_rows = {
+        (row["vendor"], row["parameter"]): (row["status"], row["offered"])
+        for row in report.json()["matrix"]
+    }
+    assert report_rows == api_rows
+
+    decision_support = client.get(f"/packages/{package['id']}/decision-support")
+    assert decision_support.status_code == 200
+    ds_rows = {
+        (row["vendor"], row["parameter"]): (row["status"], row["offered"])
+        for row in decision_support.json()["rows"]
+    }
+    assert ds_rows == api_rows
+    assert decision_support.json()["vendors"][0]["compliant_count"] == 2
+    assert report.json()["decision_support"]["vendors"] == decision_support.json()[
+        "vendors"
+    ]
+    assert report.json()["decision_support"]["rows"] == decision_support.json()["rows"]
+    assert report.json()["decision_support"]["formula"] == decision_support.json()[
+        "formula"
+    ]
+
+    evaluation = client.get(f"/packages/{package['id']}/integrated-evaluation")
+    assert evaluation.status_code == 200
+    engineering = client.get(f"/packages/{package['id']}/engineering-decision-summary")
+    assert engineering.status_code == 200
+    assert report.json()["integrated_evaluation"]["vendor_profiles"] == evaluation.json()[
+        "vendor_profiles"
+    ]
+    assert report.json()["engineering_decision_summary"] == {
+        key: engineering.json()[key]
+        for key in ("status", "decision_basis", "vendor_profiles", "review_actions")
+    }
+
 
 def test_integrated_evaluation_endpoint_exposes_auditable_gates() -> None:
     organization = client.post("/organizations", json={"name": "Integrated Evaluation"}).json()
