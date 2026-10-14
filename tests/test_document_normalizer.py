@@ -186,3 +186,40 @@ def test_synthetic_rfq_source_documents_normalize_with_content_fidelity(
     assert result.markdown.strip()
     for fragment in expected_fragments:
         assert fragment in result.markdown
+
+
+def test_malformed_pdf_fails_with_actionable_error(tmp_path: Path) -> None:
+    source = tmp_path / "malformed.pdf"
+    source.write_bytes(b"not a PDF document")
+
+    with pytest.raises(ValueError, match="cannot read PDF:"):
+        normalize_document(source)
+
+
+def test_pdf_page_parser_failure_is_normalized_and_does_not_leak_parser_text(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from pypdf import PdfWriter
+
+    source = tmp_path / "parser-failure.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    with source.open("wb") as handle:
+        writer.write(handle)
+
+    class FailingConverter:
+        def convert(self, path: str) -> object:
+            raise RuntimeError("parser sentinel with internal detail")
+
+    monkeypatch.setattr(
+        "freellmpool.document_normalizer._markitdown",
+        lambda: FailingConverter(),
+    )
+
+    with pytest.raises(
+        ValueError, match="MarkItDown conversion failed for PDF page 1"
+    ) as error:
+        normalize_document(source, ocr_fallback=False)
+
+    assert "parser sentinel" not in str(error.value)
+    assert isinstance(error.value.__cause__, RuntimeError)
