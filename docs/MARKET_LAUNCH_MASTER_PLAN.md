@@ -16,14 +16,13 @@ production.
   database. Never widen the database allowlist to `0.0.0.0/0`. Never provision
   paid resources without explicit owner approval.
 
-## Verified baseline (2026-10-12)
+## Verified baseline (2026-10-13)
 
-- `main` HEAD: `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
-- Main CI Run #624 (`38237349041`) SUCCESS on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38237349041>.
-- PR #119 is closed/superseded; PR #124 is listed open, and PRs #128, #129, #130, and #131 remain open/unmerged. PR #128 is independent of P5-SEC-04 and was not modified. P5-SEC-01 remains CI-verified. P5-SEC-04 exception-boundary hardening and synthetic failure-path regressions are in PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793`; Run #648 passed all five jobs. Hosted validation remains NOT VERIFIED. PRs #128, #130, and #131 were not merged or deployed. Issues are disabled in repository settings.
-- Last recorded Render deployment: `2a31c006a6e7e3174c6375c6f5226cb3430f373c` (deployment `dep-db5s11tckfvc73b8ief0`, recorded live 2026-10-11). Current hosted deployment was not re-verified during P5-SEC-04; do not infer deployment of PR #129 from CI.
-- Hosted probes 2026-10-12: `/health` 200 and `/ready`
-  `{"status":"ready","database":"ok"}` from an external HTTP client.
+- `main` HEAD: `f363adc562a494de57cca58c530c99afdfba2818`.
+- Main CI Run #653 (`38288890112`) SUCCESS on exact main SHA `f363adc562a494de57cca58c530c99afdfba2818`; all five jobs passed — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38288890112>.
+- PR #129 is merged as `f363adc562a494de57cca58c530c99afdfba2818`. Its repository-level exception-boundary changes are CI-verified; hosted security acceptance remains NOT VERIFIED.
+- Latest confirmed Render deployment: `dep-db6j008n74is73a7thkg`, status `live`, deployed SHA `f363adc562a494de57cca58c530c99afdfba2818`. Render build succeeded at `2026-10-12T19:08:34.020461Z`; `deploy_ended=succeeded` at `2026-10-12T19:09:08.269869Z`. Application startup completed and `/ready` returned HTTP 200. Previous deployment `dep-db5s11tckfvc73b8ief0` is now deactivated.
+- This deployment evidence verifies delivery and readiness only. It does not verify hosted security, authenticated tenant isolation, live schema baseline/migrations, live backup/restore, or billing acceptance.
 
 ---
 
@@ -63,8 +62,7 @@ production.
 
 ### P0-CI-04 — Deployed commit vs main runtime code
 - Priority: P0. Status: **PASS**.
-- Evidence: no runtime-code delta between deployed `2a31c00` and `2f26234`
-  (`git diff --stat 2a31c00..2f26234 -- src/ migrations/ Dockerfile*` empty).
+- Evidence: Render deployment `dep-db6j008n74is73a7thkg` is live on main SHA `f363adc562a494de57cca58c530c99afdfba2818`. Deployment recovery is verified separately from CI. Hosted security acceptance remains NOT VERIFIED.
 
 ---
 
@@ -246,7 +244,7 @@ restore connection + live server identity guard
 - Boundary: no hosted log inspection, live production exception injection, provider calls,
   production database operations, or deployment were performed. Hosted security validation remains
   **NOT VERIFIED**.
-- Next: independent human review of PR #129; do not merge without explicit authorization.
+- Next (T24-R22 / PR #132): verify the corrected documentation diff and exact-head CI, then follow the established review/merge procedure. PR #129 is already merged as `f363adc562a494de57cca58c530c99afdfba2818`; keep PR #132 open and unmerged until its review requirements are satisfied and explicit merge authorization is given.
 
 ---
 
@@ -272,9 +270,12 @@ restore connection + live server identity guard
 ## P7 — Deployment, pilot onboarding, and launch operations
 
 ### P7-OPS-01 — Hosted readiness verification
-- Priority: P0. Status: **PASS** (2026-10-12 external probes `/health` 200,
-  `/ready` `{"status":"ready","database":"ok"}` plus Render platform log
-  evidence).
+- Priority: P0. Status: **PASS (platform readiness evidence only)**. For Render
+  deployment `dep-db6j008n74is73a7thkg` on deployed SHA
+  `f363adc562a494de57cca58c530c99afdfba2818`, platform logs record application
+  startup completion and `GET /ready` HTTP 200. No independent external
+  `/health` or `/ready` probe is claimed. This does not establish hosted
+  security acceptance, which remains **NOT VERIFIED**.
 
 ### P7-OPS-02 — Pilot onboarding package
 - Priority: P1. Status: **PARTIAL**.
