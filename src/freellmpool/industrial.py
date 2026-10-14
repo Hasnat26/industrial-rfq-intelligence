@@ -964,10 +964,10 @@ def extract_rfq_documents_with_llm(
         from .document_normalizer import normalize_document
 
         rfq_normalized = normalize_document(rfq_document)
-        rfq_text = (
-            f"[SOURCE: {rfq_normalized.source}]\n"
-            f"{rfq_normalized.markdown}"
-        )
+        rfq_markdown = rfq_normalized.markdown.strip()
+        if not rfq_markdown:
+            raise ValueError(f"RFQ document is empty: {rfq_document}")
+        rfq_text = f"[SOURCE: {rfq_normalized.source}]\n{rfq_markdown}"
         quotations: list[dict[str, str]] = []
         for index, item in enumerate(quotation_documents):
             vendor = str(item.get("vendor", "")).strip()
