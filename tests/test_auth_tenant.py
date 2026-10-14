@@ -516,6 +516,182 @@ def test_extended_cross_tenant_mutations_blocked() -> None:
     assert client.get(f"/packages/{package_id}/assets", headers=victim).status_code == 200
 
 
+def test_cross_tenant_clarification_revision_decision_reads_blocked() -> None:
+    """Offer-scoped issue reads and procurement memory stay tenant-private."""
+    tenant_a = _seed_tenant("alice@example.com", "Org Alpha")
+    tenant_b = _seed_tenant("bob@example.com", "Org Beta")
+    attacker = tenant_b["headers"]
+    package_id = tenant_a["package"]["id"]
+    offer_id = tenant_a["offer"]["id"]
+    organization_id = tenant_a["organization"]["id"]
+
+    project_id = tenant_a["project"]["id"]
+    reads = [
+        f"/offers/{offer_id}/clarifications",
+        f"/offers/{offer_id}/deviations",
+        f"/offers/{offer_id}/technical-clarification-package",
+        f"/packages/{package_id}/memory",
+        f"/organizations/{organization_id}/procurement-memory",
+        f"/organizations/{organization_id}/procurement-memory/products",
+        f"/projects?organization_id={organization_id}",
+        f"/packages?project_id={project_id}",
+    ]
+    for path in reads:
+        response = client.get(path, headers=attacker)
+        assert response.status_code == 404, f"GET {path} -> {response.status_code}"
+
+        # Indistinguishable from a nonexistent resource.
+        missing = client.get(
+            path.replace(str(offer_id), "999999")
+            .replace(str(package_id), "999999")
+            .replace(str(organization_id), "999999")
+            .replace(str(project_id), "999999"),
+            headers=attacker,
+        )
+        assert missing.status_code == 404, path
+        assert missing.json()["detail"] == response.json()["detail"], path
+
+    # Same-tenant access proves the 404s above are authorization, not missing routes.
+    victim = tenant_a["headers"]
+    for path in (
+        f"/offers/{offer_id}/clarifications",
+        f"/offers/{offer_id}/deviations",
+        f"/packages/{package_id}/memory",
+        f"/organizations/{organization_id}/procurement-memory",
+        f"/organizations/{organization_id}/procurement-memory/products",
+        f"/projects?organization_id={organization_id}",
+        f"/packages?project_id={project_id}",
+    ):
+        assert client.get(path, headers=victim).status_code == 200, path
+    # Listings only ever contain the caller's own tenant objects.
+    own_projects = client.get(f"/projects?organization_id={organization_id}", headers=victim)
+    assert [row["id"] for row in own_projects.json()] == [project_id]
+    own_packages = client.get(f"/packages?project_id={project_id}", headers=victim)
+    assert [row["id"] for row in own_packages.json()] == [package_id]
+    # The seeded quotation already answers the only requirement, so the
+    # clarification preview has no gaps; anything but 404 proves access.
+    preview = client.get(
+        f"/offers/{offer_id}/technical-clarification-package", headers=victim
+    )
+    assert preview.status_code != 404
+
+
+def test_cross_tenant_clarification_revision_decision_writes_blocked() -> None:
+    """Answer/clarify/resubmit/commercial/decision writes cannot cross tenants."""
+    tenant_a = _seed_tenant("alice@example.com", "Org Alpha")
+    tenant_b = _seed_tenant("bob@example.com", "Org Beta")
+    attacker = tenant_b["headers"]
+    package_id = tenant_a["package"]["id"]
+    offer_id = tenant_a["offer"]["id"]
+    clarification_id = tenant_a["clarification"]["id"]
+
+    writes: list[tuple[str, str, dict | None]] = [
+        ("POST", f"/offers/{offer_id}/technical-clarification-request", None),
+        ("POST", f"/offers/{offer_id}/commercial-status", {"status": "OPEN"}),
+        ("POST", f"/clarifications/{clarification_id}/answer", {"response": "Injected."}),
+        (
+            "POST",
+            f"/packages/{package_id}/decision",
+            {"selected_offer_id": offer_id, "rationale": "Injected award."},
+        ),
+        (
+            "POST",
+            f"/packages/{package_id}/rfq-revisions",
+            {
+                "reason": "Injected baseline change.",
+                "requirements": [
+                    {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+                ],
+            },
+        ),
+    ]
+    for method, path, payload in writes:
+        response = client.request(method, path, json=payload, headers=attacker)
+        assert response.status_code == 404, f"{method} {path} -> {response.status_code}"
+
+    resubmission = client.post(
+        f"/offers/{offer_id}/technical-resubmission",
+        data={"technical_revision": "R2"},
+        files={"file": ("intruder.txt", b"Rated voltage: 690 V", "text/plain")},
+        headers=attacker,
+    )
+    assert resubmission.status_code == 404
+
+    # The victim's workflow state is completely untouched.
+    victim = tenant_a["headers"]
+    clarifications = client.get(f"/offers/{offer_id}/clarifications", headers=victim)
+    assert clarifications.status_code == 200
+    assert len(clarifications.json()) == 1
+    assert clarifications.json()[0]["id"] == clarification_id
+    assert clarifications.json()[0]["status"] == "ANSWERED"
+    assert clarifications.json()[0]["response"] == "415 V"
+
+    assert client.get(f"/packages/{package_id}/decision", headers=victim).status_code == 404
+
+    offers = client.get(f"/packages/{package_id}/offers", headers=victim)
+    assert offers.status_code == 200
+    assert len(offers.json()) == 1
+    assert offers.json()[0]["id"] == offer_id
+    assert offers.json()[0]["technical_status"] == "PENDING"
+    assert offers.json()[0]["commercial_status"] == "LOCKED"
+
+    rfq = client.get(f"/packages/{package_id}/rfq", headers=victim)
+    assert rfq.status_code == 200
+    assert rfq.json()["requirements"][0]["required_value"] == "415 V"
+
+
+def test_unauthenticated_clarification_revision_decision_routes_rejected() -> None:
+    """Every workflow/matrix route answers 401 with WWW-Authenticate when anonymous."""
+    seeded = _seed_tenant("dave@example.com", "Org D")
+    package_id = seeded["package"]["id"]
+    offer_id = seeded["offer"]["id"]
+    organization_id = seeded["organization"]["id"]
+    protected: list[tuple[str, str, dict | None]] = [
+        ("GET", f"/offers/{offer_id}/clarifications", None),
+        ("GET", f"/offers/{offer_id}/deviations", None),
+        ("GET", f"/offers/{offer_id}/technical-clarification-package", None),
+        ("GET", f"/packages/{package_id}/memory", None),
+        ("GET", f"/organizations/{organization_id}/procurement-memory", None),
+        ("GET", f"/organizations/{organization_id}/procurement-memory/products", None),
+        ("GET", f"/projects?organization_id={organization_id}", None),
+        ("GET", f"/packages?project_id={seeded['project']['id']}", None),
+        ("POST", f"/offers/{offer_id}/technical-clarification-request", None),
+        ("POST", f"/offers/{offer_id}/commercial-status", {"status": "OPEN"}),
+        (
+            "POST",
+            f"/clarifications/{seeded['clarification']['id']}/answer",
+            {"response": "Anonymous injection."},
+        ),
+        (
+            "POST",
+            f"/packages/{package_id}/decision",
+            {"selected_offer_id": offer_id, "rationale": "Anonymous award."},
+        ),
+        (
+            "POST",
+            f"/packages/{package_id}/rfq-revisions",
+            {
+                "reason": "Anonymous baseline change.",
+                "requirements": [
+                    {"tag": "R-01", "parameter": "Rated voltage", "required_value": "690 V"}
+                ],
+            },
+        ),
+    ]
+    for method, path, payload in protected:
+        response = client.request(method, path, json=payload)
+        assert response.status_code == 401, f"{method} {path} -> {response.status_code}"
+        assert "WWW-Authenticate" in response.headers, path
+
+    anonymous_resubmission = client.post(
+        f"/offers/{offer_id}/technical-resubmission",
+        data={"technical_revision": "R2"},
+        files={"file": ("anon.txt", b"Rated voltage: 690 V", "text/plain")},
+    )
+    assert anonymous_resubmission.status_code == 401
+    assert "WWW-Authenticate" in anonymous_resubmission.headers
+
+
 def test_registration_attempts_are_rate_limited_per_account_and_ip(monkeypatch) -> None:
     monkeypatch.setenv("INDUSTRIAL_RFQ_REGISTRATION_EMAIL_MAX_FAILURES", "2")
     monkeypatch.setenv("INDUSTRIAL_RFQ_REGISTRATION_IP_MAX_FAILURES", "3")
