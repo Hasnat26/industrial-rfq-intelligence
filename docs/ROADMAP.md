@@ -135,14 +135,14 @@ The next phase is tracked as one master milestone with sequential sub-milestones
 - [x] Tied portfolio claims to inspectable repository artifacts and explicitly separated configuration evidence from execution evidence.
 - [x] Kept the unresolved P3-M14 CI execution-evidence gap visible rather than claiming CI success.
 
-### P3-M28 — Final acceptance gate — BLOCKED BY P3-M14
-- [ ] Real CI green-run evidence — blocked: GitHub currently reports `total_count: 0` workflow runs.
+### P3-M28 — Final acceptance gate
+- [x] Real CI green-run evidence — main CI Run #653 (`38288890112`) passed all five jobs (Python 3.11–3.14 + postgres-migrations) on current main `f363adc562a494de57cca58c530c99afdfba2818`. The earlier "GitHub reports `total_count: 0` workflow runs" observation is stale and retracted: CI now executes and passes on every push/PR.
 - [x] Benchmark acceptance artifacts are present and mapped in `docs/FINAL_ACCEPTANCE.md`.
 - [x] Security gate configuration and regression artifacts are present and mapped in `docs/FINAL_ACCEPTANCE.md`.
 - [x] Package/CLI smoke configuration is present and mapped in `docs/FINAL_ACCEPTANCE.md`.
 - [x] Sample report and consistency regression artifacts are present and mapped in `docs/FINAL_ACCEPTANCE.md`.
 - [x] Public documentation audit completed.
-- [ ] Final release/portfolio readiness review — blocked until real CI execution evidence exists.
+- [ ] Final release/portfolio readiness review — no longer blocked on CI evidence (P3-M14 is DONE); remains open pending the owner-gated live acceptance gates in `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (durable database/recovery, production migration baseline/configuration, billing provider validation, authenticated tenant-isolation smoke).
 
 Acceptance evidence record: `docs/FINAL_ACCEPTANCE.md`.
 
@@ -155,5 +155,5 @@ This phase will not add:
 - inferred claims presented as VERIFIED;
 - production deployment or production credentials.
 
-Current status: P3-M1 through P3-M13 and P3-M15 through P3-M27 complete. P3-M28 is blocked by P3-M14 because GitHub currently reports zero workflow runs. No final release/CI-green claim is made.
+Current status: P3-M1 through P3-M27 complete. P3-M28's CI green-run evidence is satisfied (main CI Run #653 `38288890112` green on `f363adc`); its final release/portfolio readiness review remains open pending the owner-gated live acceptance gates. Main CI green is claimed with linked evidence; hosted production readiness is not.
 
