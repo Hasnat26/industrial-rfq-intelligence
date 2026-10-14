@@ -1,15 +1,16 @@
 {
-  "rfq": "Supply 75 kW, 415 V induction motors. Minimum efficiency IE3. Enclosure IP55.",
+  "demo_notice": "SYNTHETIC DEMONSTRATION DATA ONLY. Fictional RFQ, suppliers, quotation references, dates, and commercial terms. This text handoff mirrors the source documents under source_documents/.",
+  "rfq": "SYNTHETIC DEMONSTRATION DATA ONLY. RFQ SYN-RFQ-415V-001 from fictional Northbridge Process Systems, dated 2026-10-01. Supply one 75 kW low-voltage three-phase induction motor. Requirement R-01: rated voltage 415 V AC, three-phase, 50 Hz. Requirement R-02: rated output power 75 kW. Requirement R-03: efficiency class IE3. Requirement R-04: enclosure ingress protection IP55 minimum. Quote total price for one motor, currency, delivery lead time, warranty duration, and payment terms. This is a synthetic engineering-review example; the customer retains all technical and procurement decisions.",
   "quotations": [
     {
-      "vendor": "Vendor A",
-      "evidence_prefix": "Vendor A quotation",
-      "text": "75 kW, 415 V, IE3 efficiency, IP55 enclosure."
+      "vendor": "Asterion Motor Works (fictional)",
+      "evidence_prefix": "Synthetic quotation Q-A-001; refs Q-A-01 through Q-A-08",
+      "text": "SYNTHETIC DEMONSTRATION DATA ONLY. Fictional supplier Asterion Motor Works, quotation Q-A-001 for RFQ SYN-RFQ-415V-001, dated 2026-10-03. Technical offer: Q-A-01 / R-01 rated voltage 415 V AC, three-phase, 50 Hz; Q-A-02 / R-02 rated output power 75 kW; Q-A-03 / R-03 efficiency class IE3; Q-A-04 / R-04 enclosure ingress protection IP55. Commercial offer: Q-A-05 total price for one motor USD 10,000; Q-A-06 lead time 8 weeks from order confirmation; Q-A-07 warranty 24 months from delivery; Q-A-08 payment terms 30% advance, 70% before shipment. All identifiers and terms are fictional."
     },
     {
-      "vendor": "Vendor B",
-      "evidence_prefix": "Vendor B quotation",
-      "text": "75 kW, 415 V, IE2 efficiency, IP55 enclosure."
+      "vendor": "Bluehaven Electromechanical (fictional)",
+      "evidence_prefix": "Synthetic quotation Q-B-001; refs Q-B-01 through Q-B-08",
+      "text": "SYNTHETIC DEMONSTRATION DATA ONLY. Fictional supplier Bluehaven Electromechanical, quotation Q-B-001 for RFQ SYN-RFQ-415V-001, dated 2026-10-04. Technical offer: Q-B-01 / R-01 rated voltage 415 V AC, three-phase, 50 Hz; Q-B-02 / R-02 rated output power 75 kW; Q-B-03 / R-03 efficiency class IE2 (declared deviation because the RFQ requires IE3); Q-B-04 / R-04 enclosure ingress protection IP55. Commercial offer: Q-B-05 total price for one motor USD 9,200; Q-B-06 lead time 12 weeks from order confirmation; Q-B-07 warranty 12 months from delivery; Q-B-08 payment terms 50% advance, 50% before shipment. All identifiers and terms are fictional."
     }
   ]
 }
