@@ -24,6 +24,19 @@ production.
 - Last recorded Render deployment: `2a31c006a6e7e3174c6375c6f5226cb3430f373c` (deployment `dep-db5s11tckfvc73b8ief0`, recorded live 2026-10-11). Current hosted deployment was not re-verified during P5-SEC-04; do not infer deployment of PR #129 from CI.
 - Hosted probes 2026-10-12: `/health` 200 and `/ready`
   `{"status":"ready","database":"ok"}` from an external HTTP client.
+- **Merge-queue reconciliation (2026-10-17):** this baseline section is kept
+  for history; the live state supersedes it. PR #129 is merged (main
+  `f363adc`, Run #653). Nineteen PRs are open: #124 and #128–#146. Only
+  **#124 is CONFLICTING** — its runtime-state correction is superseded by
+  #132's verified Render-recovery record, so the recommended owner decision
+  is to close #124 (its facts already live in #132) unless a rebase is
+  specifically wanted. PR #145 (`integration/full-merge-queue`) is the
+  combined-tree proof for the whole open queue **including #146's delivered
+  head `d7eb5f3`** (branch head `d5c1f6e`, CI run `39002131865` green):
+  merging the queue via #145 or merging the component PRs in the recorded
+  order are both proven-safe paths. #142/#143 only conflict with each other;
+  #145 carries the synthesized resolution. No hosted or production gates
+  change with any of this; the owner-gated items below are unaffected.
 
 ---
 
@@ -355,7 +368,8 @@ restore connection + live server identity guard
 
 ## Critical path to a controlled pilot
 
-1. **P2-BK-02** (autonomous, in progress) — laptop-ready backup tooling.
+1. **P2-BK-02** — laptop-ready backup tooling: **PASS** (merged PR #117;
+   scratch drill evidenced in `docs/DB_BACKUP_RUNBOOK.md`).
 2. **P2-BK-03 + P2-BK-04** (owner laptop) — live backup and isolated restore
    drill.
 3. **P1-DB-01 + P1-DB-02** (owner + change window) — live schema audit, then
@@ -363,7 +377,8 @@ restore connection + live server identity guard
 4. **P1-DB-04** (owner decision before 2026-11-08) — durable database.
 5. **P4-AUTH-02** (owner test accounts) — hosted authenticated + isolation
    smoke.
-6. **P7-OPS-02** (autonomous) — pilot onboarding package.
+6. **P7-OPS-02** — pilot onboarding package: authored in PRs #130
+   (quickstart) and #131 (hosted acceptance plan); pending their merge.
 
 Additional gates for commercial production: **P6-BILL-02** (billing provider
 verification), **P5-SEC-01/02/04** closure, **P7-OPS-04** monitoring,
