@@ -45,9 +45,9 @@ Codex discovers skills by their SKILL.md `name` field. Invoke with `$name` synta
 ## Testing
 
 - **TDD is mandatory** -- Write tests first, watch them fail, then implement
-- **Coverage floors required** -- 80% package line coverage and 70% package branch coverage, evaluated separately. Enforced via `.coverage-thresholds.json` as a blocking gate before PR creation and task completion
+- **Coverage floors required** -- 80% industrial-core line coverage and 70% industrial-core branch coverage (`freellmpool.industrial` + `freellmpool.industrial_report`, the shipped product core), evaluated separately. Enforced via `.coverage-thresholds.json` at the agent-orchestrator level as a blocking gate before PR creation and task completion. Legacy `freellmpool` CLI modules outside the industrial RFQ product are out of scope. CI must not run this gate (`tests/test_ci_config.py::test_ci_has_no_legacy_coverage_gate_contract`)
 - Test command: `pytest`
-- Coverage command: `pytest --cov=freellmpool --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json && python scripts/check_coverage.py .coverage.json`
+- Coverage command: `pytest --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json && python scripts/check_coverage.py .coverage.json`
 
 ## Coverage
 

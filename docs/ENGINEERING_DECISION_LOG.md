@@ -6,6 +6,30 @@ documents: `docs/MARKET_LAUNCH_MASTER_PLAN.md` (backlog),
 `docs/LAUNCH_ACCEPTANCE_MATRIX.md` (gates), `docs/FINAL_ACCEPTANCE.md`
 (evidence table).
 
+## D-021 — P0-CI-03: coverage floors enforced at agent level, scoped to
+the industrial core (2026-10-15)
+
+- **Decision:** resolve the D-007 contract mismatch. The 80/70 line/branch
+  floors stay unchanged and are enforced at the agent-orchestrator level via
+  `.coverage-thresholds.json` + `scripts/check_coverage.py` before PR creation
+  and task completion — never in CI (`tests/test_ci_config.py` forbids the CI
+  gate). The enforcement scope is the shipped product core
+  (`--cov=freellmpool.industrial --cov=freellmpool.industrial_report`),
+  matching CI's own coverage scope; legacy `freellmpool` CLI modules
+  (e.g. `tokenmax`, `toml_utils`) are outside the industrial RFQ product and
+  out of scope.
+- **Why:** package-wide `--cov=freellmpool` floors measured only 42%/24% and
+  would gate every change on unstaleable legacy modules, contradicting the
+  same-cycle removal of the stale supply-chain suite (PR #146). The CI-aligned
+  core scope passes the unchanged floors with margin (83.99% lines
+  / 75.78% branches, verified 2026-10-15 with explicit exit codes 0).
+- **Alternatives considered:** enforce in CI (foreclosed by
+  `test_ci_has_no_legacy_coverage_gate_contract`); lower the floors (rejected:
+  that would weaken the gate); exclude only legacy modules while keeping
+  package-wide scope (more complex than CI-aligned scoping for no gain).
+- **Consequence:** docs (`AGENTS.md`), thresholds, and tests now agree; the
+  gate remains a genuine regression floor at 80/70 for the shipped core.
+
 ## D-020 — P5-SEC-04 logging/secrets/error-handling fixes (2026-10-12)
 
 - **Decision:** never log a rejected provider URL verbatim, because URL userinfo
