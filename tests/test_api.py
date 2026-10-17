@@ -201,6 +201,111 @@ def test_package_report_contains_engineering_decision_summary() -> None:
     assert data["engineering_decision_summary"]["status"] == "INSUFFICIENT_VENDOR_DATA"
 
 
+def test_partial_revision_keeps_decision_surfaces_in_sync_with_comparison() -> None:
+    """Report/decision support must use canonical revision carry-forward like /comparison.
+
+    After a partial revision (the leaf restates only one parameter), the
+    canonical comparison carries the parent's other claims forward. The
+    report, decision-support, integrated evaluation, and engineering summary
+    must agree with it instead of reverting to leaf-only claims.
+    """
+    organization = client.post("/organizations", json={"name": "Carry Forward"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Carry Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"},
+                {"tag": "R-02", "parameter": "Motor power", "required_value": "75 kW"},
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Carry", "technical_revision": "R1"},
+    ).json()
+    for parameter, value in (("Rated voltage", "415 V"), ("Motor power", "75 kW")):
+        assert client.post(
+            f"/offers/{offer['id']}/claims",
+            json={
+                "parameter": parameter,
+                "value": value,
+                "evidence": "quotation p.1",
+                "claim_status": "VERIFIED",
+            },
+        ).status_code == 201
+
+    # Partial revision: the leaf restates only the voltage parameter.
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    leaf = revision.json()
+    assert client.post(
+        f"/offers/{leaf['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation r2 p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    api_rows = {
+        (row["vendor"], row["parameter"]): (row["status"], row["offered"])
+        for row in comparison.json()["rows"]
+    }
+    # The canonical comparison carries Motor power forward from R1.
+    assert api_rows == {
+        ("Vendor Carry", "Rated voltage"): ("COMPLIANT", "415 V"),
+        ("Vendor Carry", "Motor power"): ("COMPLIANT", "75 kW"),
+    }
+
+    report = client.get(f"/packages/{package['id']}/report")
+    assert report.status_code == 200
+    report_rows = {
+        (row["vendor"], row["parameter"]): (row["status"], row["offered"])
+        for row in report.json()["matrix"]
+    }
+    assert report_rows == api_rows
+
+    decision_support = client.get(f"/packages/{package['id']}/decision-support")
+    assert decision_support.status_code == 200
+    ds_rows = {
+        (row["vendor"], row["parameter"]): (row["status"], row["offered"])
+        for row in decision_support.json()["rows"]
+    }
+    assert ds_rows == api_rows
+    assert decision_support.json()["vendors"][0]["compliant_count"] == 2
+    assert report.json()["decision_support"]["vendors"] == decision_support.json()[
+        "vendors"
+    ]
+    assert report.json()["decision_support"]["rows"] == decision_support.json()["rows"]
+    assert report.json()["decision_support"]["formula"] == decision_support.json()[
+        "formula"
+    ]
+
+    evaluation = client.get(f"/packages/{package['id']}/integrated-evaluation")
+    assert evaluation.status_code == 200
+    engineering = client.get(f"/packages/{package['id']}/engineering-decision-summary")
+    assert engineering.status_code == 200
+    assert report.json()["integrated_evaluation"]["vendor_profiles"] == evaluation.json()[
+        "vendor_profiles"
+    ]
+    assert report.json()["engineering_decision_summary"] == {
+        key: engineering.json()[key]
+        for key in ("status", "decision_basis", "vendor_profiles", "review_actions")
+    }
+
 
 def test_integrated_evaluation_endpoint_exposes_auditable_gates() -> None:
     organization = client.post("/organizations", json={"name": "Integrated Evaluation"}).json()
@@ -546,6 +651,190 @@ def test_vendor_offer_revision() -> None:
     assert rows[0]["status"] == "COMPLIANT"
 
 
+def test_superseded_revision_claims_do_not_leak_into_evaluation() -> None:
+    """P3-WF-02 (conflicting revisions): only the current revision is scored.
+
+    A vendor that revises its offer from a compliant value to a non-compliant
+    one must be evaluated on the current revision: the stale revision's claims
+    must not surface as a second opinion, a COMPLIANT status, or a conflict.
+    """
+    organization = client.post("/organizations", json={"name": "Org Revisions"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Revision Conflict Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={
+            "vendor_name": "Vendor Revision",
+            "technical_revision": "R1",
+            "price": "10000",
+            "currency": "USD",
+        },
+    ).json()
+    compliant = client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert compliant.status_code == 201
+
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    revised = client.post(
+        f"/offers/{revision.json()['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "400 V",
+            "evidence": "revised quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert revised.status_code == 201
+
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    rows = comparison.json()["rows"]
+    assert len(rows) == 1  # one vendor, evaluated once — on the current revision
+    assert rows[0]["status"] == "DEVIATION"  # 400 V against the required 415 V
+    assert rows[0]["offered"] == "400 V"
+    # The stale revision's claim is not a second row, a COMPLIANT status, or a
+    # flagged contradiction: the revision chain, not claim conflict, governs.
+    assert rows[0]["vendor"] == "Vendor Revision"
+
+
+def test_legacy_offer_revision_preserves_commercial_fields() -> None:
+    """A legacy revision must not silently drop the vendor's commercial terms."""
+    organization = client.post("/organizations", json={"name": "Org Legacy Rev"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Legacy Rev Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+            "requirements": [
+                {
+                    "tag": "R-01",
+                    "parameter": "Rated voltage",
+                    "required_value": "415 V",
+                }
+            ],
+        },
+    ).json()
+
+    # Offer with the full commercial terms.
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={
+            "vendor_name": "Vendor Legacy",
+            "technical_revision": "R1",
+            "price": "10000",
+            "currency": "USD",
+            "lead_time": "10 weeks",
+            "warranty": "24 months",
+        },
+    ).json()
+    assert client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    # Offer without any commercial terms (all optional).
+    bare = client.post(
+        f"/packages/{package['id']}/offers",
+        json={"vendor_name": "Vendor Bare", "technical_revision": "R1"},
+    ).json()
+    assert client.post(
+        f"/offers/{bare['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    ).status_code == 201
+
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    created = revision.json()
+    assert created["parent_offer_id"] == offer["id"]
+    assert created["price"] == "10000"
+    assert created["currency"] == "USD"
+    assert created["lead_time"] == "10 weeks"
+    assert created["warranty"] == "24 months"
+
+    bare_revision = client.post(
+        f"/offers/{bare['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert bare_revision.status_code == 201
+    # Absent optional fields stay absent; nothing is fabricated.
+    assert bare_revision.json()["price"] is None
+    assert bare_revision.json()["currency"] is None
+    assert bare_revision.json()["lead_time"] is None
+    assert bare_revision.json()["warranty"] is None
+
+    # The superseded original is unchanged and traceable.
+    offers = client.get(f"/packages/{package['id']}/offers").json()
+    by_id = {item["id"]: item for item in offers}
+    assert by_id[offer["id"]]["price"] == "10000"
+    assert by_id[offer["id"]]["currency"] == "USD"
+    assert by_id[offer["id"]]["lead_time"] == "10 weeks"
+    assert by_id[offer["id"]]["warranty"] == "24 months"
+    assert by_id[created["id"]]["parent_offer_id"] == offer["id"]
+
+    # The preserved terms survive into the commercial comparison for the active
+    # (leaf) revision after it is technically accepted and the gate opens.
+    assert client.post(
+        f"/offers/{created['id']}/technical-status", json={"status": "ACCEPTED"}
+    ).status_code == 200
+    assert client.post(
+        f"/offers/{bare_revision.json()['id']}/technical-status",
+        json={"status": "ACCEPTED"},
+    ).status_code == 200
+    assert client.post(f"/packages/{package['id']}/commercial-open").status_code == 200
+    commercial = client.get(f"/packages/{package['id']}/commercial-comparison")
+    assert commercial.status_code == 200
+    rows = {row["offer_id"]: row for row in commercial.json()["rows"]}
+    assert rows[created["id"]]["price"] == "10000"
+    assert rows[created["id"]]["currency"] == "USD"
+    assert rows[created["id"]]["lead_time"] == "10 weeks"
+    assert rows[created["id"]]["warranty"] == "24 months"
+    assert rows[bare_revision.json()["id"]]["price"] is None
+
+
 def _seed_package(mode: str = "STANDARD") -> dict:
     organization = client.post(
         "/organizations", json={"name": f"Org Batch {os.urandom(4).hex()}"}
@@ -724,6 +1013,70 @@ def test_document_ingestion_formats_and_rejections() -> None:
     assert fetched.status_code == 200
     assert fetched.json()["filename"] == "technical-offer.md"
     assert client.get("/documents/999999").status_code == 404
+
+
+def test_text_uploads_without_extractable_text_fail_closed() -> None:
+    """P3-WF-02: parser/OCR no-text failure mode is surfaced, never persisted.
+
+    A .txt/.md upload whose content is empty or whitespace-only has nothing
+    for the reviewer to verify; it must fail closed instead of persisting a
+    document with unextractable text and consuming plan quota. (PDFs are
+    intentionally exempt: a blank PDF page is a legitimate scanned-image
+    carrier for the downstream OCR path.)
+    """
+    seeded = _seed_offer(mode="STANDARD")
+    offer_id = seeded["offer"]["id"]
+
+    empty = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("empty.txt", b"", "text/plain")},
+    )
+    assert empty.status_code == 422, empty.text
+    assert empty.json()["detail"] == "document contained no extractable text"
+
+    whitespace = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("blank.txt", b"   \n\t\n   ", "text/plain")},
+    )
+    assert whitespace.status_code == 422, whitespace.text
+    assert whitespace.json()["detail"] == "document contained no extractable text"
+
+    # The still-open offer never received a phantom document, as proven by
+    # the documents usage ledger not being consumed by these failures.
+    usage = client.get(f"/organizations/{seeded['organization']['id']}/usage")
+    assert usage.status_code == 200
+
+
+def test_batch_ingestion_rejects_text_file_without_content_atomically() -> None:
+    """P3-WF-02: the whole batch fails before any offer is written."""
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    first = _post_batch(
+        package_id,
+        [{"vendor_name": "Vendor Alpha", "technical_revision": "R1"}],
+        [("alpha.txt", b"Rated voltage: 415 V", "text/plain")],
+    )
+    assert first.status_code == 201
+    before = client.get(f"/packages/{package_id}/offers").json()
+    assert len(before) == 1
+
+    response = _post_batch(
+        package_id,
+        [
+            {"vendor_name": "Vendor Beta", "technical_revision": "R1"},
+            {"vendor_name": "Vendor Gamma", "technical_revision": "R1"},
+        ],
+        [
+            ("beta.txt", b"   \n", "text/plain"),
+            ("gamma.txt", b"Rated voltage: 400 V", "text/plain"),
+        ],
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["detail"] == "document contained no extractable text"
+
+    after = client.get(f"/packages/{package_id}/offers").json()
+    assert len(after) == 1  # no partial write for the batch
+    assert after[0]["vendor_name"] == "Vendor Alpha"
 
 
 def test_single_document_upload_enforces_plan_limit() -> None:

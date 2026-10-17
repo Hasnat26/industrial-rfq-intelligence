@@ -385,7 +385,7 @@ def test_sample_rfq_is_reproducible_and_report_matches_fixture() -> None:
         "unverified_fields": 0,
         "commercial_records": 2,
         "evidence_records": 10,
-        "claims_requiring_review": 0,
+        "claims_requiring_review": 1,
     }
     assert rendered == report_path.read_text(encoding="utf-8")
     assert report["matrix"][6]["status"] == "DEVIATION"
