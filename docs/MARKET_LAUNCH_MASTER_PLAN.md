@@ -49,16 +49,16 @@ production.
 - Next action: owner enables the workflows in GitHub settings.
 
 ### P0-CI-03 — Coverage-gate contract mismatch
-- Priority: P1. Status: **NOT VERIFIED** (contract inconsistency).
-- Evidence: `AGENTS.md` describes a blocking coverage gate
-  (`scripts/check_coverage.py` before PR), but
-  `tests/test_ci_config.py::test_ci_has_no_legacy_coverage_gate_contract`
-  asserts CI must NOT run that command. CI collects coverage for the industrial
-  core only.
-- Action: decide whether the 80/70 package thresholds are enforced locally,
-  enforced in CI, or retired; make docs, tests, and CI agree.
-- Autonomy: autonomous decision + docs/CI change once decided. Owner only if a
-  new blocking CI gate is chosen.
+- Priority: P1. Status: **PASS** (resolved 2026-10-15; decision D-021).
+- Decision: 80/70 floors unchanged, enforced at the agent-orchestrator level
+  (never CI — foreclosed by `tests/test_ci_config.py`), scoped to the shipped
+  industrial core (`--cov=freellmpool.industrial --cov=freellmpool.industrial_report`),
+  matching CI's own coverage scope. `AGENTS.md`, `.coverage-thresholds.json`,
+  and the recorded decision now agree; thresholds stay the source of truth.
+- Evidence: scoped gate executed on 2026-10-15 with exit codes captured —
+  `Coverage gate passed: lines 83.99% >= 80.00%; branches 75.78% >= 70.00%`.
+- Next action: run the gate before every PR creation and task completion;
+  no further owner decision required.
 
 ### P0-CI-04 — Deployed commit vs main runtime code
 - Priority: P0. Status: **PASS**.
@@ -167,14 +167,39 @@ restore connection + live server identity guard
 - Hosted execution: **NOT VERIFIED** (tracked as P4-AUTH-02).
 
 ### P3-WF-02 — Adversarial/edge-case matrix
-- Priority: P1. Status: **NOT VERIFIED** (partial coverage only).
-- Specific gaps to test and close: incomplete quotations, conflicting
-  revisions, missing specifications, unit normalization failures, malformed
-  files, parser/OCR failure modes, extraction uncertainty propagation.
-- Acceptance criteria: each case has a regression test asserting the failure
-  is surfaced to the reviewer and never silently upgraded to a verified claim
-  (see `docs/EVIDENCE_POLICY.md`).
-- Autonomy: autonomous.
+- Priority: P1. Status: **PASS** (gap tests added 2026-10-15; failures surfaced,
+  never silently upgraded to verified claims, per `docs/EVIDENCE_POLICY.md`).
+- Case-to-test mapping (`tests/test_industrial_demo.py` unless noted):
+  incomplete quotations → `test_missing_fields_are_unverified`,
+  `test_missing_evidence_forces_unverified` + zero-evidence vendor
+  (`test_decision_support.py::test_zero_evidence_vendor_remains_visible_and_unverified`);
+  conflicting claims → `test_conflicting_vendor_claims_are_unverified` +
+  benchmark case CON-05; missing specifications → loader required-field
+  enforcement (`test_load_rfq_input_rejects_missing_required_field`,
+  `test_empty_requirements_and_vendor_data_are_rejected`);
+  unit normalization failures →
+  `test_unsupported_numeric_units_do_not_silently_pass`,
+  `test_parameter_specific_engineering_semantics_reject_incompatible_dimensions`,
+  `test_unsupported_engineering_expression_fails_closed`;
+  malformed files → `test_document_ingestion_rejects_unsupported_type` +
+  `tests/test_api.py::test_document_ingestion_formats_and_rejections` + NEW
+  `test_text_uploads_without_extractable_text_fail_closed` and
+  `test_batch_ingestion_rejects_text_file_without_content_atomically`
+  (no-extractable-text text uploads fail closed instead of persisting a
+  phantom document that consumes plan quota; PDFs exempt as scanned-image
+  carriers for OCR);
+  parser/OCR failure modes → `test_document_ocr_fails_with_actionable_error_...`,
+  OCR page failure raises with page provenance, parse errors → generic 422;
+  conflicting revisions → NEW
+  `tests/test_api.py::test_superseded_revision_claims_do_not_leak_into_evaluation`
+  (only the current revision is scored; stale claims never surface as a
+  second row or contradiction);
+  extraction uncertainty propagation →
+  `test_llm_extraction_reuses_strict_validation`,
+  `test_llm_extraction_rejects_invalid_schema_version`,
+  `test_reviewer_workflow_fails_closed_on_missing_input_and_invalid_transition`.
+- New-case CI coverage: covered by the standard `pytest` gate in CI; 35
+  `tests/test_api.py` tests pass locally (2026-10-15).
 
 ---
 
@@ -197,13 +222,20 @@ restore connection + live server identity guard
   register test accounts on production.
 
 ### P4-AUTH-03 — Systematic object-level access (IDOR) sweep
-- Priority: P1. Status: **PARTIAL**.
-- Evidence: tenant guards exist on package/offer/quotation/document paths and
-  the client-supplied organization-id attack is tested; a full endpoint-by-
-  endpoint identifier-manipulation audit with recorded results is missing.
-- Action: enumerate all path-parameter endpoints, verify each enforces
-  tenant-scoped lookup (404 on foreign objects), add tests for any gaps.
-- Autonomy: autonomous.
+- Priority: P1. Status: **PASS** (sweep completed 2026-10-15).
+- Evidence: every path-parameter endpoint in `src/freellmpool/api/app.py` was
+  enumerated and audited: all tenant-owning endpoints resolve the object and
+  require `is_member(db, user.id, ...organization_id)` before the workflow
+  gates (404, indistinguishable from nonexistent). The audit is recorded as a
+  table in `docs/SAAS_AUTH_AND_TENANCY.md` ("Tenant isolation rules" →
+  "Coverage"). The three endpoints previously missing from the cross-tenant
+  sweeps — `POST /offers/{id}/technical-resubmission`,
+  `POST /offers/{id}/technical-clarification-request`, and
+  `POST /clarifications/{id}/answer` — now have regression tests in
+  `tests/test_auth_tenant.py` (22 tests, all passing locally and in CI on the
+  PR head). The one non-tenant path-parameter endpoint
+  (`/product-categories/{category_key}`) serves static catalog templates and
+  is documented as reference data.
 
 ---
 
@@ -217,13 +249,20 @@ restore connection + live server identity guard
 - Next: consider hosted synthetic attack exercise only with owner-approved test account, after live DB recovery gates are addressed.
 
 ### P5-SEC-02 — Rate limiting and request hardening scope
-- Priority: P1. Status: **PARTIAL**.
+- Priority: P1. Status: **PASS** (documented 2026-10-15; acceptance-matrix C4
+  updated accordingly).
 - Evidence: auth endpoints rate limited (per account + IP); provider-client
   timeouts/deadline and response-cap hardening covered in
-  `tests/test_hardening.py`; a documented general API write-path rate-limit
-  policy (and its single-replica in-memory limitation) is missing.
-- Action: audit remaining write endpoints, document the limitation for the
-  single-replica Free-tier topology.
+  `tests/test_hardening.py`. The general write-path rate-limit policy, the
+  audit of all 24 authenticated write endpoints, and the single-replica
+  in-process limitation are documented in
+  `docs/SAAS_AUTH_AND_TENANCY.md` ("Abuse controls" → general write-path
+  policy): authenticate-at-every-request + per-organization entitlement
+  quotas + provider caps + timing-safe internal secrets bound the write
+  paths; sustained authenticated abuse is an edge/shared-store concern and
+  scale-up without an edge limiter is explicitly disallowed.
+- Note: the stale claim that `/auth/register` is not IP-rate-limited was
+  corrected in the same pass (registration budgets are email + IP scoped).
 
 ### P5-SEC-03 — Dependency security
 - Priority: P1. Status: **PASS** (pip-audit + Bandit + zizmor in every CI run;
@@ -278,21 +317,31 @@ restore connection + live server identity guard
   security acceptance, which remains **NOT VERIFIED**.
 
 ### P7-OPS-02 — Pilot onboarding package
-- Priority: P1. Status: **PARTIAL**.
-- Exists: pilot use case and acceptance criteria
-  (`docs/PILOT_LAUNCH.md`), release checklist
-  (`docs/RELEASE_CHECKLIST.md`), deployment runbook
-  (`docs/PRODUCTION_DEPLOYMENT.md`), backup runbook
-  (`docs/DB_BACKUP_RUNBOOK.md`).
-- Present in the main branch: `examples/industrial_rfq/sample_input.json` and
-  `examples/industrial_rfq/sample_report.md`, alongside the existing pilot, release,
-  deployment, and backup documentation.
-- Still missing from the complete customer-facing package: a customer-facing quickstart,
-  a complete sample quotation/source package (PR #128 remains unmerged), and a
-  known-limitations one-pager. PR #130's onboarding document and PR #131's hosted
-  acceptance plan also remain open/unmerged and are not counted as delivered or deployed.
-- Autonomy: documentation and sample-data work is autonomous; acceptance of the complete
-  customer-facing package remains pending.
+- Priority: P1. Status: **PARTIAL** (all content now authored; the open
+  customer-facing deliverables live in unmerged PRs and acceptance requires
+  their review/merge).
+- On `main` already: pilot use case and acceptance criteria
+  (`docs/PILOT_LAUNCH.md`), release checklist (`docs/RELEASE_CHECKLIST.md`),
+  deployment runbook (`docs/PRODUCTION_DEPLOYMENT.md`), backup runbook
+  (`docs/DB_BACKUP_RUNBOOK.md`), `examples/industrial_rfq/sample_input.json`,
+  and `examples/industrial_rfq/sample_report.md`.
+- Authored but unmerged (not counted as delivered, per the rules above):
+  PR #128 = complete synthetic source-document package + `DEMO.md`
+  walkthrough (the "complete sample quotation/source package" gap);
+  PR #130 = the customer-facing quickstart **including** the
+  known-limitations one-pager content (sections 1–7: setup, safe first
+  run, walkthrough, report interpretation, supported inputs + known
+  limitations, troubleshooting, acceptance checklist); PR #131 = the
+  owner-gated hosted acceptance test plan.
+- Dependency check (2026-10-15): PR #131's §7 requires a control-document
+  reconciliation after the PR #129 merge — that reconciliation is performed
+  on this branch (baseline SHA `f363adc`, Run #653 evidence, corrected
+  P7-OPS-02 description, hosted evidence kept NOT VERIFIED), so the
+  prerequisite is satisfied and PR #131 can be reconciled on top once
+  PR #146 merges.
+- Remaining action: independent human review and merge of PRs #146, #128,
+  #130, #131 (owner-gated); acceptance of the complete package is a
+  sign-off, not additional authoring work.
 
 ### P7-OPS-03 — Incident, support, and feedback triage
 - Priority: P1. Status: **PARTIAL** (feedback classification P0–P3 exists in

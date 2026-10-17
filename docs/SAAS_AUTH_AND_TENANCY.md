@@ -98,16 +98,29 @@ ones):
 
 ### Coverage
 
-All of these endpoints require authentication and verify membership:
-`/projects`, `/packages`, `/packages/{id}/rfq`, `/packages/{id}/offers`,
-`/offers/{id}/revisions`, `/offers/{id}/claims`, `/offers/{id}/deviations`,
-`/offers/{id}/clarifications`, `/deviations/{id}/resolve`,
-`/clarifications/{id}/close`, `/offers/{id}/documents`, `/documents/{id}`,
-`/offers/{id}/technical-status`, `/packages/{id}/technical-lock`,
-`/packages/{id}/commercial-open`, `/packages/{id}/comparison`,
-`/packages/{id}/evidence`. `/health` remains public for load-balancer checks.
-Claims provenance continues to reject source documents belonging to a
-different offer — and therefore to a different organization.
+All tenant-owned objects are addressed through the same guard:
+`db.get(<Entity>, id)` followed by
+`is_member(db, user.id, <entity>.org-chain .organization_id)` → `404` on none.
+Completed full sweep (2026-10-15, P4-AUTH-03 audit of every path-parameter
+endpoint in `src/freellmpool/api/app.py`):
+
+| Guard chain | Endpoints |
+| --- | --- |
+| `ProcurementPackage` → `.project.organization_id` | `/packages/{id}/rfq`, `/offers`, `/decision` (GET+POST), `/audit`, `/workflow`, `/assets`, `/lifecycle-events`, `/lifecycle-costs`, `/lifecycle-intelligence`, `/cost-summary`, `/technical-evaluation`, `/comparison`, `/decision-support`, `/evaluation-weighting` (GET+PUT), `/integrated-evaluation`, `/engineering-decision-summary`, `/evidence`, `/report`, `/report/markdown` (via `package_report`), `/rfq-revisions`, `/quotations/batch`, `/technical-lock`, `/commercial-open` |
+| `VendorOffer` → `.package.project.organization_id` | `/offers/{id}/revisions`, `/claims`, `/deviations` (GET+POST), `/clarifications` (GET+POST), `/documents`, `/technical-status`, `/technical-resubmission`, `/technical-clarification-request`, `/commercial-status` |
+| `VendorDocument` → offer → package → org | `/documents/{id}` |
+| `TechnicalDeviation` → offer → package → org | `/deviations/{id}/resolve` |
+| `TechnicalClarification` → offer → package → org | `/clarifications/{id}/answer`, `/clarifications/{id}/close` |
+| `Organization`/allocation objects | `/organizations/{id}/subscription` (GET+PUT), `/subscription/rollover`, `/usage` (GET/POST), `/usage/reconciliation`, `/billing/webhooks`, `/assets`, `/lifecycle-events`, `/lifecycle-cost-summary` |
+| Static reference data (not tenant-owned) | `/product-categories/{category_key}` — global catalog templates, authenticated, no tenant objects |
+| Unauthenticated by design | `/health`, `/ready` — no tenant data |
+
+Cross-tenant 404 behavior for every non-static row above is exercised by
+`tests/test_auth_tenant.py` (22 tests, including the completed offer-scoped
+sweep for `technical-resubmission`, `technical-clarification-request`, and
+`clarifications/{id}/answer`). Claims provenance continues to reject source
+documents belonging to a different offer — and therefore to a different
+organization.
 
 ## Database migration workflow
 
@@ -206,12 +219,34 @@ mypy src/freellmpool/api src/freellmpool/procurement_domain.py
   process. Multi-worker or multi-replica deployments must enforce a shared
   failure budget at the edge (reverse proxy or shared store); that integration
   is documented here rather than faked with a local-only counter.
+- **General write-path policy**: all authenticated write endpoints
+  (`POST/PUT/PATCH`, e.g. `/organizations`, `/projects`, `/packages`,
+  `/packages/{id}/offers`, `/offers/{id}/claims`, decision/support,
+  revision/lifecycle and commercial endpoints) are deliberately **not**
+  throttled by the in-process failure limiter. Their abuse exposure is bounded
+  by narrower controls at four layers: (1) bearer authentication with expired-
+  and inactive-session rejection on every request; (2) per-organization
+  entitlement and quota checks that serialize on the subscription row and
+  persist usage atomically, so unbounded writes require a paid plan first
+  (P6-BILL-01 / acceptance gate G13); (3) provider-call size/deadline caps for
+  LLM/OCR paths (P5-SEC-01); (4) reconciliation and internal endpoints require
+  timing-safe shared secrets. For the single-replica Free-tier topology this
+  is the documented policy: credential-limited endpoints are throttled in
+  process; sustained authenticated write abuse must be mitigated at the edge
+  (platform request throttling or a shared-store limiter). **Limitation**:
+  the in-process limiter is per-process and resets on restart; adding
+  workers/replicas without an edge or shared-store limiter invalidates both
+  the failure budgets above and any future write-path throttling, so scale-up
+  must add an edge limiter (P7-OPS-04 monitoring should alert on sustained
+  401/429 volume as the interim signal).
 
 ## Known limitations (deliberate scope cuts)
 
 - No OAuth/OIDC/social login, no password reset flow, no email verification.
-- Registration (`/auth/register`) is not IP-rate-limited; duplicate emails are
-  rejected, but bulk account creation is an edge-infrastructure concern.
+- Registration (`/auth/register`) failure budgets are email- and IP-scoped
+  (`INDUSTRIAL_RFQ_REGISTRATION_*` env settings); duplicate emails are
+  rejected, and bulk account creation beyond the failure windows remains an
+  edge-infrastructure concern.
 - Role granularity exists (`OWNER`/`ADMIN`/`MEMBER`) but all members
   currently have full access to their organization; per-role authorization
   rules are future work.

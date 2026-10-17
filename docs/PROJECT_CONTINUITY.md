@@ -3,6 +3,86 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
+## Resume state (2026-10-17, PR #145 integration refreshed with PR #146 delivery)
+
+- **Verified main commit:** `f363adc562a494de57cca58c530c99afdfba2818`
+  (unchanged; nothing merged to main).
+- **Delivered this session:** PR #146 delivery commit `d7eb5f3` was pushed to
+  `story/p3-m15-stale-supply-chain-test-reconciliation` (CI run `39001039537`
+  passed all five jobs on that exact head), and this branch now merges that
+  delivery into the combined merge-queue tree so **PR #145** validates the
+  whole queue **including #146**. The previous combined validation
+  (2026-10-14, pytest 299) predated the #146 delivery and did not include it.
+- **Conflict resolutions (this refresh):** `docs/FINAL_ACCEPTANCE.md` — kept
+  the #146 reconciled rows (Run #653 on `f363adc`, no undeployed runtime-code
+  delta, external probe evidence) which supersede the stale Run #582/#598
+  references; `docs/PROJECT_CONTINUITY.md` — merged both session histories
+  (newest on top); `tests/test_api.py` and `tests/test_auth_tenant.py` —
+  resolved test collisions by keeping every assertion from both sides, none
+  weakened or deleted.
+- **Combined-tree validation (exact tree):** re-run with captured exit
+  statuses: pytest (new count below), ruff clean, both mypy scopes success,
+  security-exceptions validate + check-suppressions pass, scoped coverage
+  gate green. See the PR body for the exact numbers of this tree.
+- **Not performed:** no merge to `main`, no deployment, no production or
+  database operations. Hosted security acceptance remains **NOT VERIFIED**;
+  merging anything (including #146, #145, or the queue) is owner-authorized.
+
+## Resume state (2026-10-15, PR #146 supply-chain test reconciliation)
+
+- **Current main commit:** `f363adc562a494de57cca58c530c99afdfba2818`
+  (merge of PR #129, the P5-SEC-04 exception-boundary hardening). The historical
+  resume-state entries for PRs #122/#128–#131 below are kept for cycle history
+  only; PR #129 and #122 are now merged.
+- **Current main CI:** Run #653 (`38288890112`) SUCCESS for
+  `f363adc562a494de57cca58c530c99afdfba2818`.
+- **Latest deployed commit (Render):** `f363adc562a494de57cca58c530c99afdfba2818`,
+  deployment `dep-db6j008n74is73a7thkg` live (2026-10-12). There is **no
+  undeployed runtime-code delta** between main and the deployed commit.
+- **Hosted probes (2026-10-12):** startup completed; `GET /ready` returned
+  `200 OK` `{"status":"ready","database":"ok"}`; independent external
+  `/health` and `/ready` probes returned 200. See `docs/FINAL_ACCEPTANCE.md`.
+- **Open PR verified this cycle:** PR #146
+  (`story/p3-m15-stale-supply-chain-test-reconciliation`) is open, not draft,
+  mergeable/clean at head `e1cd1beee99c0e47545023ad16928d2286825144`. It removes
+  the stale supply-chain suite and promotes the active pinned-action validation
+  into the gate (commit `b22fe09`), then reconciles P3-M28 and the
+  final-acceptance evidence record (commit `e1cd1be`). CI run `38536254875` on
+  that exact head passed all five jobs
+  (industrial 3.11/3.12/3.13/3.14 + postgres-migrations).
+- **Local gate evidence (2026-10-15, exact tree `e1cd1be`):** pytest, ruff,
+  mypy (industrial and api/procurement_domain scopes),
+  `scripts/security_exceptions.py validate` and `check-suppressions` all passed.
+- **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (standalone security
+  workflows remain owner-dependent), P1-DB-03, P2-BK-01/02, P4-AUTH-01,
+  P5-SEC-03, P5-SEC-04 (repository-level fix CI-verified; hosted validation
+  NOT VERIFIED), P6-BILL-01/03, P7-OPS-01, P3-M15 (pending merge of PR #146),
+  P3-M28 (evidence reconciliation doc).
+- **Completed 2026-10-15 (same branch, pending human review of PR #146):**
+  P0-CI-03 (coverage gate scoped to the industrial core at unchanged 80/70
+  floors, agent-level enforcement, decision D-021, gate verified with exit
+  status), P5-SEC-02 (write-path rate-limit policy + single-replica
+  limitation documented in `docs/SAAS_AUTH_AND_TENANCY.md`; stale
+  "registration not IP-limited" claim corrected; matrix C4 updated),
+  P4-AUTH-03 (full IDOR sweep recorded; three previously unswept offer
+  endpoints added to `tests/test_auth_tenant.py`, now 22 tests), and
+  P3-WF-02 (case-to-test mapping recorded; new regression tests: no-text
+  text-upload and atomic batch rejection in `tests/test_api.py`, and
+  superseded-revision claim leakage in evaluation). Full local gate
+  (pytest, ruff, mypy both scopes, security-exceptions validate /
+  check-suppressions, scoped coverage gate) passed with captured exit
+  statuses on 2026-10-15.
+- **Exact next action:** obtain independent human review for PR #146 (now
+  also carrying the four P0-CI-03/P5-SEC-02/P4-AUTH-03/P3-WF-02 doc/test
+  closures) and authorize the merge; do not merge without explicit
+  authorization. Note the origin remote still
+  points at `Hasnat26/freellmpool`, which GitHub resolves to the renamed
+  `Hasnat26/industrial-rfq-intelligence`. The only remaining plan tasks are
+  owner-dependent: live backup/restore (P2-BK-03/04), live schema
+  baseline/expiry (P1-DB-01/04), hosted authenticated tenant-isolation smoke
+  (P4-AUTH-02), hosted logging/error validation,
+  P0-CI-02 workflow enablement, P6-BILL-02 billing provider,
+  P7-OPS-03/04 owner input, and the pilot feedback cycle (C6).
 ## Resume state (2026-10-14, Priority D combined merge-queue validation PR #145)
 
 - **Verified main commit:** `f363adc562a494de57cca58c530c99afdfba2818`

@@ -21,7 +21,7 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | G8 | Backup tooling usable on owner's laptop | Explicit PostgreSQL tool paths; independent drill connection; live source/target identity guard | PR #117 merged; Run #598 passed; scratch drill details in runbook | PASS (repository + scratch only) |
 | G9 | Hosted readiness | Render runtime startup + `/ready` | Deployment `dep-db6j008n74is73a7thkg` startup completed at `2026-10-12T19:08:56.755388973Z`; Render readiness request `GET /ready` returned HTTP 200 at `2026-10-12T19:09:06.869985364Z`. This is deployment/readiness evidence, not security acceptance. | PASS (deployment readiness only) |
 | G10 | Authenticated smoke flow (hosted) | Auth + full API implemented | No recorded hosted run with test accounts | NOT VERIFIED (P4-AUTH-02) |
-| G11 | Tenant isolation (automated) | Tenant guards in every repository-scoped query | 21 tests in `tests/test_auth_tenant.py` incl. cross-tenant read/mutation sweeps | PASS |
+| G11 | Tenant isolation (automated) | Tenant guards in every repository-scoped query | 22 tests in `tests/test_auth_tenant.py` incl. cross-tenant read/mutation sweeps and the completed offer-scoped IDOR sweep (P4-AUTH-03) | PASS |
 | G12 | Tenant isolation (hosted) | Same code path | Not executed against the deployment | NOT VERIFIED (P4-AUTH-02) |
 | G13 | Entitlement enforcement | Server-side metered-write checks | `tests/test_commercial.py` automated | PASS |
 | G14 | Production fail-closed configuration | Rejects SQLite/auto-create/weak secrets | `tests/test_release_config.py` automated | PASS |
@@ -42,7 +42,7 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 | C1 | Payment provider configured and webhooks verified | BLOCKED | Owner approval + provider account required (P6-BILL-02) |
 | C2 | Idempotency/replay of billing lifecycle tested live | BLOCKED | Depends on C1 |
 | C3 | Monitoring/alerting external to platform | BLOCKED | Owner tooling decision (P7-OPS-04) |
-| C4 | Rate limiting suitable for topology | PARTIAL | In-memory limiter OK for single replica; documented limitation needed (P5-SEC-02) |
+| C4 | Rate limiting suitable for topology | PASS (for the single-replica topology) | In-process failure limiter on auth endpoints; general write-path policy + single-replica limitation documented in `docs/SAAS_AUTH_AND_TENANCY.md` (P5-SEC-02, decision-log pass 2026-10-15); multi-replica scale-up requires an edge/shared-store limiter |
 | C5 | Original-document retention decision | LIMITATION | Only extracted text/pages retained; add object storage before claiming retention |
 | C6 | One completed pilot feedback cycle | NOT VERIFIED | Per `docs/PILOT_LAUNCH.md` section 10 |
 

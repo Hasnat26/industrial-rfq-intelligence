@@ -575,6 +575,52 @@ def test_cross_tenant_clarification_revision_decision_reads_blocked() -> None:
     )
     assert preview.status_code != 404
 
+def test_remaining_offer_scoped_cross_tenant_mutations_blocked() -> None:
+    """P4-AUTH-03 sweep completion: the offer mutations the sweeps skipped.
+
+    `technical-resubmission` (multipart), `technical-clarification-request`,
+    and `clarifications/{id}/answer` are the only path-parameter endpoints not
+    covered by the bulk sweeps above. Foreign identifiers must yield the same
+    indistinguishable 404 and leave the victim's data untouched.
+    """
+    tenant_a = _seed_tenant("alice@example.com", "Org Alpha")
+    tenant_b = _seed_tenant("bob@example.com", "Org Beta")
+    attacker = tenant_b["headers"]
+    victim = tenant_a["headers"]
+    package_id = tenant_a["package"]["id"]
+    offer_id = tenant_a["offer"]["id"]
+    clarification_id = tenant_a["clarification"]["id"]
+    clarification_request = client.post(
+        f"/offers/{offer_id}/technical-clarification-request", headers=attacker
+    )
+    assert clarification_request.status_code == 404, clarification_request.text
+
+    resubmission = client.post(
+        f"/offers/{offer_id}/technical-resubmission",
+        data={"technical_revision": "tampered-revision"},
+        files={"file": ("intruder.txt", b"tampered", "text/plain")},
+        headers=attacker,
+    )
+    assert resubmission.status_code == 404, resubmission.text
+
+    answered = client.post(
+        f"/clarifications/{clarification_id}/answer",
+        json={"response": "Malicious answer."},
+        headers=attacker,
+    )
+    assert answered.status_code == 404, answered.text
+
+    # A foreign object is indistinguishable from a nonexistent one.
+    missing = client.post(
+        "/offers/999999/technical-clarification-request", headers=attacker
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == clarification_request.json()["detail"]
+
+    # The victim's package still has exactly one untouched offer.
+    offers = client.get(f"/packages/{package_id}/offers", headers=victim)
+    assert offers.status_code == 200
+    assert len(offers.json()) == 1
 
 def test_cross_tenant_clarification_revision_decision_writes_blocked() -> None:
     """Answer/clarify/resubmit/commercial/decision writes cannot cross tenants."""
@@ -584,7 +630,6 @@ def test_cross_tenant_clarification_revision_decision_writes_blocked() -> None:
     package_id = tenant_a["package"]["id"]
     offer_id = tenant_a["offer"]["id"]
     clarification_id = tenant_a["clarification"]["id"]
-
     writes: list[tuple[str, str, dict | None]] = [
         ("POST", f"/offers/{offer_id}/technical-clarification-request", None),
         ("POST", f"/offers/{offer_id}/commercial-status", {"status": "OPEN"}),

@@ -651,6 +651,77 @@ def test_vendor_offer_revision() -> None:
     assert rows[0]["status"] == "COMPLIANT"
 
 
+def test_superseded_revision_claims_do_not_leak_into_evaluation() -> None:
+    """P3-WF-02 (conflicting revisions): only the current revision is scored.
+
+    A vendor that revises its offer from a compliant value to a non-compliant
+    one must be evaluated on the current revision: the stale revision's claims
+    must not surface as a second opinion, a COMPLIANT status, or a conflict.
+    """
+    organization = client.post("/organizations", json={"name": "Org Revisions"}).json()
+    project = client.post(
+        "/projects",
+        json={"organization_id": organization["id"], "name": "Revision Conflict Project"},
+    ).json()
+    package = client.post(
+        "/packages",
+        json={
+            "project_id": project["id"],
+            "name": "Motor Package",
+            "category": "MOTOR",
+            "mode": "STANDARD",
+            "requirements": [
+                {"tag": "R-01", "parameter": "Rated voltage", "required_value": "415 V"}
+            ],
+        },
+    ).json()
+    offer = client.post(
+        f"/packages/{package['id']}/offers",
+        json={
+            "vendor_name": "Vendor Revision",
+            "technical_revision": "R1",
+            "price": "10000",
+            "currency": "USD",
+        },
+    ).json()
+    compliant = client.post(
+        f"/offers/{offer['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "415 V",
+            "evidence": "quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert compliant.status_code == 201
+
+    revision = client.post(
+        f"/offers/{offer['id']}/revisions",
+        json={"technical_revision": "R2"},
+    )
+    assert revision.status_code == 201
+    revised = client.post(
+        f"/offers/{revision.json()['id']}/claims",
+        json={
+            "parameter": "Rated voltage",
+            "value": "400 V",
+            "evidence": "revised quotation p.1",
+            "claim_status": "VERIFIED",
+        },
+    )
+    assert revised.status_code == 201
+
+    comparison = client.get(f"/packages/{package['id']}/comparison")
+    assert comparison.status_code == 200
+    rows = comparison.json()["rows"]
+    assert len(rows) == 1  # one vendor, evaluated once — on the current revision
+    assert rows[0]["status"] == "DEVIATION"  # 400 V against the required 415 V
+    assert rows[0]["offered"] == "400 V"
+    # The stale revision's claim is not a second row, a COMPLIANT status, or a
+    # flagged contradiction: the revision chain, not claim conflict, governs.
+    assert rows[0]["vendor"] == "Vendor Revision"
+
+
 def test_legacy_offer_revision_preserves_commercial_fields() -> None:
     """A legacy revision must not silently drop the vendor's commercial terms."""
     organization = client.post("/organizations", json={"name": "Org Legacy Rev"}).json()
@@ -942,6 +1013,70 @@ def test_document_ingestion_formats_and_rejections() -> None:
     assert fetched.status_code == 200
     assert fetched.json()["filename"] == "technical-offer.md"
     assert client.get("/documents/999999").status_code == 404
+
+
+def test_text_uploads_without_extractable_text_fail_closed() -> None:
+    """P3-WF-02: parser/OCR no-text failure mode is surfaced, never persisted.
+
+    A .txt/.md upload whose content is empty or whitespace-only has nothing
+    for the reviewer to verify; it must fail closed instead of persisting a
+    document with unextractable text and consuming plan quota. (PDFs are
+    intentionally exempt: a blank PDF page is a legitimate scanned-image
+    carrier for the downstream OCR path.)
+    """
+    seeded = _seed_offer(mode="STANDARD")
+    offer_id = seeded["offer"]["id"]
+
+    empty = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("empty.txt", b"", "text/plain")},
+    )
+    assert empty.status_code == 422, empty.text
+    assert empty.json()["detail"] == "document contained no extractable text"
+
+    whitespace = client.post(
+        f"/offers/{offer_id}/documents",
+        files={"file": ("blank.txt", b"   \n\t\n   ", "text/plain")},
+    )
+    assert whitespace.status_code == 422, whitespace.text
+    assert whitespace.json()["detail"] == "document contained no extractable text"
+
+    # The still-open offer never received a phantom document, as proven by
+    # the documents usage ledger not being consumed by these failures.
+    usage = client.get(f"/organizations/{seeded['organization']['id']}/usage")
+    assert usage.status_code == 200
+
+
+def test_batch_ingestion_rejects_text_file_without_content_atomically() -> None:
+    """P3-WF-02: the whole batch fails before any offer is written."""
+    seeded = _seed_package(mode="STANDARD")
+    package_id = seeded["package"]["id"]
+    first = _post_batch(
+        package_id,
+        [{"vendor_name": "Vendor Alpha", "technical_revision": "R1"}],
+        [("alpha.txt", b"Rated voltage: 415 V", "text/plain")],
+    )
+    assert first.status_code == 201
+    before = client.get(f"/packages/{package_id}/offers").json()
+    assert len(before) == 1
+
+    response = _post_batch(
+        package_id,
+        [
+            {"vendor_name": "Vendor Beta", "technical_revision": "R1"},
+            {"vendor_name": "Vendor Gamma", "technical_revision": "R1"},
+        ],
+        [
+            ("beta.txt", b"   \n", "text/plain"),
+            ("gamma.txt", b"Rated voltage: 400 V", "text/plain"),
+        ],
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["detail"] == "document contained no extractable text"
+
+    after = client.get(f"/packages/{package_id}/offers").json()
+    assert len(after) == 1  # no partial write for the batch
+    assert after[0]["vendor_name"] == "Vendor Alpha"
 
 
 def test_single_document_upload_enforces_plan_limit() -> None:
