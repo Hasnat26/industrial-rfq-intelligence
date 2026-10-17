@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "Package-only line and branch coverage floors enforced independently by scripts/check_coverage.py.",
+  "$comment": "Industrial-core line and branch coverage floors (freellmpool.industrial + freellmpool.industrial_report) enforced independently by scripts/check_coverage.py at the agent-orchestrator level. CI must not run this gate (tests/test_ci_config.py::test_ci_has_no_legacy_coverage_gate_contract). Package modules outside the industrial RFQ product are out of scope.",
   "thresholds": {
     "lines": 80,
     "branches": 70
   },
   "enforcement": {
-    "command": "pytest --cov=freellmpool --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json && python scripts/check_coverage.py .coverage.json",
+    "command": "pytest --cov=freellmpool.industrial --cov=freellmpool.industrial_report --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json && python scripts/check_coverage.py .coverage.json",
     "blockPRCreation": true,
     "blockTaskCompletion": true,
-    "description": "Orchestrator agents MUST generate package-only branch coverage and run the checker before marking any task complete or creating a PR. Lines and branches are evaluated separately."
+    "description": "Orchestrator agents MUST generate industrial-core branch coverage and run the checker before marking any task complete or creating a PR. Lines and branches are evaluated separately. CI does not enforce this gate."
   }
 }
