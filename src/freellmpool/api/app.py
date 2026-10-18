@@ -1347,6 +1347,10 @@ async def resubmit_technical_offer(
         vendor_key=_vendor_key(offer.vendor_name),
         technical_revision=revision,
         technical_status="IN_REVIEW",
+        price=offer.price,
+        currency=offer.currency,
+        lead_time=offer.lead_time,
+        warranty=offer.warranty,
         source_text=document_text(pages),
     )
     document = VendorDocument(
