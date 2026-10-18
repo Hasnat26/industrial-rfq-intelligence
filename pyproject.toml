@@ -125,6 +125,7 @@ testpaths = [
     "tests/test_document_normalizer.py",
     "tests/test_industrial_demo.py",
     "tests/test_industrial_report.py",
+    "tests/test_t24_r30_reporting_regressions.py",
     "tests/test_security_config.py",
     "tests/test_release_config.py",
     "tests/test_ci_config.py",

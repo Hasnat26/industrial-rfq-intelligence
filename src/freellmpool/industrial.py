@@ -653,6 +653,7 @@ def build_matrix(
                     "status": "UNVERIFIED",
                     "evidence": "No matching quotation field",
                     "claim_status": "UNVERIFIED",
+                    **_provenance_fields(None),
                 })
                 continue
 
@@ -662,6 +663,7 @@ def build_matrix(
                     for match in matches
                     if match.evidence
                 ) or "Conflicting quotation claims"
+                provenance = [_provenance_fields(match.provenance) for match in matches]
                 rows.append({
                     "requirement": req.tag,
                     "vendor": vendor,
@@ -672,6 +674,10 @@ def build_matrix(
                     "status": "UNVERIFIED",
                     "evidence": evidence,
                     "claim_status": "CONTRADICTED",
+                    **{
+                        field: "; ".join(dict.fromkeys(value[field] for value in provenance if value[field]))
+                        for field in ("source", "page", "section", "table", "cell")
+                    },
                 })
                 continue
 
@@ -693,6 +699,7 @@ def build_matrix(
                 "status": status,
                 "evidence": item.evidence,
                 "claim_status": item.claim_status,
+                **_provenance_fields(item.provenance),
             })
 
     return rows
@@ -836,10 +843,24 @@ def build_report(
     commercial = tuple(commercial_data or ())
     matrix = build_matrix(reqs, values)
     evidence_register = build_evidence_register(reqs, values, commercial)
-    review_claims = [row for row in evidence_register if row["review_required"] == "YES"]
     deviations = [row for row in matrix if row["status"] == "DEVIATION"]
     unverified = [row for row in matrix if row["status"] == "UNVERIFIED"]
     vendors = tuple(dict.fromkeys(item.vendor for item in values))
+
+    # Count unique claims that require attention across the matrix and evidence register.
+    # Every row surfaced in review_actions must contribute, including VERIFIED claims
+    # whose offered value deviates from the requirement. Matrix keys also capture
+    # missing fields and combined contradictions that may not exist as source claims.
+    review_keys: set[tuple[str, str, str]] = set()
+    for row in matrix:
+        if row["status"] in {"DEVIATION", "UNVERIFIED"} or row["claim_status"] != "VERIFIED":
+            review_keys.add(("technical_quotation", row["vendor"].casefold(), _normalise_parameter(row["parameter"])))
+    for row in evidence_register:
+        if row["review_required"] != "YES":
+            continue
+        source_type = row["source_type"]
+        field = _normalise_parameter(row["field"]) if source_type == "technical_quotation" else row["field"]
+        review_keys.add((source_type, row["vendor"].casefold(), field.casefold()))
 
     return {
         "product": "industrial-rfq-intelligence",
@@ -856,7 +877,7 @@ def build_report(
             "unverified_fields": len(unverified),
             "commercial_records": len(commercial),
             "evidence_records": len(evidence_register),
-            "claims_requiring_review": len(review_claims),
+            "claims_requiring_review": len(review_keys),
         },
         "matrix": matrix,
         "commercial_comparison": [asdict(item) for item in commercial],
@@ -864,14 +885,23 @@ def build_report(
         "evidence_register": evidence_register,
         "review_actions": [
             {
+                "requirement": row["requirement"],
                 "vendor": row["vendor"],
                 "parameter": row["parameter"],
                 "offered": row["offered"],
                 "required": row["required"],
+                "status": row["status"],
+                "claim_status": row["claim_status"],
                 "action": "Engineer review required",
                 "evidence": row["evidence"],
+                "source": row["source"],
+                "page": row["page"],
+                "section": row["section"],
+                "table": row["table"],
+                "cell": row["cell"],
             }
-            for row in deviations
+            for row in matrix
+            if row["status"] in {"DEVIATION", "UNVERIFIED"} or row["claim_status"] != "VERIFIED"
         ],
     }
 
