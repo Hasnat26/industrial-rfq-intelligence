@@ -16,27 +16,31 @@ production.
   database. Never widen the database allowlist to `0.0.0.0/0`. Never provision
   paid resources without explicit owner approval.
 
-## Verified baseline (2026-10-12)
+## Verified baseline (2026-10-18)
 
-- `main` HEAD: `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
-- Main CI Run #624 (`38237349041`) SUCCESS on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38237349041>.
-- PR #119 is closed/superseded; PR #124 is listed open, and PRs #128, #129, #130, and #131 remain open/unmerged. PR #128 is independent of P5-SEC-04 and was not modified. P5-SEC-01 remains CI-verified. P5-SEC-04 exception-boundary hardening and synthetic failure-path regressions are in PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793`; Run #648 passed all five jobs. Hosted validation remains NOT VERIFIED. PRs #128, #130, and #131 were not merged or deployed. Issues are disabled in repository settings.
-- Last recorded Render deployment: `2a31c006a6e7e3174c6375c6f5226cb3430f373c` (deployment `dep-db5s11tckfvc73b8ief0`, recorded live 2026-10-11). Current hosted deployment was not re-verified during P5-SEC-04; do not infer deployment of PR #129 from CI.
-- Hosted probes 2026-10-12: `/health` 200 and `/ready`
-  `{"status":"ready","database":"ok"}` from an external HTTP client.
-- **Merge-queue reconciliation (2026-10-17):** this baseline section is kept
-  for history; the live state supersedes it. PR #129 is merged (main
-  `f363adc`, Run #653). Nineteen PRs are open: #124 and #128–#146. Only
-  **#124 is CONFLICTING** — its runtime-state correction is superseded by
-  #132's verified Render-recovery record, so the recommended owner decision
-  is to close #124 (its facts already live in #132) unless a rebase is
-  specifically wanted. PR #145 (`integration/full-merge-queue`) is the
-  combined-tree proof for the whole open queue **including #146's delivered
-  head `d7eb5f3`** (branch head `d5c1f6e`, CI run `39002131865` green):
-  merging the queue via #145 or merging the component PRs in the recorded
-  order are both proven-safe paths. #142/#143 only conflict with each other;
-  #145 carries the synthesized resolution. No hosted or production gates
-  change with any of this; the owner-gated items below are unaffected.
+- `main` HEAD: `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (merge of PR #132).
+- Main CI Run `39100305393` SUCCESS on that commit — all five jobs
+  (`industrial` 3.11/3.12/3.13/3.14 and `postgres-migrations`). Every
+  intermediate merge commit of the landing order also has its own green run.
+- **Full open-PR landing order executed 2026-10-18:** #146 → #142 → #143 →
+  #136 → #137 → #139 → #135 → #138 → #134 → #133 → #141 → #140 → #128 →
+  #131 → #130 → #132, each merged only after green exact-head CI, with
+  content-preserving conflict resolutions (see `docs/PROJECT_CONTINUITY.md`).
+  PRs #124, #144, and #145 are closed as superseded: merging #144/#145 into
+  final main produced no content change beyond their older status snapshots,
+  and #124's runtime-state correction is carried by #132. No PRs remain open.
+- Historical baseline (`fe44588`, Run #624) and the 2026-10-17
+  merge-queue reconciliation note are superseded by this record; git history
+  and the linked CI runs retain the detail.
+- Last recorded Render deployment: `f363adc562a494de57cca58c530c99afdfba2818`
+  (deployment `dep-db6j008n74is73a7thkg`, live 2026-10-12). Main now carries an
+  **undeployed runtime-code delta** from the landing order; re-deploying is an
+  owner decision and was not performed in this cycle.
+- Hosted readiness evidence 2026-10-12: Render platform logs record application
+  startup completing and `GET /ready` returning `200 OK` with
+  `{"status":"ready","database":"ok"}`. Readiness is counted at platform-log
+  level; no independent external HTTP probe is claimed.
+- Issues are disabled in repository settings.
 
 ---
 
@@ -247,8 +251,9 @@ restore connection + live server identity guard
   sweeps — `POST /offers/{id}/technical-resubmission`,
   `POST /offers/{id}/technical-clarification-request`, and
   `POST /clarifications/{id}/answer` — now have regression tests in
-  `tests/test_auth_tenant.py` (22 tests, all passing locally and in CI on the
-  PR head). The one non-tenant path-parameter endpoint
+  `tests/test_auth_tenant.py` (26 tests on merged main, all passing locally and
+  in CI; the sweep above plus the cross-tenant authorization matrix and the
+  product-category route coverage). The one non-tenant path-parameter endpoint
   (`/product-categories/{category_key}`) serves static catalog templates and
   is documented as reference data.
 
@@ -324,36 +329,27 @@ restore connection + live server identity guard
 ## P7 — Deployment, pilot onboarding, and launch operations
 
 ### P7-OPS-01 — Hosted readiness verification
-- Priority: P0. Status: **PASS** (2026-10-12 external probes `/health` 200,
-  `/ready` `{"status":"ready","database":"ok"}` plus Render platform log
-  evidence).
+- Priority: P0. Status: **PASS (platform-log level)** — 2026-10-12 Render
+  platform logs record application startup completion and `GET /ready` →
+  `200 OK` `{"status":"ready","database":"ok"}`. An earlier note that also
+  claimed an independent external HTTP probe is superseded and is not counted
+  as evidence. This is readiness evidence only, not hosted security acceptance.
 
 ### P7-OPS-02 — Pilot onboarding package
-- Priority: P1. Status: **PARTIAL** (all content now authored; the open
-  customer-facing deliverables live in unmerged PRs and acceptance requires
-  their review/merge).
-- On `main` already: pilot use case and acceptance criteria
-  (`docs/PILOT_LAUNCH.md`), release checklist (`docs/RELEASE_CHECKLIST.md`),
-  deployment runbook (`docs/PRODUCTION_DEPLOYMENT.md`), backup runbook
-  (`docs/DB_BACKUP_RUNBOOK.md`), `examples/industrial_rfq/sample_input.json`,
-  and `examples/industrial_rfq/sample_report.md`.
-- Authored but unmerged (not counted as delivered, per the rules above):
-  PR #128 = complete synthetic source-document package + `DEMO.md`
-  walkthrough (the "complete sample quotation/source package" gap);
-  PR #130 = the customer-facing quickstart **including** the
-  known-limitations one-pager content (sections 1–7: setup, safe first
-  run, walkthrough, report interpretation, supported inputs + known
-  limitations, troubleshooting, acceptance checklist); PR #131 = the
-  owner-gated hosted acceptance test plan.
-- Dependency check (2026-10-15): PR #131's §7 requires a control-document
-  reconciliation after the PR #129 merge — that reconciliation is performed
-  on this branch (baseline SHA `f363adc`, Run #653 evidence, corrected
-  P7-OPS-02 description, hosted evidence kept NOT VERIFIED), so the
-  prerequisite is satisfied and PR #131 can be reconciled on top once
-  PR #146 merges.
-- Remaining action: independent human review and merge of PRs #146, #128,
-  #130, #131 (owner-gated); acceptance of the complete package is a
-  sign-off, not additional authoring work.
+- Priority: P1. Status: **PASS (repository documents)**; owner sign-off and
+  one completed pilot feedback cycle remain.
+- On `main`: pilot use case and acceptance criteria (`docs/PILOT_LAUNCH.md`),
+  release checklist (`docs/RELEASE_CHECKLIST.md`), deployment runbook
+  (`docs/PRODUCTION_DEPLOYMENT.md`), backup runbook (`docs/DB_BACKUP_RUNBOOK.md`),
+  customer-facing quickstart with the known-limitations content
+  (`docs/PILOT_CUSTOMER_ONBOARDING.md`, merged from PR #130), the owner-gated
+  hosted acceptance test plan (`docs/HOSTED_PILOT_ACCEPTANCE_TEST_PLAN.md`,
+  merged from PR #131; execution still NOT VERIFIED), the complete synthetic
+  source-document package with `DEMO.md` walkthrough and normalized-fidelity
+  tests (PR #128), `examples/industrial_rfq/sample_input.json`, and
+  `examples/industrial_rfq/sample_report.md`.
+- Remaining action: owner review/sign-off of the package and execution of the
+  hosted acceptance plan; no authoring work is outstanding.
 
 ### P7-OPS-03 — Incident, support, and feedback triage
 - Priority: P1. Status: **PARTIAL** (feedback classification P0–P3 exists in
@@ -377,8 +373,8 @@ restore connection + live server identity guard
 4. **P1-DB-04** (owner decision before 2026-11-08) — durable database.
 5. **P4-AUTH-02** (owner test accounts) — hosted authenticated + isolation
    smoke.
-6. **P7-OPS-02** — pilot onboarding package: authored in PRs #130
-   (quickstart) and #131 (hosted acceptance plan); pending their merge.
+6. **P7-OPS-02** — pilot onboarding package: **delivered on `main`** (#128/#130/#131);
+   remaining work is owner sign-off and executing the hosted acceptance plan.
 
 Additional gates for commercial production: **P6-BILL-02** (billing provider
 verification), **P5-SEC-01/02/04** closure, **P7-OPS-04** monitoring,

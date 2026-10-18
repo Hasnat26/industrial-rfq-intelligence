@@ -116,9 +116,10 @@ endpoint in `src/freellmpool/api/app.py`):
 | Unauthenticated by design | `/health`, `/ready` — no tenant data |
 
 Cross-tenant 404 behavior for every non-static row above is exercised by
-`tests/test_auth_tenant.py` (22 tests, including the completed offer-scoped
-sweep for `technical-resubmission`, `technical-clarification-request`, and
-`clarifications/{id}/answer`). Claims provenance continues to reject source
+`tests/test_auth_tenant.py` (26 tests on merged main, including the completed
+offer-scoped sweep for `technical-resubmission`, `technical-clarification-request`,
+and `clarifications/{id}/answer`, the cross-tenant authorization matrix, and the
+product-category route boundary). Claims provenance continues to reject source
 documents belonging to a different offer — and therefore to a different
 organization.
 
