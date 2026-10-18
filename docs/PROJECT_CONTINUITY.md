@@ -3,22 +3,61 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
-## Resume state (2026-10-12, refreshed after PR #123)
+## Resume state (2026-10-15, PR #146 supply-chain test reconciliation)
 
-- **Current main commit:** `656781d2f4761d4a77a43ee93be74d671f6a0b61`
-- **Current main CI:** Run #612 (`38219830664`) SUCCESS for `656781d2f4761d4a77a43ee93be74d671f6a0b61` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38219830664>.
-- **PR #122 validation:** Run #611 (`38219287584`) SUCCESS for PR head `4e3e0420a815c9c3eec0e662f6be24e05e231925`; merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`.
-
-- **Latest deployed commit (Render):**
-  `2a31c006a6e7e3174c6375c6f5226cb3430f373c`
-  (deployment `dep-db5s11tckfvc73b8ief0`, live 2026-10-11). PR #122 adds a runtime-code delta in `src/freellmpool/industrial.py` (prompt boundary and extraction-size limits). It is merged to main but is not yet shown as deployed; the latest confirmed Render deployment remains `2a31c006a6e7e3174c6375c6f5226cb3430f373c`.
-- **Hosted probes (2026-10-12):** `/health` 200; `/ready` 200
-  `{"status":"ready","database":"ok"}`.
-- **Active branch / PR:** PR #123 is open with all CI jobs green on its exact head; it updates the control documents after PR #122.
-
-- **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (Security/CodeQL workflows `disabled_fork`, owner admin needed), P1-DB-03, P2-BK-01, P4-AUTH-01, P5-SEC-03, P6-BILL-01, P7-OPS-01.
-- **Last completed task ID:** P5-SEC-01 code and regression coverage merged (PR #122; CI Run #611 passed all five jobs). This is repository/test evidence; no live hosted prompt-injection exercise was run.
-- **Exact next action:** merge PR #123 after verified Run #613 passes all five jobs. Next autonomous engineering task: P5-SEC-04 logging/secrets/error-handling review using source inspection and synthetic tests. Keep live backup/restore (P2-BK-03/04), database schema baseline/expiry (P1-DB-01/04), and hosted authenticated tenant-isolation smoke (P4-AUTH-02) in blocked/unverified states until owner-controlled operations are safely executed.
+- **Current main commit:** `f363adc562a494de57cca58c530c99afdfba2818`
+  (merge of PR #129, the P5-SEC-04 exception-boundary hardening). The historical
+  resume-state entries for PRs #122/#128–#131 below are kept for cycle history
+  only; PR #129 and #122 are now merged.
+- **Current main CI:** Run #653 (`38288890112`) SUCCESS for
+  `f363adc562a494de57cca58c530c99afdfba2818`.
+- **Latest deployed commit (Render):** `f363adc562a494de57cca58c530c99afdfba2818`,
+  deployment `dep-db6j008n74is73a7thkg` live (2026-10-12). There is **no
+  undeployed runtime-code delta** between main and the deployed commit.
+- **Hosted probes (2026-10-12):** startup completed; `GET /ready` returned
+  `200 OK` `{"status":"ready","database":"ok"}`; independent external
+  `/health` and `/ready` probes returned 200. See `docs/FINAL_ACCEPTANCE.md`.
+- **Open PR verified this cycle:** PR #146
+  (`story/p3-m15-stale-supply-chain-test-reconciliation`) is open, not draft,
+  mergeable/clean at head `e1cd1beee99c0e47545023ad16928d2286825144`. It removes
+  the stale supply-chain suite and promotes the active pinned-action validation
+  into the gate (commit `b22fe09`), then reconciles P3-M28 and the
+  final-acceptance evidence record (commit `e1cd1be`). CI run `38536254875` on
+  that exact head passed all five jobs
+  (industrial 3.11/3.12/3.13/3.14 + postgres-migrations).
+- **Local gate evidence (2026-10-15, exact tree `e1cd1be`):** pytest, ruff,
+  mypy (industrial and api/procurement_domain scopes),
+  `scripts/security_exceptions.py validate` and `check-suppressions` all passed.
+- **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (standalone security
+  workflows remain owner-dependent), P1-DB-03, P2-BK-01/02, P4-AUTH-01,
+  P5-SEC-03, P5-SEC-04 (repository-level fix CI-verified; hosted validation
+  NOT VERIFIED), P6-BILL-01/03, P7-OPS-01, P3-M15 (pending merge of PR #146),
+  P3-M28 (evidence reconciliation doc).
+- **Completed 2026-10-15 (same branch, pending human review of PR #146):**
+  P0-CI-03 (coverage gate scoped to the industrial core at unchanged 80/70
+  floors, agent-level enforcement, decision D-021, gate verified with exit
+  status), P5-SEC-02 (write-path rate-limit policy + single-replica
+  limitation documented in `docs/SAAS_AUTH_AND_TENANCY.md`; stale
+  "registration not IP-limited" claim corrected; matrix C4 updated),
+  P4-AUTH-03 (full IDOR sweep recorded; three previously unswept offer
+  endpoints added to `tests/test_auth_tenant.py`, now 22 tests), and
+  P3-WF-02 (case-to-test mapping recorded; new regression tests: no-text
+  text-upload and atomic batch rejection in `tests/test_api.py`, and
+  superseded-revision claim leakage in evaluation). Full local gate
+  (pytest, ruff, mypy both scopes, security-exceptions validate /
+  check-suppressions, scoped coverage gate) passed with captured exit
+  statuses on 2026-10-15.
+- **Exact next action:** obtain independent human review for PR #146 (now
+  also carrying the four P0-CI-03/P5-SEC-02/P4-AUTH-03/P3-WF-02 doc/test
+  closures) and authorize the merge; do not merge without explicit
+  authorization. Note the origin remote still
+  points at `Hasnat26/freellmpool`, which GitHub resolves to the renamed
+  `Hasnat26/industrial-rfq-intelligence`. The only remaining plan tasks are
+  owner-dependent: live backup/restore (P2-BK-03/04), live schema
+  baseline/expiry (P1-DB-01/04), hosted authenticated tenant-isolation smoke
+  (P4-AUTH-02), hosted logging/error validation,
+  P0-CI-02 workflow enablement, P6-BILL-02 billing provider,
+  P7-OPS-03/04 owner input, and the pilot feedback cycle (C6).
 
 - **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
   `main` plus copies in `/tmp/preserve/` contain the pre-merge local versions
@@ -28,13 +67,13 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** PR #122 merged as `656781d2f4761d4a77a43ee93be74d671f6a0b61`. Run #611 passed on its PR head `4e3e0420a815c9c3eec0e662f6be24e05e231925`; main merge-commit CI is the next required check. No live database operations were performed.
+- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793` passed Run #648 (`38277498580`), all five jobs. The current PR #129 head and latest exact-head CI result are tracked in the [live pull request](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [GitHub Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending; hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain open/unmerged and untouched. No production database operations or deployments were performed.
 
 ## Test and CI evidence
 
-- Local suite (this cycle, pre-docs): full `pytest` green in the workspace
-  venv (`/tmp/ffp-venv`), `ruff` + `mypy` clean as of PR #107/#114 merges.
-- Main CI Run #609 passed for `39b749496ac9e7c518ebf904af8ead979971f756`. PR CI Run #611 passed all five jobs on `4e3e0420a815c9c3eec0e662f6be24e05e231925`. Main CI for the merge commit is pending at this checkpoint.
+- No local repository shell/test runner was available for T24-R9; GitHub Actions is the execution evidence.
+- Main CI Run #624 passed on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
+- PR #129 code/test Run #648 (`38277498580`) passed all five jobs on `179257b9777285b11f1ede73b27beef0df710793`. For the current PR head and its exact-head CI result, use the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). This is repository-level evidence only; hosted security acceptance remains NOT VERIFIED.
 
 ## Unresolved risks and owner-controlled dependencies
 
@@ -74,15 +113,14 @@ is active. Update this file at the end of every meaningful work cycle.
 
 ## ChatGPT continuation prompt (ready to copy)
 
-> Continue the Industrial RFQ Intelligence market-launch work from the
-> repository checkpoint. First read `docs/PROJECT_CONTINUITY.md`,
-> `docs/MARKET_LAUNCH_MASTER_PLAN.md`, and
-> `docs/LAUNCH_ACCEPTANCE_MATRIX.md`, then check the latest main commit and
-> CI runs on GitHub. Resume the task whose status is IN PROGRESS in the
-> continuity file (currently P2-BK-03/P2-BK-04: owner-operated live backup and isolated
-> restore drill after PR #117's laptop-ready tooling was merged. If owner access
-> is not available, proceed with autonomous P5-SEC-01 adversarial regression tests.
-> Do not repeat completed audits. Follow the safety prohibitions in the
-> continuity file. Commit on a dedicated branch, open a PR, wait for green
-> CI, merge, confirm on main, and update the three control documents before
-> starting the next task.
+> Continue the Industrial RFQ Intelligence launch work from the repository
+> checkpoint. Verify the current main SHA, latest main CI, open PRs, and exact
+> PR heads before acting. PR #128 is the synthetic source-document pilot and
+> remains open/unmerged. PR #129 contains the P5-SEC-04 exception-boundary
+> hardening and focused failure-path tests; code/test commit `179257b9777285b11f1ede73b27beef0df710793`
+> passed CI Run #648. The current PR #129 head and latest exact-head CI result are available in the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending and hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain
+> open/unmerged; do not count their content as delivered or deployed. Do not
+> merge any PR without explicit authorization. Do not claim hosted logging/error handling, live backup/
+> restore, live database schema baseline, or hosted tenant-isolation tests
+> passed without their own execution evidence. Preserve all owner-controlled
+> safety constraints in this file.
