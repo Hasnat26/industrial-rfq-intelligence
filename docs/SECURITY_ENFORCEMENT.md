@@ -10,12 +10,14 @@ The repository currently defines these GitHub Actions workflows:
 
 - `.github/workflows/ci.yml` — Python 3.11–3.14 lint, type checks, product
   tests, CLI smoke tests, PostgreSQL migration validation, container runtime
-  smoke, and wheel/source-distribution smoke tests.
-- `.github/workflows/security.yml` — high-severity Bandit source audit,
-  Python dependency audit, GitHub Actions workflow audit with zizmor, Trivy
-  container vulnerability audit, and security regression tests.
-- `.github/workflows/codeql.yml` — CodeQL security-extended analysis for
-  Python.
+  smoke, and wheel/source-distribution smoke tests. Its `Security gate` step
+  runs Bandit, pip-audit, and zizmor as part of the `industrial` matrix job,
+  and it builds and smoke-tests the SaaS container; that is not the same as
+  the Trivy container vulnerability audit.
+- `.github/workflows/security.yml` — `High-severity Python source audit`
+  (Bandit), `Python dependency audit`, `GitHub Actions audit` (zizmor), and
+  `Container vulnerability audit` (Trivy).
+- `.github/workflows/codeql.yml` — `Analyze Python` security-extended analysis.
 
 These workflows are configured to run on pull requests targeting `main` and
 on pushes to `main` (with scheduled and manual triggers where configured).
@@ -45,14 +47,50 @@ GitHub or with an authorized CLI session before making any merge-enforcement
 claim:
 
 ```bash
-gh api repos/Hasnat26/industrial-rfq-intelligence/branches/main
-gh api repos/Hasnat26/industrial-rfq-intelligence/branches/main/protection
-gh api repos/Hasnat26/industrial-rfq-intelligence/rulesets
+REPO=Hasnat26/industrial-rfq-intelligence
+
+gh api "repos/$REPO/branches/main/protection/required_status_checks" \
+  --jq '{strict, contexts}'
+gh api "repos/$REPO/rulesets" \
+  --jq '.[] | {id, name, target, enforcement, source}'
+gh api "repos/$REPO/rules/branches/main"
 ```
+
+These commands must be run with an identity authorized to read the relevant
+settings. An authorization error or an empty result is not proof that all
+other applicable restrictions are absent. Compare required context names with
+the check runs for the exact pull-request head. After changing workflow job
+names, update any verified required-check configuration through the approved
+repository governance process; never remove a required context merely to
+unblock a merge. Review CodeQL alerts using the applicable GitHub
+code-scanning workflow and record the rationale for any reviewed false
+positives.
 
 If access to the protection endpoint is denied, record the result as
 **NOT VERIFIED** rather than inferring that no controls exist. Do not change
 branch protection or rulesets merely to make a pull request mergeable.
+
+## Runtime security boundaries
+
+- `/dashboard` and `/playground` are public only as a self-contained, data-free
+  browser shell. Usage, provider inventory, ready models, and battle requests
+  stay behind bearer-header authentication when proxy auth is configured.
+  After form submission the token input is cleared and the token remains only
+  in a JavaScript closure. It is never copied into a URL, cookie, Web Storage,
+  rendered DOM, global, log, or HTML response, and a reload requires re-entry.
+- `freellmpool local discover` probes only the fixed LM Studio, Ollama, and
+  llama.cpp literal-loopback endpoints, or one explicit canonical
+  literal-loopback URL. Requests have strict time/body/model bounds, send no
+  credentials, and follow no redirects. Discovery never performs DNS, LAN, or
+  process scanning. Import requires `--yes`, creates pin-only routes, and is
+  reversible with `local remove --yes`.
+- Streaming failover stops at downstream commit. Text-only Responses and
+  Anthropic Messages content is delivered incrementally; tool and rich-content
+  translation remains buffered. A post-commit upstream failure is never
+  retried elsewhere and never ends with a successful terminal event.
+- `freellmpool doctor` reports strict config syntax/table errors with sanitized
+  line, column, and type metadata. It does not echo malformed values, API keys,
+  bearer tokens, or other configuration secrets.
 
 ## Review and release boundaries
 
