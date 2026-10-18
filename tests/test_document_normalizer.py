@@ -142,6 +142,79 @@ def test_markitdown_is_canonical_for_local_rfq_llm_ingestion(tmp_path: Path) -> 
     assert "Rated voltage: 415 V" in pool.prompt
 
 
+@pytest.mark.parametrize(
+    ("source_name", "expected_fragments"),
+    [
+        (
+            "rfq_specification.md",
+            (
+                "SYN-RFQ-415V-001",
+                "Northbridge Process Systems",
+                "R-01",
+                "415 V AC, three-phase, 50 Hz",
+                "R-02",
+                "75 kW",
+                "R-03",
+                "IE3",
+                "R-04",
+                "IP55 minimum",
+                "Q-A-03",
+                "Q-B-03",
+            ),
+        ),
+        (
+            "quotation_asterion_motor_works.md",
+            (
+                "Asterion Motor Works",
+                "Q-A-001",
+                "SYN-RFQ-415V-001",
+                "Q-A-03",
+                "IE3",
+                "USD 10,000",
+                "8 weeks",
+                "24 months",
+                "30% advance, 70% before shipment",
+            ),
+        ),
+        (
+            "quotation_bluehaven_electromechanical.md",
+            (
+                "Bluehaven Electromechanical",
+                "Q-B-001",
+                "SYN-RFQ-415V-001",
+                "Q-B-03",
+                "IE2",
+                "IE3",
+                "USD 9,200",
+                "12 weeks",
+                "12 months",
+                "50% advance, 50% before shipment",
+            ),
+        ),
+    ],
+)
+def test_synthetic_rfq_source_documents_normalize_with_content_fidelity(
+    source_name: str, expected_fragments: tuple[str, ...]
+) -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    source = (
+        repository_root
+        / "examples"
+        / "industrial_rfq"
+        / "source_documents"
+        / source_name
+    )
+
+    result = normalize_document(source)
+
+    assert isinstance(result, NormalizedDocument)
+    assert result.source == str(source)
+    assert result.page_count == 1
+    assert result.markdown.strip()
+    for fragment in expected_fragments:
+        assert fragment in result.markdown
+
+
 def test_malformed_pdf_fails_with_actionable_error(tmp_path: Path) -> None:
     source = tmp_path / "malformed.pdf"
     source.write_bytes(b"not a PDF document")
