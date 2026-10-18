@@ -3,18 +3,61 @@
 Permanent handover checkpoint for whichever engineer (Freebuff AI or ChatGPT)
 is active. Update this file at the end of every meaningful work cycle.
 
-## Resume state (2026-10-13, T24-R22 verified Render deployment recovery)
+## Resume state (2026-10-15, PR #146 supply-chain test reconciliation)
 
-- **Current main commit:** `f363adc562a494de57cca58c530c99afdfba2818` — verified from GitHub `refs/heads/main`.
-- **Current main CI:** Run #653 (`38288890112`) SUCCESS for the exact main SHA above; all five jobs passed: `postgres-migrations`, `industrial (3.11)`, `industrial (3.12)`, `industrial (3.13)`, and `industrial (3.14)`. <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38288890112>
-- **Latest confirmed Render deployment:** `dep-db6j008n74is73a7thkg`, status `live`, target SHA `f363adc562a494de57cca58c530c99afdfba2818`. Render `deploy_ended` event `evt-db6j0l48q0ns73e9gq5g` reported `succeeded` at `2026-10-12T19:09:08.269869Z`; deployment record `finishedAt` is `2026-10-12T19:09:07.991502Z`. Build `bld-db6j008n74is73a7thlg` succeeded at `2026-10-12T19:08:34.020461Z`.
-- **Render runtime evidence:** application startup completed at `2026-10-12T19:08:56.755388973Z`; `GET /ready` returned HTTP 200 at `2026-10-12T19:09:06.869985364Z`; Render logged the service live at `2026-10-12T19:09:08.410736266Z`. Service dashboard: <https://dashboard.render.com/web/srv-db497867bikc73e0il6g>.
-- **Previous deployment:** `dep-db5s11tckfvc73b8ief0`, SHA `2a31c006a6e7e3174c6375c6f5226cb3430f373c`, now `deactivated`.
-- **Latest merged change:** PR #129 merged as `f363adc562a494de57cca58c530c99afdfba2818`. Run #653 verifies the merge commit. PR #129: <https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129>.
-- **Acceptance boundary:** deployment recovery is verified. **Hosted security acceptance: NOT VERIFIED.** Hosted authenticated tenant isolation, live database migration/baseline, live backup/restore, production billing, and hosted logging/error behavior remain NOT VERIFIED or owner-dependent unless separately evidenced below.
-
-- **Last completed task ID:** T24-R22 — record verified Render deployment recovery in project/acceptance documentation. This task is documentation-only and is being delivered through a focused PR; do not merge without the established merge procedure.
-- **Exact next action:** review the T24-R22 documentation PR and its exact-head CI. Do not merge without explicit authorization and the established merge procedure. Keep all hosted security and live database/recovery gates at their separately verified states.
+- **Current main commit:** `f363adc562a494de57cca58c530c99afdfba2818`
+  (merge of PR #129, the P5-SEC-04 exception-boundary hardening). The historical
+  resume-state entries for PRs #122/#128–#131 below are kept for cycle history
+  only; PR #129 and #122 are now merged.
+- **Current main CI:** Run #653 (`38288890112`) SUCCESS for
+  `f363adc562a494de57cca58c530c99afdfba2818`.
+- **Latest deployed commit (Render):** `f363adc562a494de57cca58c530c99afdfba2818`,
+  deployment `dep-db6j008n74is73a7thkg` live (2026-10-12). There is **no
+  undeployed runtime-code delta** between main and the deployed commit.
+- **Hosted probes (2026-10-12):** startup completed; `GET /ready` returned
+  `200 OK` `{"status":"ready","database":"ok"}`; independent external
+  `/health` and `/ready` probes returned 200. See `docs/FINAL_ACCEPTANCE.md`.
+- **Open PR verified this cycle:** PR #146
+  (`story/p3-m15-stale-supply-chain-test-reconciliation`) is open, not draft,
+  mergeable/clean at head `e1cd1beee99c0e47545023ad16928d2286825144`. It removes
+  the stale supply-chain suite and promotes the active pinned-action validation
+  into the gate (commit `b22fe09`), then reconciles P3-M28 and the
+  final-acceptance evidence record (commit `e1cd1be`). CI run `38536254875` on
+  that exact head passed all five jobs
+  (industrial 3.11/3.12/3.13/3.14 + postgres-migrations).
+- **Local gate evidence (2026-10-15, exact tree `e1cd1be`):** pytest, ruff,
+  mypy (industrial and api/procurement_domain scopes),
+  `scripts/security_exceptions.py validate` and `check-suppressions` all passed.
+- **Previously completed task IDs:** P0-CI-01/04, P0-CI-02 (standalone security
+  workflows remain owner-dependent), P1-DB-03, P2-BK-01/02, P4-AUTH-01,
+  P5-SEC-03, P5-SEC-04 (repository-level fix CI-verified; hosted validation
+  NOT VERIFIED), P6-BILL-01/03, P7-OPS-01, P3-M15 (pending merge of PR #146),
+  P3-M28 (evidence reconciliation doc).
+- **Completed 2026-10-15 (same branch, pending human review of PR #146):**
+  P0-CI-03 (coverage gate scoped to the industrial core at unchanged 80/70
+  floors, agent-level enforcement, decision D-021, gate verified with exit
+  status), P5-SEC-02 (write-path rate-limit policy + single-replica
+  limitation documented in `docs/SAAS_AUTH_AND_TENANCY.md`; stale
+  "registration not IP-limited" claim corrected; matrix C4 updated),
+  P4-AUTH-03 (full IDOR sweep recorded; three previously unswept offer
+  endpoints added to `tests/test_auth_tenant.py`, now 22 tests), and
+  P3-WF-02 (case-to-test mapping recorded; new regression tests: no-text
+  text-upload and atomic batch rejection in `tests/test_api.py`, and
+  superseded-revision claim leakage in evaluation). Full local gate
+  (pytest, ruff, mypy both scopes, security-exceptions validate /
+  check-suppressions, scoped coverage gate) passed with captured exit
+  statuses on 2026-10-15.
+- **Exact next action:** obtain independent human review for PR #146 (now
+  also carrying the four P0-CI-03/P5-SEC-02/P4-AUTH-03/P3-WF-02 doc/test
+  closures) and authorize the merge; do not merge without explicit
+  authorization. Note the origin remote still
+  points at `Hasnat26/freellmpool`, which GitHub resolves to the renamed
+  `Hasnat26/industrial-rfq-intelligence`. The only remaining plan tasks are
+  owner-dependent: live backup/restore (P2-BK-03/04), live schema
+  baseline/expiry (P1-DB-01/04), hosted authenticated tenant-isolation smoke
+  (P4-AUTH-02), hosted logging/error validation,
+  P0-CI-02 workflow enablement, P6-BILL-02 billing provider,
+  P7-OPS-03/04 owner input, and the pilot feedback cycle (C6).
 
 - **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
   `main` plus copies in `/tmp/preserve/` contain the pre-merge local versions
@@ -24,14 +67,13 @@ is active. Update this file at the end of every meaningful work cycle.
   **merged, not restored wholesale** (the merged versions added schema
   verification the local versions lack). Drop the stash only after the merge
   task completes.
-- **Latest repository change:** main commit `f363adc562a494de57cca58c530c99afdfba2818` (PR #129 merge). Main CI Run #653 (`38288890112`) passed all five jobs. Render deployment `dep-db6j008n74is73a7thkg` is `live` on the same SHA; build and deploy events succeeded, application startup completed, and `/ready` returned HTTP 200. Previous deployment `dep-db5s11tckfvc73b8ief0` is deactivated. Hosted security acceptance remains NOT VERIFIED.
+- **Latest repository change:** main remains `fe44588116f6d1afb0a7c70a0a3b661ec3db6593` with Run #624 green. PR #129 code/test commit `179257b9777285b11f1ede73b27beef0df710793` passed Run #648 (`38277498580`), all five jobs. The current PR #129 head and latest exact-head CI result are tracked in the [live pull request](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [GitHub Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending; hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain open/unmerged and untouched. No production database operations or deployments were performed.
 
 ## Test and CI evidence
 
-- GitHub Actions Run #653 (`38288890112`) completed successfully on main SHA `f363adc562a494de57cca58c530c99afdfba2818`; all five jobs passed. <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38288890112>
-- Render deployment `dep-db6j008n74is73a7thkg`: build succeeded at `2026-10-12T19:08:34.020461Z`; deployment ended successfully at `2026-10-12T19:09:08.269869Z`; deployment record status is `live`.
-- Runtime logs show application startup complete and `/ready` HTTP 200. These logs support deployment/readiness status only; they do not establish hosted security acceptance.
-- No production database operation, stateful/security test, or production configuration change was performed for T24-R22.
+- No local repository shell/test runner was available for T24-R9; GitHub Actions is the execution evidence.
+- Main CI Run #624 passed on `fe44588116f6d1afb0a7c70a0a3b661ec3db6593`.
+- PR #129 code/test Run #648 (`38277498580`) passed all five jobs on `179257b9777285b11f1ede73b27beef0df710793`. For the current PR head and its exact-head CI result, use the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). This is repository-level evidence only; hosted security acceptance remains NOT VERIFIED.
 
 ## Unresolved risks and owner-controlled dependencies
 
@@ -52,22 +94,33 @@ is active. Update this file at the end of every meaningful work cycle.
 
 ## Safe resume instructions for the next AI
 
-1. Verify the current `main` SHA and latest exact-head CI before acting.
-2. Read `docs/PROJECT_CONTINUITY.md`, `docs/LAUNCH_ACCEPTANCE_MATRIX.md`, `docs/FINAL_ACCEPTANCE.md`, and `docs/MARKET_LAUNCH_MASTER_PLAN.md`; treat the latest dated checkpoint above as authoritative over historical entries.
-3. Use a dedicated branch and PR for documentation changes; run required checks and verify exact-head CI.
-4. Do not merge without explicit authorization and the established merge procedure.
-5. Never modify production database state, expose credentials, widen database access, or claim hosted security, authenticated tenant isolation, live migration baseline, backup/restore, or billing acceptance without their own execution evidence.
+1. `git fetch origin && git log origin/main --oneline -5` and compare with the
+   main commit above; re-check `gh run list` for newer CI results.
+2. Read `docs/MARKET_LAUNCH_MASTER_PLAN.md` for the backlog and
+   `docs/LAUNCH_ACCEPTANCE_MATRIX.md` for gate results; do not repeat audits
+   that already have PASS evidence unless something changed.
+3. If the active task is still P2-BK-02, continue exactly at the "exact next
+   action" above. The preserved work lives in the git stash
+   `local-backlog-followup` and `/tmp/preserve/` (workspace may not survive;
+   if `/tmp/preserve` is gone, reconstruct from the stash or from this
+   document's description).
+4. Work on a dedicated branch; open a PR; require green CI; merge only when
+   checks pass; confirm the commit on `main`; then update this file, the
+   acceptance matrix, and the master plan statuses.
+5. Never: restore over the source database, run `alembic stamp head` on the
+   live DB, widen the DB allowlist, expose credentials in chat, or claim a
+   live backup/restore that was not actually executed.
 
 ## ChatGPT continuation prompt (ready to copy)
 
-> Continue Industrial RFQ Intelligence from current GitHub main. Current main is
-> `f363adc562a494de57cca58c530c99afdfba2818`, verified with CI Run #653
-> (`38288890112`) green across five jobs. Render deployment
-> `dep-db6j008n74is73a7thkg` is live on that exact SHA; deployment completed
-> at `2026-10-12T19:09:08.269869Z`, application startup completed, and
-> `/ready` returned HTTP 200. Previous deployment
-> `dep-db5s11tckfvc73b8ief0` is deactivated. Keep hosted security acceptance
-> NOT VERIFIED, and do not claim hosted tenant isolation, live database
-> migration/baseline, backup/restore, billing, or hosted logging/error checks
-> passed without separate evidence. Use focused branches and PRs; do not merge
-> without explicit authorization and the established procedure.
+> Continue the Industrial RFQ Intelligence launch work from the repository
+> checkpoint. Verify the current main SHA, latest main CI, open PRs, and exact
+> PR heads before acting. PR #128 is the synthetic source-document pilot and
+> remains open/unmerged. PR #129 contains the P5-SEC-04 exception-boundary
+> hardening and focused failure-path tests; code/test commit `179257b9777285b11f1ede73b27beef0df710793`
+> passed CI Run #648. The current PR #129 head and latest exact-head CI result are available in the [live PR](https://github.com/Hasnat26/industrial-rfq-intelligence/pull/129) and [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Asecurity%2Fp5-sec-04-sanitize-reconciliation-errors). Independent human review remains pending and hosted security acceptance remains NOT VERIFIED. PRs #128, #130, and #131 remain
+> open/unmerged; do not count their content as delivered or deployed. Do not
+> merge any PR without explicit authorization. Do not claim hosted logging/error handling, live backup/
+> restore, live database schema baseline, or hosted tenant-isolation tests
+> passed without their own execution evidence. Preserve all owner-controlled
+> safety constraints in this file.

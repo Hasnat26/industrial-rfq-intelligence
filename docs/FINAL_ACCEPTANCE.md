@@ -6,15 +6,15 @@ This document records executable acceptance evidence for the repository and host
 
 | Gate | Evidence status | Result |
 |---|---|---|
-| CI validation for current main | Main CI Run #653 (`38288890112`) passed all five jobs on main/merge commit `f363adc562a494de57cca58c530c99afdfba2818` — <https://github.com/Hasnat26/industrial-rfq-intelligence/actions/runs/38288890112> | PASS |
-| CI validation for deployed runtime commit | Main CI Run #582-era pipeline completed successfully for commit `2a31c006a6e7e3174c6375c6f5226cb3430f373c`; the same pipeline shape is green on every later main commit | PASS |
-| Latest deployed source commit | Render deployment `dep-db6j008n74is73a7thkg` for commit `f363adc562a494de57cca58c530c99afdfba2818` reached `live`; Render `deploy_ended` event recorded success at `2026-10-12T19:09:08.269869Z`. Previous deployment `dep-db5s11tckfvc73b8ief0` is now `deactivated`. | DEPLOYED |
-| Runtime-code delta | PR #129's merged exception-boundary hardening is included in deployed SHA `f363adc562a494de57cca58c530c99afdfba2818`. This verifies delivery of the merged commit only; hosted log redaction and runtime failure behavior were not separately tested. | DEPLOYED; hosted behavior NOT VERIFIED |
-| Hosted startup/readiness | For deployment `dep-db6j008n74is73a7thkg`, Render logs show application startup complete at `2026-10-12T19:08:56.755388973Z`, `GET /ready` HTTP 200 at `2026-10-12T19:09:06.869985364Z`, and Render `deploy_ended=succeeded` at `2026-10-12T19:09:08.269869Z`. | PASS (platform log and deployment event) |
+| CI validation for current main | Main CI Run #653 (`38288890112`) passed all five jobs on current main tip `f363adc562a494de57cca58c530c99afdfba2818` (the previously recorded Run #612 `38219830664` on `656781d2f4761d4a77a43ee93be74d671f6a0b61` is superseded) | PASS |
+| CI validation for deployed runtime commit | Main CI Run #653 (`38288890112`) completed successfully for the deployed commit `f363adc562a494de57cca58c530c99afdfba2818`; the same pipeline shape is green on every main commit since the Run #582 era | PASS |
+| Latest deployed source commit | Render deployment `dep-db6j008n74is73a7thkg` for commit `f363adc562a494de57cca58c530c99afdfba2818` reached `live` (deploy event `evt-db6j0l48q0ns73e9gq5g` succeeded 2026-10-12T19:09:08Z); the previous deployment `dep-db5s11tckfvc73b8ief0` for `2a31c006a6e7e3174c6375c6f5226cb3430f373c` is now `deactivated` | DEPLOYED |
+| Runtime-code delta | The current live Render deployment `dep-db6j008n74is73a7thkg` targets `f363adc562a494de57cca58c530c99afdfba2818`, which is the current main tip, so there is no undeployed runtime-code delta between main and the deployed commit | NO RUNTIME DELTA |
+| Hosted startup/readiness | Render logs for the current live deployment `dep-db6j008n74is73a7thkg` show application startup complete (2026-10-12T19:08:56Z) and `GET /ready` returning `200 OK` (2026-10-12T19:09:06Z) | PASS (platform log) |
 | Migration schema coverage | Clean PostgreSQL 16 migration chain, `alembic current`, and `alembic check` pass in CI; live Render DB still has no `alembic_version` and has not been safely baselined or migrated | CI PASS / LIVE PENDING |
 | Commercial entitlement enforcement | Package, offer, quotation batch, revision/resubmission, and document creation paths enforce plan limits and persist usage atomically | PASS (automated tests) |
 | Commercial usage integrity | Manual usage writes are OWNER-only and PostgreSQL entitlement checks serialize on the organization subscription row | PASS (automated tests) |
-| Security gate | Security commands and regression tests are part of the main CI gate; main CI Run #653 passed. **Hosted security acceptance remains NOT VERIFIED**; no hosted security/tenant-isolation checks were run for T24-R22. | PASS (CI); hosted NOT VERIFIED |
+| Security gate | Security commands and regression tests are part of the main CI gate | PASS |
 | Package/CLI smoke | Main CI includes wheel/sdist build and installation smoke | PASS |
 | SaaS readiness surface | Dedicated FastAPI container, readiness endpoint, deployment instructions, local compose smoke surface, OCR runtime, and container CI smoke are present | PASS |
 | Original binary document retention | Original uploads are intentionally not retained; only extracted text/pages are persisted | LIMITATION |
@@ -27,15 +27,17 @@ This document records executable acceptance evidence for the repository and host
 
 ## Acceptance rule
 
-Repository configuration alone is not execution evidence. A release claim is CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. Main CI Run #598 (`38214323218`) is confirmed successful for commit `57b63009e9d61c42d1849124382fe6217eceb983`. Render deployment `dep-db6j008n74is73a7thkg` is live on `f363adc562a494de57cca58c530c99afdfba2818`; the build and deploy events succeeded, application startup completed, and platform logs show `/ready` HTTP 200. This is **Main Green and deployed**, not proof of hosted security acceptance or full hosted production readiness.
+Repository configuration alone is not execution evidence. A release claim is CI-verified only when a real GitHub Actions run for the relevant commit has completed successfully. Main CI Run #653 (`38288890112`) is confirmed successful for commit `f363adc562a494de57cca58c530c99afdfba2818`. The Render deployment `dep-db6j008n74is73a7thkg` for that same commit is live on that SHA, and Render platform logs show application startup completing and readiness returning `200 OK`. This is **Main Green and deployed**, not proof of hosted production readiness or hosted security acceptance.
+
+The Render platform readiness evidence is platform-log level: it records application startup and a `GET /ready` `200 OK`. No independent external HTTP probe is claimed.
 
 The authoritative remaining-work backlog is `docs/MARKET_LAUNCH_MASTER_PLAN.md`; gate-by-gate live acceptance status is tracked in `docs/LAUNCH_ACCEPTANCE_MATRIX.md`; the resume checkpoint for engineer handover is `docs/PROJECT_CONTINUITY.md`; material decisions are recorded in `docs/ENGINEERING_DECISION_LOG.md`.
 
-The Render platform health-check path is `/ready`. This verification has platform-log evidence for successful readiness responses; it does not claim an independent external HTTP probe. The active environment configuration could not be safely confirmed from the available read-back. Do not switch the service to production mode until the database, migration, secrets, and recovery gates are ready.
+The Render platform health-check path is `/ready`. This verification has platform-log evidence for successful readiness responses. The active environment configuration could not be safely confirmed from the available read-back. Do not switch the service to production mode until the database, migration, secrets, and recovery gates are ready.
 
 ## Explicit hosted acceptance boundary
 
-**Hosted security acceptance: NOT VERIFIED.** The deployment status and readiness logs do not establish production security acceptance, authenticated tenant isolation, hosted logging/error behavior, live database migration/baseline acceptance, or backup/recovery acceptance. Those gates require separate authorized execution and evidence.
+**Hosted security acceptance: NOT VERIFIED.** Deployment status and platform readiness logs do not establish production security acceptance, authenticated tenant isolation, hosted logging/error behavior, live database migration/baseline acceptance, or backup/recovery acceptance. Each of those gates requires its own authorized execution and recorded evidence.
 
 ## Remaining production acceptance work
 
@@ -50,4 +52,4 @@ The Render platform health-check path is `/ready`. This verification has platfor
 
 ## Portfolio-safe statement
 
-The repository contains an inspectable, evidence-aware industrial RFQ decision-support SaaS MVP with persistent multi-tenant data, deterministic comparison controls, provenance handling, human-review boundaries, lifecycle intelligence, commercial entitlement enforcement, authenticated billing boundaries, migration coverage, and a reproducible FastAPI deployment surface. Main CI Run #653 (`38288890112`) passed all five required jobs on commit `f363adc562a494de57cca58c530c99afdfba2818`; Render deployment `dep-db6j008n74is73a7thkg` for that SHA reached `live`. Render platform evidence records build and deployment success and `GET /ready` HTTP 200. No independent external HTTP probe is claimed. Hosted production remains unverified until durable database/recovery, production migration/configuration, billing-provider validation, and authenticated tenant-isolation smoke gates above are completed.
+The repository contains an inspectable, evidence-aware industrial RFQ decision-support SaaS MVP with persistent multi-tenant data, deterministic comparison controls, provenance handling, human-review boundaries, lifecycle intelligence, commercial entitlement enforcement, authenticated billing boundaries, migration coverage, and a reproducible FastAPI deployment surface. Main CI Run #653 (`38288890112`) is confirmed successful for commit `f363adc562a494de57cca58c530c99afdfba2818`; Render deployment `dep-db6j008n74is73a7thkg` for the same commit reached `live`, with Render platform-log startup/readiness `200 OK` evidence. Hosted production remains unverified until durable database/recovery, production migration/configuration, billing-provider validation, and authenticated tenant-isolation smoke gates above are completed.
