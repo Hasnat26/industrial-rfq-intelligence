@@ -290,7 +290,13 @@ def _technical_comparison_rows(package: ProcurementPackage) -> list[dict[str, ob
 
 
 def _extract_upload_pages(path: Path, filename: str) -> list[DocumentPage]:
-    """Extract untrusted upload bytes, failing closed without leaking internals."""
+    """Extract untrusted upload bytes, failing closed without leaking internals.
+
+    Text uploads (.txt/.md) fail closed when the content holds no
+    non-whitespace text: an untext-bearing document cannot be reviewed and
+    must not consume plan quota (P3-WF-02). PDF pages are exempt — a blank
+    page is a legitimate scanned-image carrier for the OCR path.
+    """
     try:
         extracted = extract_document_pages(path)
     except ValueError as exc:
@@ -302,6 +308,11 @@ def _extract_upload_pages(path: Path, filename: str) -> list[DocumentPage]:
         raise HTTPException(status_code=422, detail="document could not be parsed") from exc
     except Exception as exc:
         raise HTTPException(status_code=422, detail="document could not be parsed") from exc
+    if (
+        path.suffix.casefold() in {".txt", ".md"}
+        and not any(item.text.strip() for item in extracted)
+    ):
+        raise HTTPException(status_code=422, detail="document contained no extractable text")
     return [DocumentPage(filename, item.page, item.text) for item in extracted]
 
 
