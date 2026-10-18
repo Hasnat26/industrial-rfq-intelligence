@@ -1225,6 +1225,10 @@ def create_offer_revision(
         part_number=offer.part_number,
         vendor_key=vendor_key,
         technical_revision=revision,
+        price=offer.price,
+        currency=offer.currency,
+        lead_time=offer.lead_time,
+        warranty=offer.warranty,
         source_text=payload.source_text,
     )
     db.add(revision_offer)
