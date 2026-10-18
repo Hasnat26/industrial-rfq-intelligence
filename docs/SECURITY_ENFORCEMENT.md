@@ -1,16 +1,50 @@
-# Security enforcement
+# Security enforcement and merge-control evidence
 
-## Repository merge controls
+This document describes the security controls for **Industrial RFQ Intelligence**.
+It distinguishes automated checks from GitHub rules that make those checks
+mandatory for merging.
 
-Security workflow definitions and GitHub-enforced merge requirements are separate things. The workflows currently define these jobs:
+## Automated validation
 
-- `.github/workflows/security.yml`: `High-severity Python source audit`, `Python dependency audit`, `GitHub Actions audit`, and `Container vulnerability audit`.
-- `.github/workflows/codeql.yml`: `Analyze Python`.
-- `.github/workflows/ci.yml`: the `Security gate` step runs Bandit, pip-audit, and zizmor as part of the `industrial` matrix job. It also builds and smoke-tests the SaaS container; that is not the same as the Trivy container vulnerability audit.
+The repository currently defines these GitHub Actions workflows:
 
-The workflow files trigger on pull requests targeting `main`, but a workflow or job existing in the repository does not by itself make it a mandatory merge check. Before relying on a required status check or CodeQL ruleset, verify the effective GitHub settings for this repository. This document does not assert that any particular context is required or that a particular ruleset ID is active; those settings must be confirmed from live repository policy.
+- `.github/workflows/ci.yml` — Python 3.11–3.14 lint, type checks, product
+  tests, CLI smoke tests, PostgreSQL migration validation, container runtime
+  smoke, and wheel/source-distribution smoke tests. Its `Security gate` step
+  runs Bandit, pip-audit, and zizmor as part of the `industrial` matrix job,
+  and it builds and smoke-tests the SaaS container; that is not the same as
+  the Trivy container vulnerability audit.
+- `.github/workflows/security.yml` — `High-severity Python source audit`
+  (Bandit), `Python dependency audit`, `GitHub Actions audit` (zizmor), and
+  `Container vulnerability audit` (Trivy).
+- `.github/workflows/codeql.yml` — `Analyze Python` security-extended analysis.
 
-Administrators can inspect the repository's current controls without changing them:
+These workflows are configured to run on pull requests targeting `main` and
+on pushes to `main` (with scheduled and manual triggers where configured).
+A workflow definition or a successful run does **not** by itself prove that
+GitHub blocks merges when a check fails.
+
+## Live merge-control evidence
+
+Last checked: **2026-10-13**.
+
+- The GitHub branch metadata endpoint reported `main.protected = false`.
+- The repository-level rulesets endpoint available to the connected integration
+  returned an empty list.
+- The classic branch-protection detail endpoint returned HTTP 403
+  (`Resource not accessible by integration`), so its detailed settings could
+  not be inspected.
+
+Therefore, the effective merge requirements—including required status checks,
+required review count, and any organization-level or inherited policy—are
+**NOT VERIFIED** from the available integration evidence. Do not claim that
+specific checks or a CodeQL ruleset are mandatory based on this document alone.
+The previously documented ruleset ID and legacy `0xzr/freellmpool` API paths
+are not evidence of current enforcement for this repository.
+
+A repository administrator should verify the effective settings read-only in
+GitHub or with an authorized CLI session before making any merge-enforcement
+claim:
 
 ```bash
 REPO=Hasnat26/industrial-rfq-intelligence
@@ -22,7 +56,19 @@ gh api "repos/$REPO/rulesets" \
 gh api "repos/$REPO/rules/branches/main"
 ```
 
-These commands must be run with an identity authorized to read the relevant settings. An authorization error or an empty result is not proof that all other applicable restrictions are absent. Compare required context names with the check runs for the exact pull-request head. After changing workflow job names, update any verified required-check configuration through the approved repository governance process; never remove a required context merely to unblock a merge. Review CodeQL alerts using the applicable GitHub code-scanning workflow and record the rationale for any reviewed false positives.
+These commands must be run with an identity authorized to read the relevant
+settings. An authorization error or an empty result is not proof that all
+other applicable restrictions are absent. Compare required context names with
+the check runs for the exact pull-request head. After changing workflow job
+names, update any verified required-check configuration through the approved
+repository governance process; never remove a required context merely to
+unblock a merge. Review CodeQL alerts using the applicable GitHub
+code-scanning workflow and record the rationale for any reviewed false
+positives.
+
+If access to the protection endpoint is denied, record the result as
+**NOT VERIFIED** rather than inferring that no controls exist. Do not change
+branch protection or rulesets merely to make a pull request mergeable.
 
 ## Runtime security boundaries
 
@@ -45,3 +91,20 @@ These commands must be run with an identity authorized to read the relevant sett
 - `freellmpool doctor` reports strict config syntax/table errors with sanitized
   line, column, and type metadata. It does not echo malformed values, API keys,
   bearer tokens, or other configuration secrets.
+
+## Review and release boundaries
+
+- AI-assisted analysis is not independent human approval.
+- No pull request may be merged without explicit product-owner authorization.
+- A green repository CI run validates the tested commit only; it does not prove
+  the deployed service is running that commit or that hosted tenant isolation,
+  production database recovery, billing, or runtime security has passed.
+- Hosted security tests, production test accounts, production data access, and
+  production configuration changes require an explicitly approved safe scope.
+- Keep procurement qualification deterministic and evidence-based. LLM
+  extraction must not make compliance or award decisions, and no vendor emails
+  or procurement awards may be triggered autonomously.
+
+Update this document only when new live evidence confirms a change in the
+effective controls. Include the check date and the exact verified configuration;
+otherwise retain the **NOT VERIFIED** status.
