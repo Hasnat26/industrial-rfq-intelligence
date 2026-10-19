@@ -95,14 +95,19 @@ is active. Update this file at the end of every meaningful work cycle.
   `f363adc`/`fe44588` baselines are intentionally replaced by this entry; the
   full history remains in git and in the referenced CI runs.
 
-- **Preserved uncommitted work:** a stash entry `local-backlog-followup` on
-  `main` plus copies in `/tmp/preserve/` contain the pre-merge local versions
-  of `scripts/backup_render_db.ps1`, `scripts/backup_render_db.sh`,
-  `docs/DB_BACKUP_RUNBOOK.md`, `pyproject.toml`, and
-  `tests/test_backup_scripts.py`. They predate PRs #114/#115 and must be
-  **merged, not restored wholesale** (the merged versions added schema
-  verification the local versions lack). Drop the stash only after the merge
-  task completes. The stash was not touched by the 2026-10-18 landing cycle.
+- **Preserved uncommitted work — merge task completed (2026-10-19):** the
+  pre-merge local versions of `scripts/backup_render_db.ps1`,
+  `scripts/backup_render_db.sh`, `docs/DB_BACKUP_RUNBOOK.md`, and
+  `pyproject.toml` (stash `local-backlog-followup` + `/tmp/preserve/` copies)
+  were compared against main and superseded by the merged PR #114/#115/#117
+  versions, which are a verified superset (schema verification, live-identity
+  guards, scratch evidence). The only local-only value — the CI pins that
+  main's `tests/test_backup_restore_safety.py` lacked (shell `bash -n`
+  syntax validity; partial-name publish + SHA-256 + `--no-owner`/
+  `--no-privileges` guard tokens; PowerShell argv-credentials prohibition) —
+  is appended to that test file by the PR that lands with this text. The
+  stash `local-backlog-followup` was dropped immediately after that PR
+  merged to `main`; nothing local-only remains preservable.
 - **No production database operations, migrations, or deployments were
   performed during the landing cycle.** Every merge was repository-only.
 

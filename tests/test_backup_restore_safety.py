@@ -1,7 +1,11 @@
 """Offline regression checks for backup/restore verification safety invariants."""
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 POSIX_SCRIPT = ROOT / "scripts" / "backup_render_db.sh"
@@ -115,3 +119,35 @@ def test_runbook_documents_laptop_tooling_and_independent_restore_connection() -
     assert "PGBIN" in runbook
     assert "RESTORE_PGHOST" in runbook
     assert "pg_postmaster_start_time" in runbook
+
+
+def test_shell_script_is_valid_bash() -> None:
+    """CI must reject any shell regression that breaks `bash -n` syntax."""
+    if shutil.which("bash") is None:
+        pytest.skip("bash not available")
+    result = subprocess.run(
+        ["bash", "-n", str(POSIX_SCRIPT)], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_posix_publishes_only_after_toc_and_records_checksum() -> None:
+    """Partial-name publishing and checksum artifacts chained to the archive."""
+    script = POSIX_SCRIPT.read_text(encoding="utf-8")
+    assert 'partial="$archive.partial"' in script
+    assert "$archive.sha256" in script
+    assert "sha256sum" in script
+    for flag in ("--no-owner", "--no-privileges"):
+        assert flag in script
+
+
+def test_powershell_publishes_only_after_toc_and_records_checksum() -> None:
+    script = POWERSHELL_SCRIPT.read_text(encoding="utf-8")
+    assert '$archivePart = "$archive.part"' in script
+    assert "$archive.sha256" in script
+    assert "Get-FileHash -Algorithm SHA256" in script
+    for flag in ("--no-owner", "--no-privileges"):
+        assert flag in script
+    # Credentials are never taken as command-line parameters (argv is visible
+    # in process listings).
+    assert "never accepted as command-line arguments" in script
