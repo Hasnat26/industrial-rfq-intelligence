@@ -5,14 +5,21 @@ is active. Update this file at the end of every meaningful work cycle.
 
 ## Resume state (2026-10-18, full open-PR landing queue drained)
 
-- **Current main commit:** `28b408e02bebad6e4d58dd6e2d376123cc0eb10b`
-  (merge of PR #132).
-- **Current main CI:** Run `39100305393` SUCCESS on
-  `28b408e02bebad6e4d58dd6e2d376123cc0eb10b`; jobs `industrial (3.11)`,
+- **Current main commit:** `42cf9711efdbcffe7184fae231d3ee97d58e9f61`
+  (merge of PR #147, the docs-only post-landing status reconciliation that
+  carries this file).
+- **Checkpoint-staleness rule:** this file is recorded *before* the PR that
+  carries it merges, so the actual main tip is always one docs-only merge
+  commit newer than the SHA recorded here. After landing, verify with
+  `git fetch origin && git log origin/main --oneline -3` and
+  `gh run list --workflow=ci.yml --limit 1`; a newer docs-only merge commit on
+  top of the recorded SHA never changes the runtime or gate facts below.
+- **Current main CI:** Run `39101189850` SUCCESS on
+  `42cf9711efdbcffe7184fae231d3ee97d58e9f61`; jobs `industrial (3.11)`,
   `industrial (3.12)`, `industrial (3.13)`, `industrial (3.14)`, and
-  `postgres-migrations` all succeeded. The docs-only reconciliation PR that
-  carries this file is the only change after that commit; its own run is
-  visible in the [Actions history](https://github.com/Hasnat26/industrial-rfq-intelligence/actions?query=branch%3Amain).
+  `postgres-migrations` all succeeded. The landing-queue tip
+  `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (merge of PR #132) keeps its own
+  green run `39100305393`; PR #147 is docs-only and is the only commit after it.
 - **Landing order executed 2026-10-18** (owner-authorized; every PR was merged
   only after green exact-head CI, and each resulting merge commit was checked
   against its own main run before the next merge — runs that a following merge
@@ -24,6 +31,9 @@ is active. Update this file at the end of every meaningful work cycle.
   `a282ee3` (#138), `404d4da` (#134), `4f3bf47` (#133), `24f3f6c` (#141),
   `393848f` (#140), `56fd4a3` (#128), `f7234ca` (#131), `4dec54c` (#130),
   `28b408e` (#132).
+  After the queue, the docs-only status-reconciliation PR #147 merged as
+  `42cf9711` (2026-10-18); it is the current main tip and modifies
+  documentation only.
 - **Conflicts resolved during the landing** (content preserved on both sides in
   every case; no side was silently dropped):
   - #143 vs #142 in `docs/SECURITY_ENFORCEMENT.md`: synthesis — #142's live
@@ -100,8 +110,11 @@ is active. Update this file at the end of every meaningful work cycle.
 
 - GitHub Actions is the authoritative execution evidence; a local runner was
   used only as pre-merge confirmation on each merged tree.
-- Main CI Run `39100305393` passed all five jobs (`industrial` 3.11/3.12/3.13/3.14
-  and `postgres-migrations`) on `28b408e02bebad6e4d58dd6e2d376123cc0eb10b`. Each
+- Main CI Run `39101189850` passed all five jobs (`industrial` 3.11/3.12/3.13/3.14
+  and `postgres-migrations`) on `42cf9711efdbcffe7184fae231d3ee97d58e9f61`
+  (merge of PR #147, docs-only).
+- Main CI Run `39100305393` passed all five jobs on
+  `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (landing-queue tip, PR #132). Each
   preceding landing merge commit also has its own green main run
   (`6e1d617`, `d450ed6`, `aa4e66f`, `280c499`, `b180c19`, `b66608b`, `1d4ad40`,
   `a282ee3`, `404d4da`, `4f3bf47`, `24f3f6c`, `393848f`, `56fd4a3`, `4dec54c`).
@@ -112,7 +125,9 @@ is active. Update this file at the end of every meaningful work cycle.
 ## Unresolved risks and owner-controlled dependencies
 
 0. Main carries an **undeployed runtime-code delta** relative to the live Render
-   deployment `dep-db6j008n74is73a7thkg` (`f363adc`); re-deployment is an owner
+   deployment `dep-db6j008n74is73a7thkg` (`f363adc`). The delta comes from the
+   landing order's runtime-code changes; the PR #147 reconciliation commit is
+   docs-only and adds no runtime code. Re-deployment is an owner
    decision and was not performed.
 1. Render Free PostgreSQL expires **2026-11-08**, no managed backup (P1-DB-04).
    Owner must re-check the Render dashboard and approve a durable option.
@@ -155,9 +170,11 @@ is active. Update this file at the end of every meaningful work cycle.
 > Continue the Industrial RFQ Intelligence launch work from the repository
 > checkpoint. Verify the current main SHA, latest main CI, and open PRs before
 > acting. As of 2026-10-18 the full open-PR landing queue is drained: main is
-> `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` with CI Run `39100305393` green
-> (all five jobs), PRs #124/#144/#145 are closed as superseded, and no PR
-> remains open. The landed runtime changes are **not deployed** — there is an
+> `42cf9711efdbcffe7184fae231d3ee97d58e9f61` (merge of PR #147, docs-only
+> status reconciliation) with CI Run `39101189850` green (all five jobs);
+> the landing-queue tip `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (PR #132)
+> keeps its own green run `39100305393`. PRs #124/#144/#145 are closed as
+> superseded, and no PR remains open. The landed runtime changes are **not deployed** — there is an
 > undeployed runtime-code delta against the live Render deployment
 > `dep-db6j008n74is73a7thkg` (`f363adc`); do not deploy without owner approval.
 > Hosted readiness is counted at Render platform-log level only (startup +

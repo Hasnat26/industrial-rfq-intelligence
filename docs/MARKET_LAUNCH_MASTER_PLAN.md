@@ -18,10 +18,13 @@ production.
 
 ## Verified baseline (2026-10-18)
 
-- `main` HEAD: `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (merge of PR #132).
-- Main CI Run `39100305393` SUCCESS on that commit — all five jobs
+- `main` HEAD: `42cf9711efdbcffe7184fae231d3ee97d58e9f61` (merge of PR #147,
+  the docs-only post-landing status reconciliation).
+- Main CI Run `39101189850` SUCCESS on that commit — all five jobs
   (`industrial` 3.11/3.12/3.13/3.14 and `postgres-migrations`). Every
-  intermediate merge commit of the landing order also has its own green run.
+  merge commit of the landing order also has its own green run; the
+  landing-queue tip `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (merge of PR
+  #132) keeps Run `39100305393`.
 - **Full open-PR landing order executed 2026-10-18:** #146 → #142 → #143 →
   #136 → #137 → #139 → #135 → #138 → #134 → #133 → #141 → #140 → #128 →
   #131 → #130 → #132, each merged only after green exact-head CI, with
