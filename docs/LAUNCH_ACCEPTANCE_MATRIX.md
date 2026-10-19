@@ -2,7 +2,7 @@
 
 Launch gates tracked independently from implementation work. A task can be
 implemented (repository evidence) while its live acceptance test remains
-unverified. Both facts are shown separately. Updated 2026-10-18 after the full open-PR landing queue was merged into main (`28b408e`, CI Run `39100305393` green, all five jobs); repository evidence and hosted acceptance remain separate.
+unverified. Both facts are shown separately. Updated 2026-10-18 after the full open-PR landing queue was merged into main (landing tip `28b408e`, CI Run `39100305393` green, all five jobs) and after the docs-only reconciliation PR #147 landed as current main tip `42cf9711` with CI Run `39101189850` green; repository evidence and hosted acceptance remain separate.
 
 Legend: PASS = verified with linked evidence. NOT VERIFIED = no execution
 evidence. BLOCKED = owner action required. PARTIAL = partially verified.
@@ -11,7 +11,7 @@ evidence. BLOCKED = owner action required. PARTIAL = partially verified.
 
 | # | Gate | Implementation | Live/acceptance evidence | Result |
 |---|------|----------------|--------------------------|--------|
-| G1 | Main CI green on release commit | CI workflow complete | Run `39100305393` passed all five jobs (`industrial` 3.11/3.12/3.13/3.14 + `postgres-migrations`) on main `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (merge of PR #132), the last commit of the 2026-10-18 landing order | PASS |
+| G1 | Main CI green on release commit | CI workflow complete | Run `39101189850` passed all five jobs (`industrial` 3.11/3.12/3.13/3.14 + `postgres-migrations`) on current main `42cf9711efdbcffe7184fae231d3ee97d58e9f61` (merge of PR #147, docs-only); the landing-queue tip `28b408e02bebad6e4d58dd6e2d376123cc0eb10b` (merge of PR #132) keeps Run `39100305393` green | PASS |
 | G2 | Deployed commit verified separately from code | Render deployment record and event history | Deployment `dep-db6j008n74is73a7thkg` is `live` on exact SHA `f363adc562a494de57cca58c530c99afdfba2818`; `build_ended=succeeded`; `deploy_ended=succeeded` at `2026-10-12T19:09:08.269869Z`. Main now carries an **undeployed runtime-code delta** (`src/freellmpool/api/app.py`, `document_normalizer.py`, `industrial.py`, `industrial_report.py`) from the 2026-10-18 landing order; re-deploying is an owner decision. | PASS (deployed commit); main NOT DEPLOYED |
 | G3 | Migration chain valid | Alembic chain + `p9meta001` index alignment | `postgres-migrations` CI job green (clean PostgreSQL 16, `upgrade head` + `check`) | PASS |
 | G4 | Live schema baseline established | N/A (live-state gate) | Requires owner laptop + allowlisted connection; no live `alembic_version` verified | BLOCKED (P1-DB-01) |
